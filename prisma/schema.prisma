@@ -1,0 +1,624 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"  
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int                   @id @default(autoincrement())
+  email          String                @unique
+  passwordHash   String                @map("password_hash")
+  activo         Boolean               @default(true)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  roles          UserRole[]
+  tokens         PasswordResetToken[]
+
+  @@map("user")
+}
+
+model Role {
+  id         Int             @id @default(autoincrement())
+  nombre     String           @unique
+  permisos   RolePermiso[]
+  usuarios   UserRole[]
+
+  @@map("role")
+}
+
+model Permiso {
+  id        Int             @id @default(autoincrement())
+  nombre    String          @unique
+  roles     RolePermiso[]
+
+  @@map("permiso")
+}
+
+model UserRole {
+  id        Int    @id @default(autoincrement())
+  userId    Int    @map("user_id")
+  roleId    Int    @map("role_id")
+
+  user      User   @relation(fields: [userId], references: [id])
+  role      Role   @relation(fields: [roleId], references: [id])
+
+  @@map("user_role")
+}
+
+model RolePermiso {
+  id          Int      @id @default(autoincrement())
+  roleId      Int      @map("role_id")
+  permisoId   Int      @map("permiso_id")
+
+  role        Role     @relation(fields: [roleId], references: [id])
+  permiso     Permiso  @relation(fields: [permisoId], references: [id])
+
+  @@map("role_permiso")
+}
+
+model PasswordResetToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  tokenHash   String    @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_token")
+}
+
+// ========== MODELOS ==========
+
+model EstadoUso {
+  codigo      String @id @db.VarChar(4)
+  descripcion String @db.VarChar(200)
+
+  giro_zonificacion GiroZonificacion[]
+
+  @@map("estado_uso")
+}
+
+model Zonificacion {
+  id_zonificacion Int     @id @default(autoincrement())
+  codigo          String  @unique @db.VarChar(20)
+  descripcion     String? @db.VarChar(200)
+
+  giro_zonificacion GiroZonificacion[]
+
+  @@map("zonificacion")
+}
+
+model Giro {
+  id_giro Int    @id @default(autoincrement())
+  codigo  String @unique @db.VarChar(100)
+  nombre  String @db.VarChar(500)
+
+  giro_zonificacion GiroZonificacion[]
+
+  @@map("giro")
+}
+
+model GiroZonificacion {
+  id_giro_zonificacion Int    @id @default(autoincrement())
+  id_giro             Int
+  id_zonificacion     Int
+  codigo              String? @db.VarChar(4)
+
+  giro         Giro         @relation(fields: [id_giro], references: [id_giro], map: "fk_gz_giro")
+  zonificacion Zonificacion @relation(fields: [id_zonificacion], references: [id_zonificacion], map: "fk_gz_zonificacion")
+  estado_uso   EstadoUso?   @relation(fields: [codigo], references: [codigo], map: "fk_gz_estado_uso")
+
+  declaracion_jurada_giro DeclaracionJuradaGiro[]
+  
+  @@unique([id_giro, id_zonificacion], name: "uq_gz_giro_zon")
+  @@index([id_giro])
+  @@index([id_zonificacion])
+  @@index([codigo])
+  @@map("giro_zonificacion")
+}
+
+model Persona {
+  id_persona          Int     @id @default(autoincrement())
+  tipo_persona        String  @db.VarChar(10)
+  nombre_razon_social String  @db.VarChar(255)
+  tipo_documento      String? @db.VarChar(10)
+  numero_documento    String? @db.VarChar(20)
+  ruc                 String? @db.VarChar(20)
+  telefono            String? @db.VarChar(20)
+  correo              String? @db.VarChar(100)
+  via_tipo            String? @db.VarChar(20)
+  via_nombre          String? @db.VarChar(100)
+  numero              String? @db.VarChar(10)
+  interior            String? @db.VarChar(10)
+  mz                  String? @db.VarChar(10)
+  lt                  String? @db.VarChar(10)
+  otros               String? @db.VarChar(50)
+  urb_aa_hh_otros     String? @db.VarChar(50)
+  distrito            String? @db.VarChar(50)
+  provincia           String? @db.VarChar(50)
+  departamento        String? @db.VarChar(50)
+
+  representante Representante[]
+  expediente    Expediente[]
+
+  @@map("persona")
+}
+
+model Representante {
+  id_representante       Int     @id @default(autoincrement())
+  id_persona             Int
+  nombres                String? @db.VarChar(255)
+  tipo_documento         String? @db.VarChar(10)
+  numero_documento       String? @db.VarChar(20)
+  sunarp_partida_asiento String? @db.VarChar(100)
+
+  persona Persona @relation(fields: [id_persona], references: [id_persona], map: "fk_representante_persona")
+  expedientes ExpedienteLicencia[]
+
+  @@index([id_persona])
+  @@map("representante")
+}
+
+model Expediente {
+  id_expediente     Int      @id @default(autoincrement())
+  id_persona        Int
+  fecha             DateTime @db.Date
+  numero_expediente String   @db.VarChar(50)
+  estado            String?  @db.VarChar(20)
+  codigo_qr         String?  @db.Text
+
+  persona Persona @relation(fields: [id_persona], references: [id_persona], map: "fk_expediente_persona")  
+
+  expediente_licencia     ExpedienteLicencia[]
+  declaracion_jurada      DeclaracionJurada[]
+  expediente_opciones     ExpedienteOpciones[]
+  declaracion_jurada_giro DeclaracionJuradaGiro[]
+  seguridad_itse          SeguridadItse[]
+  anexos                  Anexos[]
+  pago_tramite            PagoTramite[]
+  fiscalizacion_visita    FiscalizacionVisita[]
+  eventos                 Evento[]
+  autorizacion_via_publica AutorizacionViaPublica[]
+
+  @@index([id_persona])
+  @@map("expediente")
+}
+
+model ExpedienteLicencia {
+  id_expediente_licencia Int       @id @default(autoincrement())
+  id_expediente          Int
+  id_representante       Int?
+  numero_licencia_origen String?   @db.VarChar(50)
+  fecha_recepcion        DateTime  @db.Date
+  tipo_tramite           String?   @db.VarChar(20)
+  modalidad              String?   @db.VarChar(20)
+  fecha_inicio_plazo     DateTime? @db.Date
+  fecha_fin_plazo        DateTime? @db.Date
+  numero_resolucion      String?   @db.VarChar(50)
+  resolucion_fecha       DateTime? @db.Date
+  nueva_denominacion     String?   @db.VarChar(255)
+  numero_certificado     String?   @db.VarChar(50)
+  qr_certificado         String?   @db.Text
+  detalle_otros          String?   @db.Text
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_explicencia_expediente")
+  representante Representante? @relation(fields: [id_representante], references: [id_representante], map: "fk_expediente_representante")
+
+  @@index([id_expediente])
+  @@map("expediente_licencia")
+}
+
+model DeclaracionJurada {
+  id_declaracion              Int       @id @default(autoincrement())
+  id_expediente               Int
+  fecha                       DateTime? @db.Date
+  aceptacion                  Boolean   @default(false)
+  nombre_comercial            String?   @db.VarChar(255)
+  codigo_ciiu                 String?   @db.VarChar(20)
+  actividad                   String?   @db.VarChar(255)
+  zonificacion                String?   @db.VarChar(50)
+  via_tipo                    String?   @db.VarChar(20)
+  via_nombre                  String?   @db.VarChar(100)
+  numero                      String?   @db.VarChar(10)
+  interior                    String?   @db.VarChar(10)
+  mz                          String?   @db.VarChar(10)
+  lt                          String?   @db.VarChar(10)
+  otros                       String?   @db.VarChar(50)
+  urb_aa_hh_otros             String?   @db.VarChar(50)
+  provincia                   String?   @db.VarChar(50)
+  tiene_aut_sectorial         Boolean   @default(false)
+  aut_entidad                 String?   @db.VarChar(100)
+  aut_denominacion            String?   @db.VarChar(255)
+  aut_fecha                   DateTime? @db.Date
+  aut_numero                  String?   @db.VarChar(50)
+  monumento                   Boolean   @default(false)
+  aut_ministerio_cultura      Boolean   @default(false)
+  num_aut_ministerio_cultura  String?   @db.VarChar(50)
+  fecha_aut_ministerio_cultura DateTime? @db.Date
+  area_total_m2               Decimal?  @db.Decimal(10, 2)
+  firmante_tipo               String?   @db.VarChar(20)
+  firmante_nombre             String?   @db.VarChar(255)
+  firmante_doc_tipo           String?   @db.VarChar(10)
+  firmante_doc_numero         String?   @db.VarChar(20)
+  vigencia_poder              Boolean   @default(false)
+  condiciones_seguridad       Boolean   @default(false)
+  titulo_profesional          Boolean   @default(false)
+  observaciones               String?   @db.Text
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_dj_expediente")
+
+  dj_actividades DjActividades[]
+  dj_cesionario  DjCesionario[]
+  dj_constancias DjConstancias[]
+
+  @@index([id_expediente])
+  @@map("declaracion_jurada")
+}
+
+model ExpedienteOpciones {
+  id_expediente_opcion Int   @id @default(autoincrement())
+  id_expediente        Int
+  codigo               String @db.VarChar(50)
+  valor_json           Json?
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_exp_opciones_expediente")
+
+  @@index([id_expediente])
+  @@map("expediente_opciones")
+}
+
+model DeclaracionJuradaGiro {
+  id_dj_giro           Int @id @default(autoincrement())
+  id_expediente        Int
+  id_giro_zonificacion Int
+
+  expediente        Expediente        @relation(fields: [id_expediente], references: [id_expediente], map: "fk_djg_expediente")
+  giro_zonificacion GiroZonificacion  @relation(fields: [id_giro_zonificacion], references: [id_giro_zonificacion], map: "fk_djg_gz")
+
+  @@index([id_expediente])
+  @@index([id_giro_zonificacion])
+  @@map("declaracion_jurada_giro")
+}
+
+model SeguridadItse {
+  id_seguridad          Int       @id @default(autoincrement())
+  id_expediente         Int
+  nivel                 String?   @db.VarChar(10)
+  condiciones_seguridad Boolean   @default(false)
+  modal_itse            String?   @db.VarChar(20)
+  numero_itse           String?   @db.VarChar(50)
+  archivo_itse          String?   @db.VarChar(255)
+  editable              Boolean   @default(false)
+  calificador_nombre    String?   @db.VarChar(255)
+  fecha                 DateTime? @db.Date
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_itse_expediente")
+
+  @@index([id_expediente])
+  @@map("seguridad_itse")
+}
+
+model Anexos {
+  id_anexo      Int      @id @default(autoincrement())
+  id_expediente Int
+  nombre        String?  @db.VarChar(255)
+  ruta          String   @db.VarChar(500)
+  extension     String?  @db.VarChar(10)
+  tamano_bytes  BigInt?
+  hash_archivo  String?  @db.VarChar(128)
+  fecha_subida  DateTime @default(now())
+  tipo_anexo    String?  @db.VarChar(50)
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_anexos_expediente")
+
+  @@index([id_expediente])
+  @@map("anexos")
+}
+
+model Auditoria {
+  id_auditoria   Int      @id @default(autoincrement())
+  tabla_afectada String   @db.VarChar(60)
+  id_registro    String   @db.VarChar(60)
+  accion         String   @db.VarChar(20)
+  usuario        String?  @db.VarChar(100)
+  fecha          DateTime @default(now())
+  cambios        Json?
+
+  @@map("auditoria")
+}
+
+model PagoTramite {
+  id_pago       Int      @id @default(autoincrement())
+  id_expediente Int
+  concepto      String   @db.VarChar(150)
+  nro_recibo    String   @db.VarChar(50)
+  fecha_pago    DateTime @db.Date
+  monto         Decimal  @db.Decimal(12, 2)
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_pago_expediente")
+
+  @@index([id_expediente])
+  @@map("pago_tramite")
+}
+
+model FiscalizacionVisita {
+  id_visita     Int      @id @default(autoincrement())
+  id_expediente Int
+  fecha_visita  DateTime @default(now())
+  resultado     String?  @db.VarChar(50)
+  observaciones String?
+  acta_numero   String?  @db.VarChar(50)
+
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_visita_expediente")
+
+  @@index([id_expediente])
+  @@map("fiscalizacion_visita")
+}
+
+model ActividadCatalogo {
+  id_actividad     Int    @id @default(autoincrement())
+  nombre_actividad String @db.VarChar(255)
+  estado           String? @db.VarChar(10)
+
+  dj_actividades DjActividades[]
+
+  @@map("actividad_catalogo")
+}
+
+model DjActividades {
+  id_dj_actividad Int @id @default(autoincrement())
+  id_declaracion  Int
+  id_actividad    Int
+
+  declaracion_jurada DeclaracionJurada @relation(fields: [id_declaracion], references: [id_declaracion], map: "fk_djact_declaracion")
+  actividad_catalogo ActividadCatalogo @relation(fields: [id_actividad], references: [id_actividad], map: "fk_djact_actividad")
+
+  @@index([id_declaracion])
+  @@index([id_actividad])
+  @@map("dj_actividades")
+}
+
+model DjCesionario {
+  id_cesionario  Int     @id @default(autoincrement())
+  id_declaracion Int
+  nombre_razon   String? @db.VarChar(255)
+  documento      String? @db.VarChar(20)
+
+  declaracion_jurada DeclaracionJurada @relation(fields: [id_declaracion], references: [id_declaracion], map: "fk_djces_declaracion")
+
+  @@index([id_declaracion])
+  @@map("dj_cesionario")
+}
+
+model DjConstancias {
+  id_constancia  Int      @id @default(autoincrement())
+  id_declaracion Int
+  fecha          DateTime @db.Date
+  firma_nombre   String?  @db.VarChar(255)
+  firma_dni      String?  @db.VarChar(20)
+  firma_correo   String?  @db.VarChar(100)
+  firma_celular  String?  @db.VarChar(20)
+  observaciones  String?
+  archivo        String?  @db.VarChar(255)
+
+  declaracion_jurada DeclaracionJurada @relation(fields: [id_declaracion], references: [id_declaracion], map: "fk_djconst_declaracion")
+
+  @@index([id_declaracion])
+  @@map("dj_constancias")
+}
+
+
+
+// ========== AUTORIZACIONES TEMPORALES ==========
+
+
+model CatCategoria {
+  id_categoria Int     @id @default(autoincrement())
+  nombre       String  @db.VarChar(100)
+  slug         String? @db.VarChar(80)
+
+  cat_tipo CatTipo[]
+
+  @@map("cat_categoria")
+}
+
+model CatRequisito {
+  id_requisito Int    @id @default(autoincrement())
+  nombre       String @db.VarChar(200)
+
+  cat_tipo_requisito CatTipoRequisito[]
+  evento_requisito   EventoRequisito[]
+  autorizacion_anexo AutorizacionAnexo[]
+
+  @@map("cat_requisito")
+}
+
+model CatTipo {
+  id_tipo              Int      @id @default(autoincrement())
+  id_categoria         Int
+  key                  String   @db.VarChar(40)
+  titulo               String   @db.VarChar(200)
+  vigencia_text        String?  @db.VarChar(120)
+  presentacion_text    String?  @db.VarChar(160)
+  tarifa_text          String?  @db.Text
+  nota                 String?  @db.Text
+  base_legal           String?  @db.VarChar(200)
+  vigencia_dias        Int?
+  presentacion_min_dh  Int?
+  presentacion_es_hab  Boolean?
+
+  cat_categoria CatCategoria @relation(fields: [id_categoria], references: [id_categoria], map: "fk_tipo_categoria")
+  cat_tipo_requisito CatTipoRequisito[]
+  evento             Evento[]
+
+  @@index([id_categoria])
+  @@map("cat_tipo")
+}
+
+model CatTipoRequisito {
+  id_tipo      Int
+  id_requisito Int
+  orden        Int @default(1)
+
+  cat_tipo      CatTipo       @relation(fields: [id_tipo], references: [id_tipo], map: "fk_ctr_tipo")
+  cat_requisito CatRequisito  @relation(fields: [id_requisito], references: [id_requisito], map: "fk_ctr_requisito")
+
+  @@id([id_tipo, id_requisito])
+  @@map("cat_tipo_requisito")
+}
+
+model Evento {
+  id_evento          Int      @id @default(autoincrement())
+  id_tipo            Int
+  id_expediente      Int
+  numero_licencia    String?  @db.VarChar(50)
+  numero_certificado String?  @db.VarChar(50)
+  actividad          String   @db.VarChar(200)
+  ubicacion          String?  @db.VarChar(200)
+  fecha_registro     DateTime @default(now())
+  estado             String   @default("BORRADOR") @db.VarChar(20)
+
+  cat_tipo   CatTipo    @relation(fields: [id_tipo], references: [id_tipo], map: "fk_evento_tipo")
+  expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_evento_expediente")
+
+  evento_horario   EventoHorario[]
+  evento_requisito EventoRequisito[]
+
+  @@index([id_tipo])
+  @@index([id_expediente])
+  @@map("evento")
+}
+
+model EventoHorario {
+  id_horario   Int      @id @default(autoincrement())
+  id_evento    Int
+  fecha_inicio DateTime @db.Date
+  fecha_fin    DateTime @db.Date
+  hora_inicio  DateTime @db.Time
+  hora_fin     DateTime @db.Time
+
+  evento Evento @relation(fields: [id_evento], references: [id_evento], map: "fk_evento_horario_evento")
+
+  @@index([id_evento])
+  @@map("evento_horario")
+}
+
+model EventoRequisito {
+  id_evento_req Int     @id @default(autoincrement())
+  id_evento     Int
+  id_requisito  Int
+  obligatorio   Boolean @default(true)
+  estado        String  @default("PENDIENTE") @db.VarChar(15)
+  observacion   String?
+
+  evento        Evento        @relation(fields: [id_evento], references: [id_evento], map: "fk_evento_req_evento")
+  cat_requisito CatRequisito  @relation(fields: [id_requisito], references: [id_requisito], map: "fk_evento_req_requisito")
+
+  evento_archivo EventoArchivo[]
+
+  @@index([id_evento])
+  @@index([id_requisito])
+  @@unique([id_evento, id_requisito], map: "uq_evento_requisito_evento_requisito")
+  @@map("evento_requisito")
+}
+
+model EventoArchivo {
+  id_archivo     Int      @id @default(autoincrement())
+  id_evento_req  Int
+  nombre_archivo String   @db.VarChar(260)
+  ruta_almacen   String   @db.VarChar(500)
+  extension      String?  @db.VarChar(10)
+  tamano_bytes   BigInt?
+  hash_archivo   String?  @db.VarChar(128)
+  fecha_subida   DateTime @default(now())
+
+  evento_requisito EventoRequisito @relation(fields: [id_evento_req], references: [id_evento_req], map: "fk_evento_archivo_evento_req")
+
+  @@index([id_evento_req])
+  @@map("evento_archivo")
+}
+
+
+
+// ========== AUTORIZACIONES VIA PUBLICA ==========
+
+model AutorizacionViaPublica {
+  id_auto_viapublica    Int       @id @default(autoincrement())
+  id_expediente         Int
+  fecha_solicitud       DateTime? @db.Date
+  modalidad             String?   @db.VarChar(20)   // AUTORIZACION_MUNICIPAL_TEMPORAL | AUTORIZACION_MUNICIPAL_EXCEPCIONAL
+  fecha_inicio_temporal DateTime? @db.Date
+  fecha_fin_temporal    DateTime? @db.Date
+  otras_referencia      String?   @db.VarChar(100)
+
+  // relations
+  expediente                 Expediente                 @relation(fields: [id_expediente], references: [id_expediente], map: "fk_auto_viapublica_expediente")
+  autorizacion_establecimiento AutorizacionEstablecimiento[]
+  autorizacion_anexo           AutorizacionAnexo[]
+
+  @@index([id_expediente])
+  @@map("autorizacion_via_publica")
+}
+
+model AutorizacionEstablecimiento {
+  id_auto_establecimiento Int     @id @default(autoincrement())
+  id_auto_viapublica      Int
+  modulo_movible          Boolean?
+  modulo_estacionario     Boolean?
+  triciclo                Boolean?
+  vehiculo_motorizado     Boolean?
+  medio_venta             String?  @db.VarChar(100)
+  giro_actividad          String?  @db.VarChar(100)
+  via_tipo                String?  @db.VarChar(20)
+  via_nombre              String?  @db.VarChar(100)
+  numero                  String?  @db.VarChar(10)
+  interior                String?  @db.VarChar(10)
+  mz                      String?  @db.VarChar(10)
+  lt                      String?  @db.VarChar(10)
+  otros                   String?  @db.VarChar(50)
+  urb_aa_hh_otros         String?  @db.VarChar(50)
+  ubicacion               String?  @db.VarChar(200)
+  lat                     Decimal  @db.Decimal(9, 6)
+  lng                     Decimal  @db.Decimal(9, 6)
+  map_zoom                Int?     @default(17)
+
+  // relations
+  autorizacion_via_publica AutorizacionViaPublica @relation(fields: [id_auto_viapublica], references: [id_auto_viapublica], map: "fk_auto_establecimiento_viapublica")
+
+  @@index([id_auto_viapublica])
+  @@map("autorizacion_establecimiento")
+}
+
+model AutorizacionAnexo {
+  id_autorizacion_anexo Int      @id @default(autoincrement())
+  id_auto_viapublica    Int
+  id_requisito          Int
+  nombre_archivo        String   @db.VarChar(260)
+  ruta_almacen          String   @db.VarChar(500)
+  extension             String?  @db.VarChar(10)
+  tamano_bytes          BigInt?
+  hash_archivo          String?  @db.VarChar(128)
+  fecha_subida          DateTime @default(now())
+
+  // relations
+  autorizacion_via_publica AutorizacionViaPublica @relation(fields: [id_auto_viapublica], references: [id_auto_viapublica], map: "fk_autanexo_viapublica")
+  cat_requisito            CatRequisito           @relation(fields: [id_requisito], references: [id_requisito], map: "fk_autanexo_requisito")
+
+  @@index([id_auto_viapublica])
+  @@index([id_requisito])
+  @@map("autorizacion_anexo")
+}

@@ -1,0 +1,285 @@
+// ciudadano
+
+model Ciudadano {
+  id_ciudadano        Int                      @id @default(autoincrement())
+  tipo_persona        String                   @db.VarChar(20)
+  nombre_razon_social String                   @db.VarChar(150)
+  ruc                 String                   @db.VarChar(20)
+  dni_ce              String?                  @db.VarChar(15)
+  direccion           String?                  @db.Text
+  correo              String?                  @db.VarChar(100)
+  telefono            String?                  @db.VarChar(20)
+
+  // relaciones
+  licencias                 LicenciaFuncionamiento[]
+  autorizaciones_temporales AutorizacionTemporal[]
+  autorizaciones_via_publica AutorizacionViaPublica[]
+
+  @@map("ciudadano")
+}
+
+// licencia_funcionamiento
+model LicenciaFuncionamiento {
+  id_licencia        Int       @id @default(autoincrement())
+  id_ciudadano       Int
+  numero_expediente  String?   @db.VarChar(30)
+  numero_resolucion  String?   @db.VarChar(30)
+  numero_certificado String?   @db.VarChar(30)
+  fecha_solicitud    DateTime? @db.Date
+  fecha_emision      DateTime? @db.Date
+  fecha_vencimiento  DateTime? @db.Date
+  nombre_comercial   String?   @db.VarChar(150)
+  giro_actividad     String?   @db.VarChar(200)
+  zonificacion       String?   @db.VarChar(50)
+  area_total_m2      Decimal?  @db.Decimal(10, 2)
+  riesgo             String?   @db.VarChar(20)
+  estado             String?   @db.VarChar(20)
+  codigo_qr          String?   @db.Text
+
+  // relaciones
+  ciudadano        Ciudadano                   @relation(fields: [id_ciudadano], references: [id_ciudadano])
+  declaraciones    DeclaracionJuradaLicencia[]
+  vigencias_poder  DeclaracionVigenciaPoder[]
+  titulos_prof     DeclaracionTituloProfesional[]
+  autorizaciones   AutorizacionSectorial[]
+  evaluaciones     EvaluacionTecnica[]
+  fiscalizaciones  Fiscalizacion[]
+  requisitos       RequisitoLicencia[]
+
+  @@map("licencia_funcionamiento")
+}
+
+// declaracion_jurada_licencia
+model DeclaracionJuradaLicencia {
+  id_declaracion    Int       @id @default(autoincrement())
+  id_licencia       Int
+  tipo_declaracion  String?   @db.VarChar(50)
+  fecha             DateTime? @db.Date
+  observaciones     String?   @db.Text
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("declaracion_jurada_licencia")
+}
+
+// declaracion_vigencia_poder
+model DeclaracionVigenciaPoder {
+  id_vigencia        Int       @id @default(autoincrement())
+  id_licencia        Int
+  representante_legal String?  @db.VarChar(150)
+  partida_sunarp     String?   @db.VarChar(50)
+  asiento            String?   @db.VarChar(50)
+  fecha              DateTime? @db.Date
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("declaracion_vigencia_poder")
+}
+
+// declaracion_titulo_profesional
+model DeclaracionTituloProfesional {
+  id_titulo          Int       @id @default(autoincrement())
+  id_licencia        Int
+  nombre_titulo      String?   @db.VarChar(150)
+  institucion        String?   @db.VarChar(150)
+  fecha_emision      DateTime? @db.Date
+  colegio_profesional String?  @db.VarChar(150)
+  nro_colegiatura    String?   @db.VarChar(50)
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("declaracion_titulo_profesional")
+}
+
+// autorizacion_sectorial
+model AutorizacionSectorial {
+  id_autorizacion      Int       @id @default(autoincrement())
+  id_licencia          Int
+  entidad_otorgante    String?   @db.VarChar(150)
+  denominacion         String?   @db.VarChar(150)
+  numero_autorizacion  String?   @db.VarChar(50)
+  fecha_autorizacion   DateTime? @db.Date
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("autorizacion_sectorial")
+}
+
+// evaluacion_tecnica
+model EvaluacionTecnica {
+  id_evaluacion    Int       @id @default(autoincrement())
+  id_licencia      Int
+  area_responsable String?   @db.VarChar(100)
+  resultado        String?   @db.VarChar(50)
+  fecha_evaluacion DateTime? @db.Date
+  observaciones    String?   @db.Text
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("evaluacion_tecnica")
+}
+
+// fiscalizacion (sobre licencia)
+model Fiscalizacion {
+  id_fiscalizacion     Int       @id @default(autoincrement())
+  id_licencia          Int
+  fecha_visita         DateTime? @db.Date
+  infraccion_detectada String?   @db.Text
+  resultado            String?   @db.VarChar(50)
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("fiscalizacion")
+}
+
+// requisito_licencia
+model RequisitoLicencia {
+  id_requisito       Int       @id @default(autoincrement())
+  id_licencia        Int
+  tipo_requisito     String?   @db.VarChar(100)
+  descripcion        String?   @db.Text
+  fecha_presentacion DateTime? @db.Date
+  cumplido           Boolean?  @default(false)
+
+  licencia LicenciaFuncionamiento @relation(fields: [id_licencia], references: [id_licencia])
+
+  @@map("requisito_licencia")
+}
+
+
+// ==========================================
+// SUBPROCESO: AUTORIZACIONES TEMPORALES
+// ==========================================
+
+model AutorizacionTemporal {
+  id_autorizacion   Int       @id @default(autoincrement())
+  id_ciudadano      Int
+  id_tipo           Int
+  numero_autorizacion String?  @db.VarChar(30)
+  fecha_solicitud   DateTime? @db.Date
+  fecha_emision     DateTime? @db.Date
+  fecha_inicio      DateTime? @db.Date
+  fecha_fin         DateTime? @db.Date
+  ubicacion         String?   @db.VarChar(200)
+  aforo             Int?
+  estado            String?   @db.VarChar(20)
+  codigo_qr         String?   @db.Text
+
+  // relaciones
+  ciudadano Ciudadano                 @relation(fields: [id_ciudadano], references: [id_ciudadano])
+  tipo      TipoAutorizacionTemporal  @relation(fields: [id_tipo], references: [id_tipo])
+  requisitos RequisitoAutorizacionTemporal[]
+  fiscalizaciones FiscalizacionTemporal[]
+
+  @@map("autorizacion_temporal")
+}
+
+model TipoAutorizacionTemporal {
+  id_tipo     Int     @id @default(autoincrement())
+  nombre_tipo String? @db.VarChar(100)
+  descripcion String? @db.Text
+
+  autorizaciones AutorizacionTemporal[]
+
+  @@map("tipo_autorizacion_temporal")
+}
+
+model RequisitoAutorizacionTemporal {
+  id_requisito       Int       @id @default(autoincrement())
+  id_autorizacion    Int
+  tipo_requisito     String?   @db.VarChar(100)
+  descripcion        String?   @db.Text
+  fecha_presentacion DateTime? @db.Date
+  cumplido           Boolean?  @default(false)
+
+  autorizacion AutorizacionTemporal @relation(fields: [id_autorizacion], references: [id_autorizacion])
+
+  @@map("requisito_autorizacion_temporal")
+}
+
+model FiscalizacionTemporal {
+  id_fiscalizacion Int       @id @default(autoincrement())
+  id_autorizacion  Int
+  fecha_visita     DateTime? @db.Date
+  observaciones    String?   @db.Text
+  resultado        String?   @db.VarChar(50)
+
+  autorizacion AutorizacionTemporal @relation(fields: [id_autorizacion], references: [id_autorizacion])
+
+  @@map("fiscalizacion_temporal")
+}
+
+// ==========================================
+// SUBPROCESO: AUTORIZACIÓN EN VÍA PÚBLICA - EMPRENDEDORES
+// ==========================================
+
+model AutorizacionViaPublica {
+  id_autorizacion    Int       @id @default(autoincrement())
+  id_ciudadano       Int
+  numero_autorizacion String?  @db.VarChar(30)
+  fecha_solicitud    DateTime? @db.Date
+  fecha_emision      DateTime? @db.Date
+  fecha_vencimiento  DateTime? @db.Date
+  giro_actividad     String?   @db.VarChar(150)
+  ubicacion          String?   @db.VarChar(200)
+  estado             String?   @db.VarChar(20)
+  codigo_qr          String?   @db.Text
+
+  // relaciones
+  ciudadano        Ciudadano                     @relation(fields: [id_ciudadano], references: [id_ciudadano])
+  medios_venta     MedioVenta[]
+  declaraciones    DeclaracionJuradaViaPublica[]
+  requisitos       RequisitoAutorizacion[]
+  fiscalizaciones  FiscalizacionAutorizacion[]
+
+  @@map("autorizacion_via_publica")
+}
+
+model MedioVenta {
+  id_medio      Int     @id @default(autoincrement())
+  id_autorizacion Int
+  tipo_medio    String? @db.VarChar(50)
+  descripcion   String? @db.Text
+  foto_url      String? @db.Text
+  croquis_url   String? @db.Text
+
+  autorizacion AutorizacionViaPublica @relation(fields: [id_autorizacion], references: [id_autorizacion])
+
+  @@map("medio_venta")
+}
+
+model DeclaracionJuradaViaPublica {
+  id_declaracion Int       @id @default(autoincrement())
+  id_autorizacion Int
+  fecha          DateTime? @db.Date
+  compromisos    String?   @db.Text
+
+  autorizacion AutorizacionViaPublica @relation(fields: [id_autorizacion], references: [id_autorizacion])
+
+  @@map("declaracion_jurada_via_publica")
+}
+
+model RequisitoAutorizacion {
+  id_requisito       Int       @id @default(autoincrement())
+  id_autorizacion    Int
+  tipo_requisito     String?   @db.VarChar(100)
+  descripcion        String?   @db.Text
+  fecha_presentacion DateTime? @db.Date
+  cumplido           Boolean?  @default(false)
+
+  autorizacion AutorizacionViaPublica @relation(fields: [id_autorizacion], references: [id_autorizacion])
+
+  @@map("requisito_autorizacion")
+}
+
+model FiscalizacionAutorizacion {
+  id_fiscalizacion Int       @id @default(autoincrement())
+  id_autorizacion  Int
+  fecha_visita     DateTime? @db.Date
+  observaciones    String?   @db.Text
+  resultado        String?   @db.VarChar(50)
+
+  autorizacion AutorizacionViaPublica @relation(fields: [id_autorizacion], references: [id_autorizacion])
+
+  @@map("fiscalizacion_autorizacion")
+}

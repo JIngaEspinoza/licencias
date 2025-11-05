@@ -1,0 +1,42 @@
+[
+  {
+    "codigo": "RDB",
+    "descripcion": "Residencial de Densidad Baja"
+  },
+  {
+    "codigo": "RDM",
+    "descripcion": "Residencial de Densidad Media"
+  },
+  {
+    "codigo": "RDA",
+    "descripcion": "Residencial de Densidad Alta"
+  },
+  {
+    "codigo": "VT",
+    "descripcion": "Vivienda Taller"
+  },
+  {
+    "codigo": "CV",
+    "descripcion": "Comercio Vecinal"
+  },  
+  {
+    "codigo": "CZ",
+    "descripcion": "Comercio Zonal"
+  },  
+  {
+    "codigo": "CM",
+    "descripcion": "Comercio Metropolitano"
+  },
+  {
+    "codigo": "I-1",
+    "descripcion": "Industria Elemental y Liviana"
+  },
+  {
+    "codigo": "I-2",
+    "descripcion": "Industria Liviana y Mediana"
+  },
+  {
+    "codigo": "I-3",
+    "descripcion": "Industria Pesada"
+  }
+]
