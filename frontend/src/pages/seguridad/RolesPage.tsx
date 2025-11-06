@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
-import { usersApi } from "../../services/usersService";
 import { rolesApi } from "../../services/rolesService";
 import { permisosApi } from "../../services/permisosService";
 import { rolePermisoApi } from "../../services/role-permisoService";
-import { userRoleApi } from "../../services/users-roleService";
 
 import { Permiso } from "@/types/Permiso";
-import { User } from "@/types/User";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
-import { motion } from "framer-motion";
 import { Play, Plus, Pencil, Trash2, Shield, Users, Key, Edit2, Search  } from "lucide-react";
 import { Toast } from "../../lib/toast";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -19,8 +15,9 @@ import { Badge } from "../../types/components/ui/badge";
 import { Checkbox } from "../../types/components/ui/checkbox";
 import type { CheckedState } from "@radix-ui/react-checkbox";
 import { Button } from "../../types/components/ui/button";
-import { Switch } from "../../types/components/ui/switch";
-import { UserRole } from "@/types/User-role";
+import { Label } from "../../types/components/ui/label";
+import { Input } from "../../types/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
 
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -164,98 +161,167 @@ export default function RolesPage() {
         });
     }
 
-    return (
-        <div className="min-h-[90vh] w-full p-6">
+    function CrearRol({ onCreate }: { onCreate: (nombre: string) => void }) {
+        const [nombre, setNombre] = useState("");
+        return (
+            <div className="flex gap-2 items-end">
             <div>
-                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Roles</h1>
-                    <p className="text-sm text-gray-500">Listado de Roles</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" size={18} />
-                    <input
-                        value={q}
-                        onChange={(e) => {
-                            setPage(1);
-                            setQ(e.target.value);
-                        }}
-                        placeholder="Buscar por nombre"
-                        className="w-72 rounded-lg border border-gray-300 bg-white py-1.5 pl-9 pr-3 text-xs sm:text-sm outline-none ring-0 transition focus:border-gray-400"
-                    />
-                    </div>
-                    <button
-                        
-                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-                    >
-                    <Plus size={18} /> Nuevo
-                    </button>
-                </div>
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm mb-4">
-                <table className="min-w-full table-auto text-left text-xs sm:text-sm">
-                    <thead className="bg-gray-50 text-gray-700">
-                    <tr>
-                        <th className="text-left p-3">ID</th>
-                        <th className="text-left p-3">Nombre</th>
-                        <th className="text-left p-3">Permisos</th>
-                        <th className="text-left p-3">Acciones</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                        {roleRows.map((r) => {
-                        const deleting = !!deletingIds.rol[r.id];
-                        return (
-                            <tr key={r.id} className="border-t last:border-b">
-                            <td className="p-3">{r.id}</td>
-                            <td className="p-3">{r.nombre}</td>
-                            <td className="p-3">
-                                <div className="flex flex-wrap gap-2">
-                                {permisosOfRole(r.id).map(p => (
-                                <Badge key={p.id} className="rounded-2xl px-3 py-1">
-                                    {p.nombre}
-                                </Badge>
-                                ))}
-                                </div>
-                            </td>
-                            <td className="px-4 py-3">
-                                <div className="flex justify-end gap-2">
-                                <EditorPermisosDeRol
-                                    role={r}
-                                    allPerms={permisoRows}
-                                    selectedPermIds={rolePermisoRows.filter(rp => rp.roleId === r.id).map(rp => rp.permisoId)}
-                                    onChangePerms={(ids) => setPermsForRole(r.id, ids)}
-                                    />
-                                <button
-                                    
-                                    className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
-                                    title="Editar permiso" >
-                                    <Edit2 size={16} /> Editar
-                                </button>
-                                <button
-                                    
-                                    disabled={deleting}
-                                    className={cn(
-                                    "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
-                                    deleting
-                                        ? "border-gray-300 text-gray-400 cursor-not-allowed"
-                                        : "border-red-300 text-red-600 hover:bg-red-50"
-                                    )}
-                                    title="Eliminar rol" >
-                                    <Trash2 size={16} />
-                                    {deleting ? "Eliminando…" : "Eliminar"}
-                                </button>
-                                </div>
-                            </td>
-                            </tr>
-                        )
-                        })}
-                    </tbody>
-                </table>
-                </div>
+                <Label>Nombre del rol</Label>
+                <Input placeholder="ADMIN" value={nombre} onChange={(e) => setNombre(e.target.value)} />
             </div>
-        </div>
-    );
+            <Button className="rounded-xl" onClick={() => { onCreate(nombre.trim()); setNombre(""); }}>
+                <Plus className="w-4 h-4 mr-2"/> Crear
+            </Button>
+            </div>
+        );
+    }
 
+    async function createRole(nombre: string) {
+        const name = nombre.trim();
+        if (!name) return;
+
+        if (roleRows.some(r => r.nombre.toLocaleLowerCase() === name.toLowerCase())) {
+            await swalError("Ese rol ya existe");
+        }
+
+        try {
+            const created = await rolesApi.create({nombre: nombre});
+            setRoleRows(prev => [...prev, created]);
+        } catch (e: any) {
+            if (e?.status === 409) {
+                await swalError(e?.message ?? "El rol ya existe");
+                return;
+            }
+            throw e;
+        }
+    }
+
+    async function deleteRole(id: number, nombre: string) {
+        const ok = await swalConfirm({
+            title: "¿Eliminar rol?",
+            text: `Se eliminará "${nombre}". Esta acción no se puede deshacer.`,
+            icon: "warning",
+            confirmButtonText: "Sí, eliminar",
+        });
+        if (!ok) return;
+
+        setDeletingIds((prev) => ({ ...prev, rol: { ...prev.rol, [id]: true } }));
+        try {
+            await rolesApi.remove(id);
+            Toast.fire({ icon: "warning", title: "Rol eliminado" });
+
+            const { data, total } = await rolesApi.list(dq, page, limit);
+            setRoleRows(data);
+            setTotal(total);
+
+        } catch (err: any) {
+            await swalError(err?.message ?? "Error al eliminar rol");
+        } finally {
+            setDeletingIds((prev) => ({ ...prev, rol: { ...prev.rol, [id]: false } }));
+        }
+    }
+
+    function EditorRol({ role, onSave, onCancel }: { role: Role; onSave: (r: Role) => void; onCancel: () => void }) {
+        const [nombre, setNombre] = useState(role.nombre);
+        return (
+            <div className="border rounded-2xl p-4 space-y-3 bg-zinc-50">
+            <h3 className="font-semibold">Renombrar rol #{role.id}</h3>
+            <div>
+                <Label>Nombre</Label>
+                <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2">
+                <Button variant="secondary" className="rounded-xl" onClick={onCancel}>Cancelar</Button>
+                <Button className="rounded-xl" onClick={() => onSave({ ...role, nombre })}>Guardar</Button>
+            </div>
+            </div>
+        );
+    }
+
+    function updateRole(r: Role) {
+        setRoleRows(prev => prev.map(x => x.id === r.id ? r : x));
+        setEditingRole(null);
+    }
+
+    return (
+        <Card className="rounded-2xl shadow">
+            <CardHeader>
+                <CardTitle>Roles</CardTitle>
+                <CardDescription>Administra los roles y sus permisos</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+                <div className="flex items-end gap-3 flex-wrap">
+                  <div className="grow">
+                    <Label htmlFor="buscarR">Buscar por nombre</Label>
+                    <Input id="buscarR" placeholder="ADMIN" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} />
+                  </div>
+                  <CrearRol onCreate={createRole} />
+                </div>
+
+                <div className="overflow-auto border rounded-xl">
+                    <table className="w-full text-sm">
+                        <thead className="bg-zinc-50">
+                            <tr>
+                                <th className="text-left p-3">Id</th>
+                                <th className="text-left p-3">Nombre</th>
+                                <th className="text-left p-3">Permisos</th>
+                                <th className="text-right p-3">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {roleRows.map((r) => {
+                            const deleting = !!deletingIds.rol[r.id];
+                            return (
+                                <tr key={r.id} className="border-t">
+                                <td className="p-3">{r.id}</td>
+                                <td className="p-3">{r.nombre}</td>
+                                <td className="p-3">
+                                    <div className="flex flex-wrap gap-2">
+                                        {permisosOfRole(r.id).map(p => (
+                                        <Badge key={p.id} className="rounded-2xl px-3 py-1">
+                                            {p.nombre}
+                                        </Badge>
+                                        ))}
+                                    </div>
+                                </td>
+                                <td className="p-3">
+                                    <div className="flex justify-end gap-2">
+                                        <EditorPermisosDeRol
+                                            role={r}
+                                            allPerms={permisoRows}
+                                            selectedPermIds={rolePermisoRows.filter(rp => rp.roleId === r.id).map(rp => rp.permisoId)}
+                                            onChangePerms={(ids) => setPermsForRole(r.id, ids)}
+                                        />
+                                        
+                                        <Button size="sm" 
+                                            variant="outline" 
+                                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                                            onClick={() => setEditingRole(r)}><Pencil className="w-4 h-4 mr-1"/>Renombrar</Button>
+                                        
+                                        <Button 
+                                            onClick={() => deleteRole(r.id, r.nombre)}
+                                            disabled={deleting}
+                                            className={cn(
+                                                "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
+                                                deleting
+                                                    ? "border-gray-300 text-gray-400 cursor-not-allowed"
+                                                    : "border-red-300 text-red-600 hover:bg-red-50"
+                                            )}
+                                            size="sm" 
+                                            variant="outline"
+                                            ><Trash2 className="w-4 h-4 mr-1"/>Eliminar</Button>
+                                    </div>
+                                </td>
+                                </tr>
+                            )
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                {editingRole && (
+                  <EditorRol key={editingRole.id} role={editingRole} onSave={updateRole} onCancel={() => setEditingRole(null)} />
+                )}
+            </CardContent>
+        </Card>        
+    );
 }

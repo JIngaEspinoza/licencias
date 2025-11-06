@@ -260,7 +260,7 @@ export default function UsuariosPage() {
       setTotal(total);
 
     } catch (err: any) {
-      await swalError(err?.message ?? "Error al eliminar persona");
+      await swalError(err?.message ?? "Error al eliminar permiso");
     } finally {
       setDeletingIds((prev) => ({ ...prev, per: { ...prev.per, [id]: false } }));
     }
