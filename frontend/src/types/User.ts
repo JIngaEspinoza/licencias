@@ -1,15 +1,14 @@
 export interface User {
   id: number;
   email: string;
+  passwordHash: string;
   activo: boolean;
   createdAt: string;
   updatedAt: string;
-  //roles: { role: { id: number; nombre: string } }[];
-  //roles: { id: number; nombre: string }[];
 }
 
-export type UserCreate = Omit<User, "id" | "roles"> & {
-  password: string;
-  roleIds?: number[];
+export type UserCreate = Omit<User, "id" | "createdAt" | "updatedAt"> & {
+  email: string;
+  passwordHash: string;
 };
 export type UserUpdate = Partial<UserCreate>;

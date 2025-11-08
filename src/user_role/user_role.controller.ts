@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { UserRoleService } from './user_role.service';
 import { CreateUserRoleDto } from './dto/create-user_role.dto';
 import { UpdateUserRoleDto } from './dto/update-user_role.dto';
@@ -31,4 +31,13 @@ export class UserRoleController {
   remove(@Param('id') id: string) {
     return this.userRoleService.remove(+id);
   }
+
+  @Delete('user/:userId/role/:roleId')
+  async removeByComposite(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('roleId', ParseIntPipe) roleId: number,
+  ) {
+    return this.userRoleService.removeByComposite(userId, roleId);
+  }
+  
 }

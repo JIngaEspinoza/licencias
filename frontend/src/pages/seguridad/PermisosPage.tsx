@@ -6,6 +6,11 @@ import { Edit2, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { permisosApi } from "../../services/permisosService";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
+import { Label } from "../../types/components/ui/label";
+import { Input } from "../../types/components/ui/input";
+import { Button } from "../../types/components/ui/button";
+import { motion } from "framer-motion";
 
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -167,139 +172,132 @@ export default function PermisoPage() {
     }
 
     return (
-        <div className="min-h-[90vh] w-full p-6">           
-            <div>
-                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Permisos</h1>
-                    <p className="text-sm text-gray-500">Listado de permisos</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" size={18} />
-                        <input
-                        value={q}
-                        onChange={(e) => {
-                            setPage(1);
-                            setQ(e.target.value);
-                        }}
-                        placeholder="Buscar por nombre"
-                        className="w-72 rounded-lg border border-gray-300 bg-white py-1.5 pl-9 pr-3 text-xs sm:text-sm outline-none ring-0 transition focus:border-gray-400"
-                        />
-                    </div>
-                    <button
-                        onClick={onOpenNewPermiso}
-                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-                    >
-                        <Plus size={18} /> Nuevo
-                    </button>
-                    </div>
-                </div>
+      <Card className="rounded-2xl shadow">
+        <CardHeader>
+          <CardTitle>Permisos</CardTitle>
+          <CardDescription>Administra los permisos</CardDescription>
+        </CardHeader>
 
-                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm mb-4">
-                    <table className="min-w-full table-auto text-left text-xs sm:text-sm">
-                    <thead className="bg-gray-50 text-gray-700">
-                        <tr>
-                        <th className="text-left p-3">ID</th>
-                        <th className="text-left p-3">Nombre</th>
-                        <th className="text-right p-3">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {!loading && permisoRows.length === 0 && (
-                        <tr>
-                            <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                            No hay resultados.
-                            </td>
-                        </tr>
-                        )}
-                        {permisoRows.map((p) => {
-                        const deleting = !!deletingIds.per[p.id];
-                        return (
-                            <tr key={p.id} className="border-t last:border-b">
-                            <td className="p-3">{p.id}</td>
-                            <td className="p-3">{p.nombre}</td>
-                            <td className="px-4 py-3">
-                                <div className="flex justify-end gap-2">
-                                <button
-                                    onClick={() => onOpenEditPermiso(p)}
-                                    className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
-                                    title="Editar permiso" >
-                                    <Edit2 size={16} /> Editar
-                                </button>
-                                <button
-                                    onClick={() => onDeletePermiso(p.id, p.nombre)}
-                                    disabled={deleting}
-                                    className={cn(
-                                    "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
-                                    deleting
-                                        ? "border-gray-300 text-gray-400 cursor-not-allowed"
-                                        : "border-red-300 text-red-600 hover:bg-red-50"
-                                    )}
-                                    title="Eliminar permiso" >
-                                    <Trash2 size={16} />
-                                    {deleting ? "Eliminando…" : "Eliminar"}
-                                </button>
-                                </div>
-                            </td>
-                            </tr>
-                        );
-                        })}
-                    </tbody>
-                    </table>
-                </div>
-
-                <Pagination
-                    page={page}
-                    limit={limit}
-                    total={total}
-                    onPageChange={setPage}
-                />
-
-                <Modal
-                    open={openPermiso}
-                    onClose={() => setOpenPermiso(false)}
-                    title={editingPermiso?.id ? "Editar permiso" : "Nuevo permiso"}
-                >
-                    <form onSubmit={onSubmitPermiso} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="md:col-span-2">
-                        <label className="mb-1 block text-sm font-medium">Nombre</label>
-                        <input
-                        name="nombre"
-                        defaultValue={editingPermiso?.nombre ?? ""}
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                        required
-                        />
-                    </div>
-
-                    <div className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
-                        <button
-                        type="button"
-                        onClick={() => setOpenPermiso(false)}
-                        className="rounded-xl border border-gray-300 px-3 py-1.5 text-xs sm:text-sm hover:bg-gray-50"
-                        disabled={permisoSaving}
-                        > Cancelar
-                        </button>
-
-                        <button
-                        type="submit"
-                        className="rounded-xl bg-black px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50"
-                        disabled={permisoSaving}
-                        >
-                        {permisoSaving
-                            ? "Guardando…"
-                            : editingPermiso?.id
-                            ? "Guardar cambios"
-                            : "Crear"}
-                        </button>
-                    </div>
-                    </form>
-
-                </Modal>
-
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="grow">
+              <Label htmlFor="buscarR">Buscar por nombre</Label>
+              <Input id="buscarR" placeholder="ADMIN" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} />
             </div>
             
-        </div>
-    );
+            <button
+              onClick={onOpenNewPermiso}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
+            >
+              <Plus size={18} className="w-4 h-4 mr-2" /> Nuevo
+            </button>
+          </div>
 
+          <div className="overflow-auto border rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50">
+                <tr>
+                  <th className="text-left p-3">ID</th>
+                  <th className="text-left p-3">Nombre</th>
+                  <th className="text-right p-3">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!loading && permisoRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                    No hay resultados.
+                    </td>
+                  </tr>
+                )}
+                {permisoRows.map((p) => {
+                  const deleting = !!deletingIds.per[p.id];
+                  return (
+                    <tr key={p.id} className="border-t last:border-b">
+                      <td className="p-3">{p.id}</td>
+                      <td className="p-3">{p.nombre}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                        <Button
+                          onClick={() => onOpenEditPermiso(p)}
+                          variant="outline" 
+                          className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
+                          title="Editar permiso" >
+                          <Edit2 size={16} /> Editar
+                        </Button>
+                        <Button size="sm" 
+                          onClick={() => onDeletePermiso(p.id, p.nombre)}
+                          disabled={deleting}
+                          variant="outline" 
+                          className={cn(
+                          "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
+                          deleting
+                              ? "border-gray-300 text-gray-400 cursor-not-allowed"
+                              : "border-red-300 text-red-600 hover:bg-red-50"
+                          )}
+                          title="Eliminar permiso" >
+                          <Trash2 size={16} />
+                          {deleting ? "Eliminando…" : "Eliminar"}
+                        </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            page={page}
+            limit={limit}
+            total={total}
+            onPageChange={setPage}
+          />
+
+          <Modal
+            open={openPermiso}
+            onClose={() => setOpenPermiso(false)}
+            title={editingPermiso?.id ? "Editar permiso" : "Nuevo permiso"}
+          >
+          <form onSubmit={onSubmitPermiso} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm font-medium">Nombre</label>
+              <input
+              name="nombre"
+              defaultValue={editingPermiso?.nombre ?? ""}
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+              required
+              />
+            </div>
+
+            <div className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setOpenPermiso(false)}
+                className="rounded-xl border border-gray-300 px-3 py-1.5 text-xs sm:text-sm hover:bg-gray-50"
+                disabled={permisoSaving}
+                > Cancelar
+              </button>
+
+              <button
+                type="submit"
+                className="rounded-xl bg-black px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50"
+                disabled={permisoSaving}
+                >
+                {permisoSaving
+                    ? "Guardando…"
+                    : editingPermiso?.id
+                    ? "Guardar cambios"
+                    : "Crear"}
+              </button>
+            </div>
+          </form>
+
+        </Modal>
+        
+        </CardContent>
+        
+      </Card>
+    );
 }

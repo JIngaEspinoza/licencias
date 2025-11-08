@@ -16,11 +16,18 @@ export const usersApi = {
 
   update: (id: number, payload: UserUpdate) =>
     http<User>(`${BASE_PATH}/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(payload),
       auth: true,
     }),
 
   remove: (id: number) =>
     http(`${BASE_PATH}/${id}`, { method: "DELETE", auth: true }),
+
+  changePassword: (id: number, password: string) =>
+    http<void>(`${BASE_PATH}/${id}/password`, {
+      method: "PATCH",
+      body: JSON.stringify({password}),
+      auth: true,
+    })
 };

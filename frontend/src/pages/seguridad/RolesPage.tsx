@@ -98,27 +98,27 @@ export default function RolesPage() {
         const [saving, setSaving] = useState(false);
 
         async function togglePersist(permId: number, checked: boolean) {
-        const prev = ids;
-        const next = checked ? [...ids, permId] : ids.filter(x => x !== permId);
+            const prev = ids;
+            const next = checked ? [...ids, permId] : ids.filter(x => x !== permId);
 
-        setIds(next);
-        onChangePerms(next);
+            setIds(next);
+            onChangePerms(next);
 
-        try {
-            setSaving(true);
-            if (checked) {
-            await rolePermisoApi.create({ roleId: role.id, permisoId: permId });
-            } else {
-            await rolePermisoApi.removeByComposite({ roleId: role.id, permisoId: permId });
+            try {
+                setSaving(true);
+                if (checked) {
+                    await rolePermisoApi.create({ roleId: role.id, permisoId: permId });
+                } else {
+                    await rolePermisoApi.removeByComposite({ roleId: role.id, permisoId: permId });
+                }
+            } catch (err) {
+                setIds(prev);
+                onChangePerms(prev);
+                console.error(err);
+                alert("No se pudo guardar el cambio de permiso.");
+            } finally {
+                setSaving(false);
             }
-        } catch (err) {
-            setIds(prev);
-            onChangePerms(prev);
-            console.error(err);
-            alert("No se pudo guardar el cambio de permiso.");
-        } finally {
-            setSaving(false);
-        }
         }
 
         return (
@@ -169,7 +169,9 @@ export default function RolesPage() {
                 <Label>Nombre del rol</Label>
                 <Input placeholder="ADMIN" value={nombre} onChange={(e) => setNombre(e.target.value)} />
             </div>
-            <Button className="rounded-xl" onClick={() => { onCreate(nombre.trim()); setNombre(""); }}>
+            <Button 
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
+                onClick={() => { onCreate(nombre.trim()); setNombre(""); }}>
                 <Plus className="w-4 h-4 mr-2"/> Crear
             </Button>
             </div>
@@ -298,7 +300,7 @@ export default function RolesPage() {
                                             className="border-blue-300 text-blue-700 hover:bg-blue-50"
                                             onClick={() => setEditingRole(r)}><Pencil className="w-4 h-4 mr-1"/>Renombrar</Button>
                                         
-                                        <Button 
+                                        <Button size="sm"
                                             onClick={() => deleteRole(r.id, r.nombre)}
                                             disabled={deleting}
                                             className={cn(
@@ -306,8 +308,7 @@ export default function RolesPage() {
                                                 deleting
                                                     ? "border-gray-300 text-gray-400 cursor-not-allowed"
                                                     : "border-red-300 text-red-600 hover:bg-red-50"
-                                            )}
-                                            size="sm" 
+                                            )}                                             
                                             variant="outline"
                                             ><Trash2 className="w-4 h-4 mr-1"/>Eliminar</Button>
                                     </div>

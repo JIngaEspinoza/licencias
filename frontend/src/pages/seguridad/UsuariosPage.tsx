@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { usersApi } from "../../services/usersService";
 import { rolesApi } from "../../services/rolesService";
-import { permisosApi } from "../../services/permisosService";
-import { rolePermisoApi } from "../../services/role-permisoService";
 import { userRoleApi } from "../../services/users-roleService";
 
 import { Permiso } from "@/types/Permiso";
@@ -17,53 +15,24 @@ import { Role } from "@/types/Role";
 import { RolePermiso } from "@/types/Role-permiso";
 import { Badge } from "../../types/components/ui/badge";
 import { Checkbox } from "../../types/components/ui/checkbox";
-import type { CheckedState } from "@radix-ui/react-checkbox";
 import { Button } from "../../types/components/ui/button";
 import { Switch } from "../../types/components/ui/switch";
 import { UserRole } from "@/types/User-role";
+import { Label } from "../../types/components/ui/label";
+import { Input } from "../../types/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
 
-// ===== UI helpers =====
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
-function Modal({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="text-lg font-semibold">{title}</h3>
-            <button
-              onClick={onClose}
-              className="rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-100"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="p-4">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function isoNow() { return new Date().toISOString(); }
 
+function nextId(list: { id: number }[]) {
+  return list.length ? Math.max(...list.map(x => x.id)) + 1 : 1;
+}
+
 export default function UsuariosPage() {
-  const [tab, setTab] = useState<"usuarios" | "roles" | "permisos">("usuarios");
   const [q, setQ] = useState("");
   const dq = useDebounce(q, 400);
   const [page, setPage] = useState(1);
@@ -71,56 +40,42 @@ export default function UsuariosPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(false);
-
-  const [openPermiso, setOpenPermiso] = useState(false);
-  const [editingPermiso, setEditingPermiso] = useState<Permiso | null>(null);
-  const [permisoSaving, setPermisoSaving] = useState(false);
-  const [deletingIds, setDeletingIds] = useState<{ usr: Record<number, boolean>; per: Record<number, boolean>; rol: Record<number, boolean> }>({
+  const [deletingIds, setDeletingIds] = useState<{ usr: Record<number, boolean>; rol: Record<number, boolean> }>({
     usr: {},
-    per: {},
     rol: {}
   });
+  const [savingActive, setSavingActive] = useState<Record<number, boolean>>({});
 
   // Users
-  const [UserRows, setUserRows] = useState<User[]>([]);
+  const [usersRows, setUsersRows] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-
-  // Permisos
-  const [permisoRows, setPermisoRows] = useState<Permiso[]>([]);  
-
-  // Role
-  const [totalRole, setTotalRole] = useState(0);
-  const [roleRows, setRoleRows] = useState<Role[]>([]);
-
-  const [openRole, setOpenRole] = useState(false);
-  const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const [roleSaving, setRoleSaving] = useState(false);
-
-  // Role-permiso
-  const [rolePermisoRows, setRolePermisoRows] = useState<RolePermiso[]>([]);
 
   // User-role
   const [userRoleRows, SetUserRoleRows] = useState<UserRole[]>([]);
 
+  // Role
+  const [totalRole, setTotalRole] = useState(0);
+  const [roleRows, setRoleRows] = useState<Role[]>([]);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+
+  // Role-permiso
+  const [rolePermisoRows, setRolePermisoRows] = useState<RolePermiso[]>([]);
+
+  // Permisos
+  const [permisoRows, setPermisoRows] = useState<Permiso[]>([]);
+
   async function loadData() {
-    const [usuarioResponse, permisoResponse, roleResponse, rolePermisoResponse, userRoleResponse] = await Promise.all([
+    const [usuarioResponse, roleResponse, userRoleResponse] = await Promise.all([
       await usersApi.list(dq, page, limit),
-      await permisosApi.list(dq, page, limit),
-      await rolesApi.list(dq, page, limit),
-      await rolePermisoApi.list(),
+      await rolesApi.listWithoutPagination(),
       await userRoleApi.list()
     ]);
 
-    setUserRows(usuarioResponse.data);
+    setUsersRows(usuarioResponse.data);
     setTotal(usuarioResponse.total);
 
-    setPermisoRows(permisoResponse.data);
-    setTotal(roleResponse.total);
-    
-    setRoleRows(roleResponse.data);
-    setTotalRole(roleResponse.total);
+    setRoleRows(roleResponse);
 
-    setRolePermisoRows(rolePermisoResponse);
     SetUserRoleRows(userRoleResponse);
   }
 
@@ -144,539 +99,363 @@ export default function UsuariosPage() {
     };
   }, [dq, page, limit]);
 
-  function permisosOfRole(rid: number): Permiso[] {
-    const ids = rolePermisoRows.filter(rp => rp.roleId === rid).map(rp => rp.permisoId);
-    return permisoRows.filter(p => ids.includes(p.id));
+  async function createUser(data: { email: string; passwordHash: string; activo: boolean; roleIds?: number[] }) {
+    const email = data.email.trim();
+      if (!email) return;
+
+    if (usersRows.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
+      await swalError("Ese email ya existe (local)");
+      throw new Error("Email duplicado en el estado local");
+    }
+
+    try {
+      const created = await usersApi.create({
+        email,
+        passwordHash: data.passwordHash,
+        activo: data.activo,
+      });
+
+      setUsersRows(prev => [...prev, created]);
+      Toast.fire({ icon: "success", title: "Usuario creado" });
+      return created;
+
+    } catch (e: any) {
+      const status = e?.status as number | undefined;
+
+      if (status === 409) {
+        await swalError(e.message || "Email ya registrado");
+      } else if (status === 400 || status === 422) {
+        const detail =
+          Array.isArray(e?.details?.message) ? e.details.message.join("\n") :
+          (e?.details?.message || e.message);
+        await swalError(detail || "Datos inválidos");
+      } else if (status === 500) {
+        await swalError("Error interno del servidor");
+      } else {
+        await swalError(e?.message || "No se pudo crear el usuario");
+      }
+
+      throw e;
+    }
+
+  }
+
+  function CrearUsuario({ onCreate }: { onCreate: (data: { email: string; passwordHash: string; activo: boolean }) => void }) {
+    const [email, setEmail] = useState("");
+    const [pwd, setPwd] = useState("");
+    const [activo, setActivo] = useState(true);
+
+    return (
+      <div className="flex gap-2 items-end flex-wrap">
+        <div>
+          <Label>Email</Label>
+          <Input className="w-80" placeholder="nuevo@empresa.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+
+        <div>
+          <Label>Contraseña</Label>
+          <Input type="password" placeholder="hash o placeholder" value={pwd} onChange={(e) => setPwd(e.target.value)} />
+        </div>
+
+        <Button           
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
+          onClick={() => { 
+            onCreate({ email, passwordHash: pwd || "hash-placeholder", activo }); 
+            setActivo(true); }}>
+          <Plus className="w-4 h-4 mr-2"/> Crear
+        </Button>
+      </div>
+    );
   }
 
   function updateUser(u: User) {
-    setUserRows(prev => prev.map(x => x.id === u.id ? { ...u, updatedAt: isoNow() } : x));
+    setUsersRows(prev => prev.map(x => x.id === u.id ? { ...u, updatedAt: isoNow() } : x));
     setEditingUser(null);
   }
 
-  function EditorPermisosDeRol({role, allPerms, selectedPermIds, onChangePerms}: {
-    role: Role; allPerms: Permiso[]; selectedPermIds: number[]; onChangePerms: (ids: number[]) => void;
+  function rolesOfUser(uid: number): Role[] {
+    const ids = userRoleRows.filter(ur => ur.userId === uid).map(ur => ur.roleId);
+    return roleRows.filter(r => ids.includes(r.id));
+  }
+
+  async function deleteUser(id: number, nombre: string) {
+    const ok = await swalConfirm({
+        title: "¿Eliminar usuario?",
+        text: `Se eliminará "${nombre}". Esta acción no se puede deshacer.`,
+        icon: "warning",
+        confirmButtonText: "Sí, eliminar",
+    });
+    if (!ok) return;
+
+    setDeletingIds((prev) => ({ ...prev, usr: { ...prev.usr, [id]: true } }));
+    try {
+      await usersApi.remove(id);
+      Toast.fire({ icon: "warning", title: "Usuario eliminado" });
+
+      const { data, total } = await usersApi.list(dq, page, limit);
+      setUsersRows(data);
+      setTotal(total);
+
+    } catch (err: any) {
+      await swalError(err?.message ?? "Error al eliminar rol");
+    } finally {
+      setDeletingIds((prev) => ({ ...prev, usr: { ...prev.usr, [id]: false } }));
+    }
+
+    /*setUsersRows(prev => prev.filter(x => x.id !== id));
+    SetUserRoleRows(prev => prev.filter(ur => ur.userId !== id));*/
+  }
+
+  function Pill({ children }: { children: React.ReactNode }) {
+    return <Badge className="rounded-2xl px-3 py-1">{children}</Badge>;
+  }
+
+  function EditorUsuario({ user, onSave, onCancel, allRoles, selectedRoleIds, onChangeRoles }: {
+    user: User; 
+    onSave: (u: User) => void; 
+    onCancel: () => void; 
+    allRoles: Role[]; 
+    selectedRoleIds: number[]; 
+    onChangeRoles: (ids: number[]) => void;
   }) {
-    const [ids, setIds] = useState<number[]>(selectedPermIds);
+    const [email, setEmail] = useState(user.email);
+    const [pwd, setPwd] = useState("");
+    const [activo, setActivo] = useState(user.activo);
+    const [roleIds, setRoleIds] = useState<number[]>(selectedRoleIds);
     const [saving, setSaving] = useState(false);
+    const [savingPwd, setSavingPwd] = useState(false);
 
-    async function togglePersist(permId: number, checked: boolean) {
-      const prev = ids;
-      const next = checked ? [...ids, permId] : ids.filter(x => x !== permId);
+    async function toggleRole(id: number) {
+      setRoleIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    }
 
-      setIds(next);
-      onChangePerms(next);
-
+    async function handleSave () {
+      setSaving(true);
       try {
-        setSaving(true);
-        if (checked) {
-          await rolePermisoApi.create({ roleId: role.id, permisoId: permId });
-        } else {
-          await rolePermisoApi.removeByComposite({ roleId: role.id, permisoId: permId });
-        }
-      } catch (err) {
-        setIds(prev);
-        onChangePerms(prev);
-        console.error(err);
-        alert("No se pudo guardar el cambio de permiso.");
+        const payload = { email, activo };
+
+        const savedUser = await usersApi.update(user.id, payload);
+        const userId = savedUser.id;
+
+        const prev = selectedRoleIds.map(Number);
+        const next = roleIds.map(Number);
+
+        const toAdd = next.filter(id => !prev.includes(id));
+        const toRemove = prev.filter(id => !next.includes(id));
+
+        await Promise.all(toAdd.map(rid =>
+          userRoleApi.create({ userId, roleId: rid})
+        ));
+
+        await Promise.all(toRemove.map(rid => 
+          userRoleApi.removeByComposite({ userId, roleId: rid})
+        ))
+
+        onChangeRoles(roleIds);
+        onSave({ ...user, ...savedUser });
+      } catch (err: any) {
+        await swalError(err?.message ?? "Error al guardar usuario");
       } finally {
         setSaving(false);
+      }
+    
+    }
+
+    async function handleChangePassword() {
+      if (!user?.id || !pwd) return;
+      setSavingPwd(true);
+      try {
+        // Ajusta a tu API real:
+        await usersApi.changePassword(user.id, pwd);
+        Toast.fire({ icon: "success", title: "Contraseña actualizada" });
+        setPwd("");
+      } catch (err: any) {
+        await swalError(err?.message ?? "No se pudo cambiar la contraseña");
+      } finally {
+        setSavingPwd(false);
       }
     }
 
     return (
-      <div className="border rounded-xl px-3 py-2 bg-zinc-50">
-        <div className="text-xs mb-2 font-medium">Permisos de {role.nombre}</div>
-
-        <div className="flex flex-wrap gap-2 max-w-[540px]">
-          {allPerms.map(p => {
-            const checked = ids.includes(p.id);
-            return (
-              <label key={p.id} className="flex items-center gap-2 border rounded-xl px-2 py-1">
-                <Checkbox
-                  checked={checked}
-                  onCheckedChange={(state: CheckedState) =>
-                    togglePersist(p.id, state === true)
-                  }
-                  disabled={saving}
-                />
-                <span className="text-sm">{p.nombre}</span>
-              </label>
-            );
-          })}
+      <div className="border rounded-2xl p-4 space-y-3 bg-zinc-50">
+        <h3 className="font-semibold">Editar usuario #{user.id}</h3>
+        <div className="grid md:grid-cols-4 gap-4">
+          <div>
+            <Label>Email</Label>
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div>
+            <Label>Nueva contraseña (opcional)</Label>
+            <Input type="password" value={pwd}
+              onChange={e => setPwd(e.target.value)} placeholder="Dejar en blanco para no cambiar" />
+          </div>
+          <div>
+            <Button
+              className="rounded-xl ml-auto"
+              onClick={handleChangePassword}
+              disabled={!pwd || savingPwd || !user?.id}
+              title={!pwd ? "Ingresa una nueva contraseña" : ""}
+            >
+              {savingPwd ? "Cambiando..." : "Cambiar contraseña"}
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label>Activo</Label>
+            <Switch checked={activo} onCheckedChange={(v) => setActivo(!!v)} />
+          </div>
         </div>
-
-        <div className="flex justify-end mt-2">
-          <Button size="sm" className="rounded-xl" onClick={() => onChangePerms(ids)} disabled={saving}>
-            Guardar permisos
-          </Button>
+        <div>
+          <Label>Roles</Label>
+          <div className="flex flex-wrap gap-3">
+            {allRoles.map(r => (
+              <label key={r.id} className="flex items-center gap-2 border rounded-xl px-3 py-2">
+                <Checkbox checked={roleIds.includes(r.id)} onCheckedChange={() => toggleRole(r.id)} />
+                <span>{r.nombre}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" className="rounded-xl" onClick={onCancel}>Cancelar</Button>
+          <Button className="rounded-xl" 
+            onClick={handleSave}
+            disabled={saving}
+            >
+              {saving ? "Guardando..." : "Guardar"}
+            </Button>
         </div>
       </div>
     );
   }
 
-  function setPermsForRole(roleId: number, permisoIds: number[]) {
-    setRolePermisoRows(prev => {
-      const remaining = prev.filter(rp => rp.roleId !== roleId);
+  function setUserRolesFor(userId: number, roleIds: number[]) {
+    // eliminar los existentes de ese usuario
+    SetUserRoleRows(prev => {
+      const remaining = prev.filter(ur => ur.userId !== userId);
+      const toAdd: UserRole[] = roleIds.map(rid => ({ id: nextId([...remaining]), userId, roleId: rid }));
+      // asegurar ids únicos incrementales
       let base = remaining.length ? Math.max(...remaining.map(r => r.id)) : 0;
-      const toAdd: RolePermiso[] = permisoIds.map((pid, i) => ({ id: base + i + 1, roleId, permisoId: pid }));
-      return [...remaining, ...toAdd];
+      const withIds = toAdd.map((r, i) => ({ ...r, id: base + i + 1 }));
+      return [...remaining, ...withIds];
     });
   }
 
-  function rolesOfUser(uid: number): Role[] {
-    const ids = userRoleRows.filter(ur => ur.userId === uid).map(ur => ur.roleId);
-    console.log(ids);
-    return roleRows.filter(r => ids.includes(r.id));
-  }
+  async function toggleUserActive(u: User, next: boolean) {
+    const prevRows = usersRows;
+    setUsersRows(rows =>
+      rows.map(x => (x.id === u.id ? { ...x, activo: next, updatedAt: isoNow() } : x))
+    );
+    setSavingActive(s => ({ ...s, [u.id]: true }));
 
-  const onOpenNewPermiso = () => {
-    setEditingPermiso({
-      id: 0,
-      nombre: ""
-    } as unknown as Permiso);
-    setOpenPermiso(true);
-  }
-  const onOpenEditPermiso = (row: Permiso) => {
-    setEditingPermiso({ ...row });
-    setOpenPermiso(true);
-  }
-  async function onDeletePermiso(id: number, nombre: string) {
-    const ok = await swalConfirm({
-      title: "¿Eliminar permiso?",
-      text: `Se eliminará "${nombre}". Esta acción no se puede deshacer.`,
-      icon: "warning",
-      confirmButtonText: "Sí, eliminar",
-    });
-    if (!ok) return;
-
-    setDeletingIds((prev) => ({ ...prev, per: { ...prev.per, [id]: true } }));
     try {
-      await permisosApi.remove(id);
-      Toast.fire({ icon: "warning", title: "Permiso eliminada" });
-
-      const { data, total } = await permisosApi.list(dq, page, limit);
-      setPermisoRows(data);
-      setTotal(total);
-
+      await usersApi.update(u.id, { activo: next });
+      const { data, total } = await usersApi.list(dq, page, limit);
+      setUsersRows(data); setTotal(total);
     } catch (err: any) {
-      await swalError(err?.message ?? "Error al eliminar permiso");
+      setUsersRows(prevRows);
+      await swalError(err?.message ?? "No se pudo actualizar el estado");
     } finally {
-      setDeletingIds((prev) => ({ ...prev, per: { ...prev.per, [id]: false } }));
+      setSavingActive(s => ({ ...s, [u.id]: false }));
     }
-  }
-  const onSubmitPermiso: React.FormEventHandler<HTMLFormElement> = async (e) => {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const payload = {
-      nombre: String(f.get("nombre") || "").trim()
-    } as const;
-
-    if (!payload.nombre) {
-      await swalError("Ingresa el nombre");
-      return;
-    }
-
-    setPermisoSaving(true);
-    try {
-      if (editingPermiso?.id) {
-        await permisosApi.update(editingPermiso.id, payload);
-        await swalSuccess("Permiso actualizada");
-      } else {
-        await permisosApi.create(payload);
-        await swalSuccess("Permiso creada");
-      }
-
-      const { data, total } = await permisosApi.list(dq, page, limit);
-      setPermisoRows(data);
-      setTotal(total);
-
-      setOpenPermiso(false);
-
-    } catch (err: any) {
-      await swalError(err?.message ?? "Error al guardar permiso");
-    } finally {
-      setPermisoSaving(false);
-    }
-
   }
 
   return (
-    <div className="min-h-[90vh] w-full p-6">
-
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Shield className="w-6 h-6" /> Módulo de Seguridad</h1>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <button
-          className={cn(
-            "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm shadow",
-            tab === "usuarios"
-              ? "bg-black text-white"
-              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-          )}
-          onClick={() => setTab("usuarios")}
-        >
-          <Users size={18} /> Usuarios
-        </button>
-        <button
-          className={cn(
-            "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm shadow",
-            tab === "roles"
-              ? "bg-black text-white"
-              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-          )}
-          onClick={() => setTab("roles")}
-        >
-          <Key size={18} /> Roles
-        </button>
-        <button
-          className={cn(
-            "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm shadow",
-            tab === "permisos"
-              ? "bg-black text-white"
-              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-          )}
-          onClick={() => setTab("permisos")}
-        >
-          <Key size={18} /> Permisos
-        </button>
-      </div>
-
-      {/* Usuarios */}
-      {tab === "usuarios" && (
-        <div>
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Usuarios</h1>
-              <p className="text-sm text-gray-500">Listado de Usuarios</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" size={18} />
-                <input
-                  value={q}
-                  onChange={(e) => {
-                    setPage(1);
-                    setQ(e.target.value);
-                  }}
-                  placeholder="Buscar por usuario"
-                  className="w-72 rounded-lg border border-gray-300 bg-white py-1.5 pl-9 pr-3 text-xs sm:text-sm outline-none ring-0 transition focus:border-gray-400"
-                />
+    <Card className="rounded-2xl shadow">
+        <CardHeader>
+            <CardTitle>Usuarios</CardTitle>
+            <CardDescription>Administra los Usuarios</CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="grow">
+                <Label htmlFor="buscarR">Buscar por nombre</Label>
+                <Input id="buscarR" placeholder="ADMIN" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} />
               </div>
-              <button
-                onClick={onOpenNewPermiso}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-              >
-                <Plus size={18} /> Nuevo
-              </button>
-            </div>            
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm mb-4">
-            <table className="min-w-full table-auto text-left text-xs sm:text-sm">
-              <thead className="bg-gray-50 text-gray-700">
-                <tr>
-                  <th className="text-left p-3">ID</th>
-                  <th className="text-left p-3">E-mail</th>
-                  <th className="text-left p-3">Activo</th>
-                  <th className="text-left p-3">Roles</th>
-                  <th className="text-left p-3">Creado</th>
-                  <th className="text-left p-3">Actualizado</th>
-                  <th className="text-left p-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                  {UserRows.map((u) => {
+              <CrearUsuario onCreate={createUser} />
+            </div>
+
+            <div className="overflow-auto border rounded-xl">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50">
+                  <tr>
+                    <th className="text-left p-3">ID</th>
+                    <th className="text-left p-3">Email</th>
+                    <th className="text-left p-3">Activo</th>
+                    <th className="text-left p-3">Roles</th>
+                    <th className="text-left p-3">Creado</th>
+                    <th className="text-left p-3">Actualizado</th>
+                    <th className="text-right p-3">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersRows.map((u) => {
                     const deleting = !!deletingIds.usr[u.id];
                     return (
-                      <tr key={u.id} className="border-t last:border-b">
+                      <tr key={u.id} className="border-t">
                         <td className="p-3">{u.id}</td>
                         <td className="p-3">{u.email}</td>
                         <td className="p-3">
-                          <Switch checked={u.activo} onCheckedChange={(v) => updateUser({ ...u, activo: !!v })} />
+                          <Switch checked={u.activo} 
+                          onCheckedChange={(v) => toggleUserActive(u, !!v)}
+                          disabled={!!savingActive[u.id]}
+                          />
                         </td>
                         <td className="p-3">
                           <div className="flex flex-wrap gap-2">
-                            {rolesOfUser(u.id).map(r => (
-                              <Badge key={r.id} className="rounded-2xl px-3 py-1">
-                                {r.nombre}
-                              </Badge>
-                            ))}
+                            {rolesOfUser(u.id).map(r => <Pill key={r.id}>{r.nombre}</Pill>)}
                           </div>
                         </td>
-                        <td className="p-3">{u.createdAt}</td>
-                        <td className="p-3">{u.updatedAt}</td>
-                        <td className="px-4 py-3">
+                        <td className="p-3">{new Date(u.createdAt).toLocaleString()}</td>
+                        <td className="p-3">{new Date(u.updatedAt).toLocaleString()}</td>
+                        <td className="p-3">
                           <div className="flex justify-end gap-2">
-                            <button
-                              
-                              className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
-                              title="Editar usuario" >
-                              <Edit2 size={16} /> Editar
-                            </button>
-                            <button
-                              
+                            <Button size="sm" 
+                              onClick={() => setEditingUser(u)}
+                              variant="outline" 
+                              className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                              ><Pencil className="w-4 h-4 mr-1"/>Editar</Button>
+
+                            <Button size="sm" 
+                              onClick={() => deleteUser(u.id, u.email)}
                               disabled={deleting}
+                              variant="outline" 
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
                                 deleting
                                   ? "border-gray-300 text-gray-400 cursor-not-allowed"
                                   : "border-red-300 text-red-600 hover:bg-red-50"
                               )}
-                              title="Eliminar usuario" >
-                              <Trash2 size={16} />
-                              {deleting ? "Eliminando…" : "Eliminar"}
-                            </button>
+                              ><Trash2 className="w-4 h-4 mr-1"/>Eliminar</Button>
                           </div>
                         </td>
                       </tr>
                     )
                   })}
-              </tbody>
-            </table>
-          </div>
-          <Pagination
-            page={page}
-            limit={limit}
-            total={total}
-            onPageChange={setPage}
-          />
-        </div>
-      )}
-
-      {/* Roles */}
-      {tab === "roles" && (
-        <div>
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Roles</h1>
-              <p className="text-sm text-gray-500">Listado de Roles</p>
+                </tbody>
+              </table>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" size={18} />
-                <input
-                  value={q}
-                  onChange={(e) => {
-                    setPage(1);
-                    setQ(e.target.value);
-                  }}
-                  placeholder="Buscar por nombre"
-                  className="w-72 rounded-lg border border-gray-300 bg-white py-1.5 pl-9 pr-3 text-xs sm:text-sm outline-none ring-0 transition focus:border-gray-400"
-                />
-              </div>
-              <button
-                onClick={onOpenNewPermiso}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-              >
-                <Plus size={18} /> Nuevo
-              </button>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm mb-4">
-            <table className="min-w-full table-auto text-left text-xs sm:text-sm">
-              <thead className="bg-gray-50 text-gray-700">
-                <tr>
-                  <th className="text-left p-3">ID</th>
-                  <th className="text-left p-3">Nombre</th>
-                  <th className="text-left p-3">Permisos</th>
-                  <th className="text-left p-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                  {roleRows.map((r) => {
-                    const deleting = !!deletingIds.rol[r.id];
-                    return (
-                      <tr key={r.id} className="border-t last:border-b">
-                        <td className="p-3">{r.id}</td>
-                        <td className="p-3">{r.nombre}</td>
-                        <td className="p-3">
-                          <div className="flex flex-wrap gap-2">
-                            {permisosOfRole(r.id).map(p => (
-                            <Badge key={p.id} className="rounded-2xl px-3 py-1">
-                              {p.nombre}
-                            </Badge>
-                          ))}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            <EditorPermisosDeRol
-                                role={r}
-                                allPerms={permisoRows}
-                                selectedPermIds={rolePermisoRows.filter(rp => rp.roleId === r.id).map(rp => rp.permisoId)}
-                                onChangePerms={(ids) => setPermsForRole(r.id, ids)}
-                              />
-                            <button
-                              onClick={() => onOpenEditPermiso(r)}
-                              className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
-                              title="Editar permiso" >
-                              <Edit2 size={16} /> Editar
-                            </button>
-                            <button
-                              onClick={() => onDeletePermiso(r.id, r.nombre)}
-                              disabled={deleting}
-                              className={cn(
-                                "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
-                                deleting
-                                  ? "border-gray-300 text-gray-400 cursor-not-allowed"
-                                  : "border-red-300 text-red-600 hover:bg-red-50"
-                              )}
-                              title="Eliminar rol" >
-                              <Trash2 size={16} />
-                              {deleting ? "Eliminando…" : "Eliminar"}
-                            </button>
-                          </div>
-                      </td>
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
-      {/* Permisos */}
-      {tab === "permisos" && (
-        <div>
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Permisos</h1>
-              <p className="text-sm text-gray-500">Listado de permisos</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" size={18} />
-                <input
-                  value={q}
-                  onChange={(e) => {
-                    setPage(1);
-                    setQ(e.target.value);
-                  }}
-                  placeholder="Buscar por nombre"
-                  className="w-72 rounded-lg border border-gray-300 bg-white py-1.5 pl-9 pr-3 text-xs sm:text-sm outline-none ring-0 transition focus:border-gray-400"
-                />
-              </div>
-              <button
-                onClick={onOpenNewPermiso}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-              >
-                <Plus size={18} /> Nuevo
-              </button>
-            </div>
-          </div>
+            <Pagination
+              page={page}
+              limit={limit}
+              total={total}
+              onPageChange={setPage}
+            />
 
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm mb-4">
-            <table className="min-w-full table-auto text-left text-xs sm:text-sm">
-              <thead className="bg-gray-50 text-gray-700">
-                <tr>
-                  <th className="text-left p-3">ID</th>
-                  <th className="text-left p-3">Nombre</th>
-                  <th className="text-right p-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {!loading && permisoRows.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
-                      No hay resultados.
-                    </td>
-                  </tr>
-                )}
-                {permisoRows.map((p) => {
-                  const deleting = !!deletingIds.per[p.id];
-                  return (
-                    <tr key={p.id} className="border-t last:border-b">
-                      <td className="p-3">{p.id}</td>
-                      <td className="p-3">{p.nombre}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => onOpenEditPermiso(p)}
-                            className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
-                            title="Editar permiso" >
-                            <Edit2 size={16} /> Editar
-                          </button>
-                          <button
-                            onClick={() => onDeletePermiso(p.id, p.nombre)}
-                            disabled={deleting}
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
-                              deleting
-                                ? "border-gray-300 text-gray-400 cursor-not-allowed"
-                                : "border-red-300 text-red-600 hover:bg-red-50"
-                            )}
-                            title="Eliminar permiso" >
-                            <Trash2 size={16} />
-                            {deleting ? "Eliminando…" : "Eliminar"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <Pagination
-            page={page}
-            limit={limit}
-            total={total}
-            onPageChange={setPage}
-          />
-
-          {/* Modal permiso */}
-
-          <Modal
-            open={openPermiso}
-            onClose={() => setOpenPermiso(false)}
-            title={editingPermiso?.id ? "Editar permiso" : "Nuevo permiso"}
-          >
-            <form onSubmit={onSubmitPermiso} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium">Nombre</label>
-                <input
-                  name="nombre"
-                  defaultValue={editingPermiso?.nombre ?? ""}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setOpenPermiso(false)}
-                  className="rounded-xl border border-gray-300 px-3 py-1.5 text-xs sm:text-sm hover:bg-gray-50"
-                  disabled={permisoSaving}
-                > Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  className="rounded-xl bg-black px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50"
-                  disabled={permisoSaving}
-                >
-                  {permisoSaving
-                    ? "Guardando…"
-                    : editingPermiso?.id
-                      ? "Guardar cambios"
-                      : "Crear"}
-                </button>
-              </div>
-            </form>
-
-          </Modal>
+            {editingUser && (
+              <EditorUsuario
+                key={editingUser.id}
+                user={editingUser}
+                onCancel={() => setEditingUser(null)}
+                onSave={updateUser}
+                allRoles={roleRows}
+                selectedRoleIds={userRoleRows.filter(ur => ur.userId === editingUser.id).map(ur => ur.roleId)}
+                onChangeRoles={(roleIds) => setUserRolesFor(editingUser.id, roleIds)}
+              />
+            )}
+        </CardContent>
+    </Card>        
+);
 
 
-
-
-        </div>
-      )}
-    </div>
-  );
 }

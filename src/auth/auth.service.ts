@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -17,6 +17,7 @@ export class AuthService {
     });
 
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (!user.activo) throw new ForbiddenException('Usuario inactivo');
 
     const hash = crypto.createHash('sha256').update(password).digest('hex');
     const isValid = user.passwordHash === hash;

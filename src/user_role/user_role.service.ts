@@ -7,8 +7,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class UserRoleService {
   constructor(private readonly prisma: PrismaService){}
 
-  create(createUserRoleDto: CreateUserRoleDto) {
-    return 'This action adds a new userRole';
+  async create(dto: CreateUserRoleDto) {
+    const userRole = await this.prisma.userRole.create({ data : dto });
+    return userRole;
   }
 
   async findAll() {
@@ -23,7 +24,15 @@ export class UserRoleService {
     return `This action updates a #${id} userRole`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} userRole`;
+  async remove(id: number) {
+    return await this.prisma.userRole.delete({where: {id}});
   }
+
+  async removeByComposite(userId: number, roleId: number) {
+    const { count } = await this.prisma.userRole.deleteMany({
+      where: { userId, roleId },
+    });
+    return { count };
+  }
+
 }

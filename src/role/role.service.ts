@@ -71,6 +71,10 @@ export class RoleService {
     };
   }
 
+  async findAllWithoutPagination(){
+    return this.prisma.role.findMany({ orderBy: { id: 'asc' } });
+  }
+
   async findOne(id: number) {
     const role = await this.prisma.role.findUnique({ where: { id: id } });
     if (!role) throw new NotFoundException('Rol no encontrado');

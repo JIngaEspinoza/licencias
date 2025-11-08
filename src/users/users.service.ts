@@ -4,15 +4,24 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Prisma } from '@prisma/client';
 import { FindUserDto } from './dto/find-user.dto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService){}
 
-  async create(dto: CreateUserDto) {
+  private hashPassword(plain: string): string {
+    return crypto.createHash('sha256').update(plain).digest('hex');
+  }
+
+  async create(dto: CreateUserDto ) {
     try {
-      const user = await this.prisma.user.create({ data: dto });
-      return user; // { id, email, name, createAt }
+      const user = await this.prisma.user.create({ data: {
+        email: dto.email,
+        passwordHash: this.hashPassword(dto.passwordHash),
+        ...(dto.activo !== undefined ? { activo: dto.activo } : {}),
+      } });
+      return user;
     } catch (e: any) {
       if (e.code === 'P2002' && e.meta?.target?.includes('email')) {
         throw new ConflictException('Email ya registrado');
@@ -68,8 +77,11 @@ export class UsersService {
       }),
     ]);
 
+    // Quita passwordHash del data
+    const safe = data.map(({ passwordHash, ...rest }) => rest);
+
     return {
-      data,
+      data: safe,
       total,
       page,
       limit,
@@ -103,4 +115,15 @@ export class UsersService {
       throw e;
     }
   }
+
+  async changePassword(id: number, dto: { password: string }): Promise<void> {
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash: this.hashPassword(dto.password) },
+    }).catch((e) => {
+      if (e.code === 'P2025') throw new NotFoundException('Usuario no encontrado');
+      throw e;
+    });
+  }
+
 }

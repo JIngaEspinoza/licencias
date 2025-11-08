@@ -7,16 +7,16 @@ export const userRoleApi = {
   list: () => http<UserRole[]>(`${BASE_PATH}`, { method: "GET", auth: true }),
 
   create: (payload: UserRoleCreate) =>
-    http<UserRoleCreate>(`${BASE_PATH}`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        auth: true,
+    http<UserRole>(`${BASE_PATH}`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      auth: true,
     }),
 
   remove: (id: number) => http(`${BASE_PATH}/${id}`, { method: "DELETE", auth: true }),
 
-  removeByComposite: ({ roleId, permisoId }: { roleId: number; permisoId: number }) =>
-    http<void>(`${BASE_PATH}/roles/${roleId}/permisos/${permisoId}`, {
+  removeByComposite: ({ userId, roleId }: { userId: number; roleId: number }) =>
+    http<void>(`${BASE_PATH}/user/${userId}/role/${roleId}`, {
       method: "DELETE",
       auth: true,
     }),

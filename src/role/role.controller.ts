@@ -18,6 +18,11 @@ export class RoleController {
     return this.roleService.findAll(query);
   }
 
+  @Get('list')
+  async findAllWithoutPagination() {
+    return this.roleService.findAllWithoutPagination();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.roleService.findOne(+id);
