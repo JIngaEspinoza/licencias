@@ -61,6 +61,7 @@ import { EventoArchivoModule } from './evento_archivo/evento_archivo.module';
 import { AutorizacionViaPublicaModule } from './autorizacion_via_publica/autorizacion_via_publica.module';
 import { AutorizacionesTemporalesModule } from './autorizaciones_temporales/autorizaciones_temporales.module';
 import { AuthModule } from './auth/auth.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   //imports: [PrismaModule],
@@ -86,7 +87,7 @@ import { AuthModule } from './auth/auth.module';
     MedioVentaModule,*/ 
     EstadoUsoModule, ZonificacionModule, GiroModule, GiroZonificacionModule, PersonasModule, RepresentantesModule, ExpedientesModule, ExpedienteLicenciaModule, DeclaracionJuradaModule, ExpedienteOpcionesModule, DeclaracionJuradaGiroModule, SeguridadItseModule, AnexosModule, PagoTramiteModule, FiscalizacionVisitaModule, ActividadCatalogoModule, DjActividadesModule, DjCesionarioModule, DjConstanciasModule, CatCategoriaModule, CatRequisitoModule, CatTipoModule, CatTipoRequisitoModule, EventosModule, EventoHorarioModule, EventoRequisitoModule, EventoArchivoModule, AutorizacionViaPublicaModule, 
     AutorizacionesTemporalesModule, RoleModule, PermisoModule, UserRoleModule, RolePermisoModule, PasswordResetTokenModule, 
-    AuthModule
+    AuthModule, MailModule
     /*AutorizacionEstablecimientoModule, AutorizacionAnexoModule*/],
   controllers: [AppController],
   providers: [AppService],

@@ -54,4 +54,30 @@ export const auth = {
   getAccessToken(): string | null {
     return localStorage.getItem(ACCESS_KEY);
   },
+
+  // --- El nuevo método que necesitas ---
+  async forgotPassword(email: string): Promise<void> {
+    // 1. Verifica si el email es válido (opcional, pero buena práctica)
+    if (!email) {
+        throw new Error("El correo electrónico es requerido.");
+    }
+
+    // 2. Llama al endpoint de la API para solicitar el restablecimiento.
+    // Este método solo necesita enviar el email. 
+    // El backend se encarga de:
+    // a) Verificar si el email existe.
+    // b) Generar un token de restablecimiento.
+    // c) Enviar el correo al usuario.
+    
+    // Asumo que authApi tiene un método para esta tarea.
+    try {
+        await authApi.forgotPassword({ email }); 
+        
+        // No devolvemos datos, solo confirmamos que la llamada fue exitosa.
+        return; 
+    } catch (error) {
+        // Relanza el error para que el componente Login.tsx lo capture.
+        throw error;
+    }
+  },
 };

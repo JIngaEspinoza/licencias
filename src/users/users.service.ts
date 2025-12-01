@@ -1,10 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Prisma } from '@prisma/client';
 import { FindUserDto } from './dto/find-user.dto';
 import * as crypto from 'crypto';
+import { UserDto } from './dto/user-dto';
 
 @Injectable()
 export class UsersService {
@@ -124,6 +125,49 @@ export class UsersService {
       if (e.code === 'P2025') throw new NotFoundException('Usuario no encontrado');
       throw e;
     });
+  }
+
+  /**
+   * Busca un usuario por su correo electrónico.
+   * @param email El correo electrónico a buscar.
+   * @returns El objeto User o null si no se encuentra.
+   */
+  async findOneByEmail(email: string): Promise<UserDto | null> {
+    // Usamos el método `findOne` del repositorio de TypeORM.
+    // Aquí podrías agregar relaciones si las necesitas (ej: roles)
+    return this.prisma.user.findUnique({ 
+      where: { email },
+      // Opcional: Si necesitas las relaciones para el login o validación
+      // relations: ['roles', 'roles.role'],
+    });
+  }
+
+  // user.service.ts (parte del UserService)
+  async updatePasswordResetToken(userId: number, token: string): Promise<void> {
+    // Asume que tu entidad User tiene un campo 'passwordResetToken' (string) 
+    // y 'passwordResetExpiresAt' (Date)
+    const expiration = new Date();
+    expiration.setMinutes(expiration.getMinutes() + 15); // 15 minutos de vigencia
+
+    // 2. Definir los datos a actualizar (Payload)
+    const updatePayload = {
+      passwordResetToken: token,
+      passwordResetExpiresAt: expiration,
+    };
+
+    try {
+      await this.prisma.user.update({
+        where: {
+          id: userId
+        },
+        data: updatePayload
+      });
+    } catch (error) {
+      console.error(`Error al actualizar el token para el usuario ${userId}:`, error);
+      throw new InternalServerErrorException('Error al guardar el token de restablecimiento en la base de datos.');
+    }
+
+
   }
 
 }

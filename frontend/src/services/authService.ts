@@ -16,6 +16,14 @@ interface AuthResponse {
   };
 }
 
+interface ForgotPasswordPayload {
+  email: string;
+}
+
+interface ForgotPasswordResponse {
+  message: string;
+}
+
 export const authApi = {
   login: (payload: LoginPayload) =>
     http<AuthResponse>(`${BASE_PATH}/login`, {
@@ -27,6 +35,12 @@ export const authApi = {
     http<{ accessToken: string }>(`${BASE_PATH}/refresh`, {
       method: "POST",
       body: JSON.stringify({ refreshToken }),
+    }),
+  
+  forgotPassword: (payload: ForgotPasswordPayload) =>
+    http<ForgotPasswordResponse>(`${BASE_PATH}/forgot-password`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 };
 
