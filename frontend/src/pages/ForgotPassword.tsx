@@ -27,7 +27,7 @@ export default function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
             // Llama al método de autenticación para solicitar la recuperación
             await auth.forgotPassword(email) 
             setSuccess('Se ha enviado un correo electrónico con las instrucciones para restablecer tu contraseña.')
-            setEmail('') // Limpiamos el campo
+            setEmail('')
         } catch (err: any) {
             setError(err.message || 'Error al solicitar el restablecimiento. Verifica el correo.')
         } finally {

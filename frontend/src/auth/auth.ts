@@ -1,4 +1,4 @@
-import { authApi } from "../services/authService";
+import { authApi, ResetPasswordPayload } from "../services/authService";
 
 const USER_KEY = 'user';
 const ACCESS_KEY = 'accessToken';
@@ -55,7 +55,6 @@ export const auth = {
     return localStorage.getItem(ACCESS_KEY);
   },
 
-  // --- El nuevo método que necesitas ---
   async forgotPassword(email: string): Promise<void> {
     // 1. Verifica si el email es válido (opcional, pero buena práctica)
     if (!email) {
@@ -68,16 +67,37 @@ export const auth = {
     // a) Verificar si el email existe.
     // b) Generar un token de restablecimiento.
     // c) Enviar el correo al usuario.
-    
-    // Asumo que authApi tiene un método para esta tarea.
+
     try {
-        await authApi.forgotPassword({ email }); 
-        
-        // No devolvemos datos, solo confirmamos que la llamada fue exitosa.
-        return; 
+      await authApi.forgotPassword({ email }); 
+      return; 
     } catch (error) {
-        // Relanza el error para que el componente Login.tsx lo capture.
-        throw error;
+      throw error;
     }
   },
+
+  /**
+   * Completa el proceso de restablecimiento de contraseña usando el token.
+   * @param token El token de restablecimiento extraído de la URL.
+   * @param newPassword La nueva contraseña establecida por el usuario.
+   * @returns Promise<void>
+   */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    if (!token || !newPassword) {
+      throw new Error("Token y nueva contraseña son requeridos.");
+    }
+
+    try {
+
+      const payload: ResetPasswordPayload = {
+        token: token,
+        password: newPassword,
+      };
+
+      await authApi.resetPassword(payload);
+    } catch (error) {
+      throw error;
+    }
+  },
+
 };

@@ -36,8 +36,8 @@ export async function http<T = any>(path: string, opts: Options = {}) {
     const token = getToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
-
   const res = await fetch(`${BASE}${path}`, { ...opts, headers });
+  
   const isJSON = res.headers.get("content-type")?.includes("application/json");
   if (!res.ok) {
     const errBody = isJSON ? await res.json().catch(() => ({})) : await res.text();

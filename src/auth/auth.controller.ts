@@ -1,7 +1,8 @@
-import { Body, Controller, Post, UseGuards, Get, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Req, HttpCode, HttpStatus, Param, Delete } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -33,6 +34,30 @@ export class AuthController {
     return {
       message: 'Si el correo existe en nuestro sistema, se te enviará un enlace de restablecimiento de contraseña.',
     };
+  }
+
+  /**
+   * Endpoint para restablecer la contraseña usando el token recibido por correo.
+   * @param resetPasswordDto El DTO que contiene el token y la nueva contraseña.
+   */
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    await this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.password);
+
+    return {
+      message: 'Tu contraseña ha sido restablecida exitosamente. Ahora puedes iniciar sesión con tu nueva clave.',
+    };
+  }
+
+  @Get()
+  async findAllWithoutPagination() {
+    return this.authService.findAllWithoutPagination();
+  }
+
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    return this.authService.remove(+id);
   }
 
 }

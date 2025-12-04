@@ -24,6 +24,17 @@ interface ForgotPasswordResponse {
   message: string;
 }
 
+// Define el tipo de datos que se enviarán al endpoint de restablecimiento
+export interface ResetPasswordPayload {
+  token: string;
+  password: string; // La nueva contraseña
+}
+
+// Define el tipo de la respuesta (usualmente solo un mensaje de éxito)
+export interface ResetPasswordResponse {
+  message: string;
+}
+
 export const authApi = {
   login: (payload: LoginPayload) =>
     http<AuthResponse>(`${BASE_PATH}/login`, {
@@ -42,10 +53,18 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  /**
+   * Completa el proceso de restablecimiento de contraseña usando el token.
+   * @param payload El token y la nueva contraseña.
+   * @returns Una promesa que resuelve con la respuesta del servidor (ej: { message: "..." }).
+   */
+  resetPassword: (payload: ResetPasswordPayload) =>
+    http<ResetPasswordResponse>(`${BASE_PATH}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
-
-
-
 
 /*const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 

@@ -65,7 +65,10 @@ import { MailModule } from './mail/mail.module';
 
 @Module({
   //imports: [PrismaModule],
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, UsersModule, 
+  imports: [ConfigModule.forRoot({ 
+    envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+    isGlobal: true 
+    }), PrismaModule, UsersModule, 
     /*CiudadanoModule, 
     LicenciaFuncionamientoModule, 
     DeclaracionJuradaLicenciaModule, 

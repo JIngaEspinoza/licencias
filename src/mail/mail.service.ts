@@ -15,6 +15,7 @@ export class MailService {
     
     // Aquí podrías buscar el nombre del usuario si solo pasaste el ID
     const userName = `Usuario ${userId}`; 
+    const currentYear = new Date().getFullYear();
 
     await this.mailerService.sendMail({
       to: email,
@@ -24,6 +25,7 @@ export class MailService {
         // Variables que pasarán a la plantilla
         name: userName,
         resetLink: url,
+        year: currentYear,
       },
     });
   }

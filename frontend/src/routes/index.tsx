@@ -23,12 +23,14 @@ import GirosZonificacionesList from '../pages/gestion/GirosZonificacionesList'
 import UsuariosPage from '../pages/seguridad/UsuariosPage';
 import PermisosPage from "../pages/seguridad/PermisosPage";
 import RolesPage from "../pages/seguridad/RolesPage";
+import ResetPassword from '../pages/ResetPassword';
 // Páginas de seguridad
 /*import SeguridadHome from "./modules/seguridad";
 */
 
 export const router = createBrowserRouter([
     { path: '/login', element: <Login /> },
+    { path: '/reset-password', element: <ResetPassword /> },
     {
         path: '/',
         element: <Protected />,

@@ -11,7 +11,7 @@ import { UserDto } from './dto/user-dto';
 export class UsersService {
   constructor(private readonly prisma: PrismaService){}
 
-  private hashPassword(plain: string): string {
+  public hashPassword(plain: string): string {
     return crypto.createHash('sha256').update(plain).digest('hex');
   }
 
@@ -79,7 +79,7 @@ export class UsersService {
     ]);
 
     // Quita passwordHash del data
-    const safe = data.map(({ passwordHash, ...rest }) => rest);
+    const safe = data.map(({ /*passwordHash,*/ ...rest }) => rest);
 
     return {
       data: safe,
@@ -143,7 +143,7 @@ export class UsersService {
   }
 
   // user.service.ts (parte del UserService)
-  async updatePasswordResetToken(userId: number, token: string): Promise<void> {
+  /*async updatePasswordResetToken(userId: number, token: string): Promise<void> {
     // Asume que tu entidad User tiene un campo 'passwordResetToken' (string) 
     // y 'passwordResetExpiresAt' (Date)
     const expiration = new Date();
@@ -168,6 +168,41 @@ export class UsersService {
     }
 
 
+  }*/
+
+  async updatePasswordResetToken(userId: number, plainToken: string): Promise<void> {    
+    // 1. GENERAR EL HASH DEL TOKEN (El valor que se guardará)
+    // Usamos hashing simple con SHA256 o similar para no guardar el JWT en texto plano.
+    const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
+
+    // 2. Calcular la expiración 
+    const expiration = new Date();
+    // 15 minutos de vigencia para el token
+    expiration.setMinutes(expiration.getMinutes() + 2); 
+
+    try {
+      // 3. EL PASO CRUCIAL: CREAR el token en la tabla PasswordResetToken
+      await this.prisma.passwordResetToken.create({
+        data: {
+          userId: userId, // Enlaza el token al usuario
+          tokenHash: tokenHash, // Guarda el HASH del token
+          expiresAt: expiration, // Guarda la fecha de expiración
+          // usedAt y createdAt se gestionan por @default(now()) y la lógica
+        },
+      });
+
+      // Opcional: Si quieres borrar tokens antiguos/expirados para este usuario
+      // await this.prisma.passwordResetToken.deleteMany({
+      //     where: { 
+      //         userId: userId, 
+      //         expiresAt: { lt: new Date() } // Borra expirados
+      //     }
+      // });
+
+    } catch (error) {
+        console.error(`Error al crear el token de restablecimiento para el usuario ${userId}:`, error);
+        throw new InternalServerErrorException('Error al guardar el token de restablecimiento en la base de datos.');
+    }
   }
 
 }
