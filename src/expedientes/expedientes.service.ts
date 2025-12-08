@@ -19,19 +19,94 @@ export class ExpedientesService {
     const limit = Math.max(1, Math.min(100, query.limit || 10));
     const skip = (page - 1) * limit;
 
-    const q = query.q?.trim() ?? '';
+    //const q = query.q?.trim() ?? '';   
 
-    const where: Prisma.ExpedienteWhereInput = q
+    /*const where: Prisma.ExpedienteWhereInput = q
   ? {
       OR: [
         {
           numero_expediente: {
             contains: q
           },
+        },
+        {
+          // Busca por nombre_razon_social o numero_documento de la Persona relacionada
+          persona: {
+            OR: [
+              {
+                nombre_razon_social: {
+                  contains: q,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                numero_documento: {
+                  contains: q,
+                  mode: 'insensitive',
+                },
+              }
+            ]
+          }
         }
-      ],
+      ]
     }
-  : {};
+  : {};*/
+    
+    const where: Prisma.ExpedienteWhereInput = {};
+
+    if (query.numero_expediente) {
+      where.numero_expediente = {
+        contains: query.numero_expediente.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    if (query.razonSocial) {
+      Object.assign(where, {
+        persona: {
+          nombre_razon_social: {
+            contains: query.razonSocial.trim(),
+            mode: 'insensitive',
+          },
+        },
+      });
+    }
+
+    if (query.ruc) {
+      Object.assign(where, {
+        persona: {
+          ruc: {
+            contains: query.ruc.trim(),
+            mode: 'insensitive',
+          },
+        },
+      });
+    }
+
+    if (query.modalidadTramite) {
+      Object.assign(where, {
+        modalidad_tramite: query.modalidadTramite,
+      });
+    }
+
+    const fechaFiltro: Prisma.ExpedienteWhereInput['fecha'] = {};
+
+    if (query.fechaInicio) {
+      // Buscar registros >= fechaDesde
+      fechaFiltro.gte = new Date(query.fechaInicio);
+    }
+
+    if (query.fechaFin) {
+      // Buscar registros <= fechaHasta. 
+      // Se añade 1 día para incluir todo el día 'fechaHasta' si se pasa solo la fecha (e.g. 2025-01-31T00:00:00)
+      const dateUntil = new Date(query.fechaFin);
+      dateUntil.setDate(dateUntil.getDate() + 1); // Lo convierte en el inicio del día siguiente
+      fechaFiltro.lt = dateUntil; 
+    }
+
+    if (Object.keys(fechaFiltro).length > 0) {
+      Object.assign(where, { fecha: fechaFiltro });
+    }
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.expediente.count({ where }),
@@ -40,6 +115,18 @@ export class ExpedientesService {
         skip,
         take: limit,
         orderBy: { id_expediente: "desc" },
+        include: {
+          persona: {
+            select: {
+              id_persona: true,
+              tipo_persona: true,
+              nombre_razon_social: true,
+              tipo_documento: true,
+              numero_documento: true,
+              ruc: true,
+            }
+          }
+        }
       }),
     ]);
 

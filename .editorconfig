@@ -1,0 +1,26 @@
+# Define que este es el archivo de configuraciones raíz
+root = true
+
+# =========================================================
+# 1. Configuraciones Globales (para todos los archivos)
+# =========================================================
+[*]
+# Preferir espacios sobre tabulaciones
+indent_style = space
+# El tamaño de indentación por defecto será 2, pero se redefine abajo por seguridad
+indent_size = 2
+# Establecer el conjunto de caracteres como UTF-8
+charset = utf-8
+# Usar Line Feed (LF), estándar para desarrollo web y Git
+end_of_line = lf
+# Eliminar espacios innecesarios al final de las líneas
+trim_trailing_whitespace = true
+# Asegurar que el archivo termine con una línea nueva vacía
+insert_final_newline = true
+
+# =========================================================
+# 2. Configuraciones Específicas de React/Front-End (2 espacios)
+# =========================================================
+[*.js,*.jsx,*.ts,*.tsx,*.json,*.html,*.css,*.scss,*.md]
+# Forzar la indentación a 2 espacios para archivos de código
+indent_size = 2

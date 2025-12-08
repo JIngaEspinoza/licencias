@@ -118,7 +118,7 @@ export default function Sidebar({ open }: { open: boolean }) {
         >
           Autorización para Emprendedores
         </NavLink> 
-
+        {/*
         <NavLink
           to="/licencias"
           className={({ isActive }) =>
@@ -135,7 +135,7 @@ export default function Sidebar({ open }: { open: boolean }) {
           }
         >
           Ciudadanos
-        </NavLink>
+        </NavLink>*}
 
         {/* Acordeón Gestión */}
         <div className="pt-1">

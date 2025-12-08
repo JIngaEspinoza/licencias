@@ -53,9 +53,9 @@ export const router = createBrowserRouter([
                     
                     { path: 'personas/nueva', element: <PersonasList /> },
                     { path: 'personas/:id/editar', element: <PersonasList /> },
-                    { path: 'ciudadanos', element: <CiudadanosList /> },
+                    /*{ path: 'ciudadanos', element: <CiudadanosList /> },
                     { path: 'ciudadanos/nueva', element: <CiudadanoForm /> },
-                    { path: 'ciudadanos/:id/editar', element: <CiudadanoForm /> },
+                    { path: 'ciudadanos/:id/editar', element: <CiudadanoForm /> },*/
 
                     { path: 'gestion/uso', element: <UsosList /> },
                     { path: 'gestion/zonificacion', element: <ZonificacionesList /> },

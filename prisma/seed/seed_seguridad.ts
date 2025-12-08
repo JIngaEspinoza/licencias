@@ -116,6 +116,70 @@ export async function seedSeguridad() {
     },
   })
 
+  /**
+   * 
+   */
+
+  const user1 = await prisma.user.upsert({
+    where: { email: 'rodolfocondori@munisanmiguel.gob.pe' },
+    update: {},
+    create: {
+      email: 'rodolfocondori@munisanmiguel.gob.pe',
+      passwordHash: hashPassword('123456'),
+      roles: {
+        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
+      },
+    },
+  })
+
+  const user2 = await prisma.user.upsert({
+    where: { email: 'davidbrito@munisanmiguel.gob.pe' },
+    update: {},
+    create: {
+      email: 'davidbrito@munisanmiguel.gob.pe',
+      passwordHash: hashPassword('123456'),
+      roles: {
+        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
+      },
+    },
+  })
+
+  const user3 = await prisma.user.upsert({
+    where: { email: 'valhua2001@gmail.com' },
+    update: {},
+    create: {
+      email: 'valhua2001@gmail.com',
+      passwordHash: hashPassword('123456'),
+      roles: {
+        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
+      },
+    },
+  })
+
+  const user4 = await prisma.user.upsert({
+    where: { email: 'sglicencias@munisanmiguel.gob.pe' },
+    update: {},
+    create: {
+      email: 'sglicencias@munisanmiguel.gob.pe',
+      passwordHash: hashPassword('123456'),
+      roles: {
+        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
+      },
+    },
+  })
+
+  const user5 = await prisma.user.upsert({
+    where: { email: 'deisymadrid@munisanmiguel.gob.pe' },
+    update: {},
+    create: {
+      email: 'deisymadrid@munisanmiguel.gob.pe',
+      passwordHash: hashPassword('123456'),
+      roles: {
+        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
+      },
+    },
+  })
+
   console.log('Usuarios base creados')
 
   // -------------------------------

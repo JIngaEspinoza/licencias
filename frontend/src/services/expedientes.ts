@@ -1,11 +1,13 @@
 import { http, httpList, toQuery } from "../lib/http";
 
 export type Expedientes = {
+  id_expediente: number;
   id_persona: number;
   fecha: string; 
   numero_expediente: string;
   estado?: string | null;
   codigo_qr?: string | null;
+  persona?: Persona;
 };
 
 export type ExpedienteCreate = Omit<Expedientes, "id_expediente">;
@@ -137,11 +139,20 @@ export type NuevaDJTransaccionalRequest = {
 */
 
 
-export type Persona = {
+/*export type Persona = {
   id_persona: number;
   tipo_persona?: string | null;
   nombre_razon_social: string;
   ruc?: string | null;
+};*/
+
+export type Persona = {
+  id_persona: number;
+  tipo_persona: string;
+  nombre_razon_social: string;
+  tipo_documento: string;
+  numero_documento: string;
+  ruc: string;
 };
 
 export type Expediente = {
@@ -233,8 +244,16 @@ export type NuevaDJInput = {
 };
 
 export const expedientesApi = {
-  list: (q = "", page = 1, limit = 10) =>
+  /*list: (q = "", page = 1, limit = 10) =>
     httpList<Expedientes>(`${BASE_PATH}${toQuery({ q, page, limit })}`, page, limit),
+  */
+  list: (params = {}) => {
+    const defaultParams = { page: 1, limit: 10 };
+    const finalParams = { ...defaultParams, ...params };
+    
+    // Asumo que 'toQuery' toma un objeto y lo convierte en "?key1=value1&key2=value2"
+    return httpList<Expedientes>(`${BASE_PATH}${toQuery(finalParams)}`, finalParams.page, finalParams.limit);
+  },
 
   get: (id: number) => http<Expedientes>(`${BASE_PATH}/${id}`),
 

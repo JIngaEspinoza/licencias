@@ -99,7 +99,7 @@ export default function Login() {
                     {loading ? 'Entrando...' : 'Entrar'}
                 </button>
                 <p className="text-xs text-gray-500 text-center">
-                    Demo: admin@local / admin123
+                    {/*Demo: admin@local / admin123*/}
                 </p>
                 </form>
             </div>
