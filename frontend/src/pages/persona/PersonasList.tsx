@@ -8,50 +8,42 @@ import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal"
 import { Toast } from "../../lib/toast";
 import { useDebounce } from "../../hooks/useDebounce";
 import Pagination from "../../components/Pagination";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../types/components/ui/tabs";
+import { Label } from "../../types/components/ui/label";
+import { Input } from "../../types/components/ui/input";
+import { Button } from "../../types/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogPortal,
+  DialogOverlay
+} from "../../types/components/ui/dialog";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../types/components/ui/select";
+
+import { toast } from "sonner";
 
 // ===== util =====
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
-// ===== UI helpers =====
-function Modal({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <h3 className="text-lg font-semibold">{title}</h3>
-            <button
-              onClick={onClose}
-              className="rounded-lg px-2 py-1 text-gray-500 hover:bg-gray-100"
-            >
-              ✕
-            </button>
-          </div>
-          <div className="p-4">{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ===== tipos locales para reps =====
 type TipoDoc = "DNI" | "CE" | "PAS";
 
-type RepApi = {
+type Representate = {
   id_representante: number;
   id_persona: number;
   nombres?: string | null;
@@ -64,7 +56,7 @@ type RepSave = {
   nombres: string;
   tipo_documento: string;
   numero_documento: string;
-  sunarp_partida_asiento?: string | null;
+  sunarp_partida_asiento?: string;
 };
 type Rep = {
   id_representante: number;
@@ -82,6 +74,9 @@ const DOC_TYPES: { value: TipoDoc; label: string }[] = [
   { value: "PAS", label: "Pasaporte" },
 ];
 
+const labelClasses = "mb-1 block text-sm font-medium";
+const inputClasses = "w-full rounded-xl border border-gray-300 px-3 py-2 text-sm";
+
 // =============================
 // Componente principal
 // =============================
@@ -89,7 +84,8 @@ export default function PersonasList() {
   const navigate = useNavigate();
 
   // ------- pestañas -------
-  const [tab, setTab] = useState<"personas" | "representantes">("personas");
+  //const [tab, setTab] = useState<"personas" | "representantes">("personas");
+  const [activeTab, setActiveTab] = useState("personas");
 
   // ------- estado PERSONAS (server-side) -------
   const [q, setQ] = useState("");
@@ -156,7 +152,7 @@ export default function PersonasList() {
   );
 
   // normalizador API -> estado local
-  const mapRep = (r: RepApi): Rep => ({
+  const mapRep = (r: Representate): Rep => ({
     id_representante: r.id_representante,
     id_persona: r.id_persona,
     nombres: r.nombres ?? "",
@@ -165,22 +161,16 @@ export default function PersonasList() {
     sunarp_partida_asiento: r.sunarp_partida_asiento ?? null,
   });
 
-  // handler botón "Ver representantes" por persona
   async function onVerRepresentantes(personaId: number) {
-    setTab("representantes");
+    setActiveTab("representantes");
     setSelectedPersonaId(personaId);
     setRepsError("");
     setRepsLoading(true);
     try {
-      const data = (await representantesApi.getByPersona(personaId)) as RepApi[];
+      const data = (await representantesApi.getByPersona(personaId)) as Representate[];
       const nuevos = data.map(mapRep);
+      setReps(nuevos);
 
-      setReps((prev) => {
-        const prevSinEsta = prev.filter((r) => r.id_persona !== personaId);
-        const dedup = new Map<number, Rep>(prevSinEsta.map((r) => [r.id_representante, r]));
-        for (const r of nuevos) dedup.set(r.id_representante, r);
-        return Array.from(dedup.values());
-      });
     } catch (e: any) {
       setRepsError(e?.message ?? "Error cargando representantes");
     } finally {
@@ -199,52 +189,64 @@ export default function PersonasList() {
     setTimeout(() => setToast({ show: false, message: "" }), 1600);
   };*/
 
+  const NUEVA_PERSONA_BASE: Personas = {
+    id_persona: 0, // Indica nuevo
+    tipo_persona: "JURIDICA",
+    nombre_razon_social: "",
+    ruc: "",
+    telefono: "",
+    correo: "",
+    via_tipo: "",
+    via_nombre: "",
+    numero: "",
+    interior: "",
+    mz: "",
+    lt: "",
+    otros: "",
+    urb_aa_hh_otros: "",
+    distrito: "",
+    provincia: "",
+    departamento: "",
+  };
+
   const onOpenNewPersona = () => {
-    setEditingPersona({
-      id_persona: 0,
-      tipo_persona: "JURIDICA",
-      nombre_razon_social: "",
-      ruc: "",
-      telefono: "",
-      correo: "",
-      via_tipo: "",
-      via_nombre: "",
-      numero: "",
-      interior: "",
-      mz: "",
-      lt: "",
-      otros: "",
-      urb_aa_hh_otros: "",
-      distrito: "",
-      provincia: "",
-      departamento: "",
-    } as unknown as Personas);
+    setEditingPersona(NUEVA_PERSONA_BASE);
     setOpenPersona(true);
   };
+
   const onOpenEditPersona = (row: Personas) => {
     setEditingPersona({ ...row });
     setOpenPersona(true);
   };
+
   const onSubmitPersona: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+
+    const getOptionalString = (value: FormDataEntryValue | null) => {
+      const trimmedValue = String(value || "").trim();
+      // Si la cadena está vacía después de trim, retorna undefined.
+      // De lo contrario, retorna la cadena.
+      return trimmedValue === "" ? undefined : trimmedValue;
+    };
+
     const f = new FormData(e.currentTarget);
     const payload = {
       tipo_persona: String(f.get("tipo_persona") || "JURIDICA") as "JURIDICA" | "NATURAL",
-      nombre_razon_social: String(f.get("nombre") || "").trim(),
-      ruc: (String(f.get("ruc") || "").trim() || null),
-      telefono: (String(f.get("telefono") || "").trim() || null),
-      correo: (String(f.get("correo") || "").trim() || null),
-      via_tipo: (String(f.get("via_tipo") || "").trim() || null),
-      via_nombre: (String(f.get("via_nombre") || "").trim() || null),
-      numero: (String(f.get("numero") || "").trim() || null),
-      interior: (String(f.get("interior") || "").trim() || null),
-      mz: (String(f.get("mz") || "").trim() || null),
-      lt: (String(f.get("lt") || "").trim() || null),
-      otros: (String(f.get("otros") || "").trim() || null),
-      urb_aa_hh_otros: (String(f.get("urb_aa_hh_otros") || "").trim() || null),
-      distrito: (String(f.get("distrito") || "").trim() || null),
-      provincia: (String(f.get("provincia") || "").trim() || null),
-      departamento: (String(f.get("departamento") || "").trim() || null),
+      nombre_razon_social: String(f.get("nombre")).trim(),
+      ruc: getOptionalString(f.get("ruc")), //(String(f.get("ruc") || "").trim()),
+      telefono: getOptionalString(f.get("telefono")), //(String(f.get("telefono") || "").trim()),
+      correo: getOptionalString(f.get("correo")), //(String(f.get("correo") || "").trim()),
+      via_tipo: getOptionalString(f.get("via_tipo")), //(String(f.get("via_tipo") || "").trim()),
+      via_nombre: getOptionalString(f.get("via_nombre")), //(String(f.get("via_nombre") || "").trim()),
+      numero:  getOptionalString(f.get("numero")), //(String(f.get("numero") || "").trim()),
+      interior: getOptionalString(f.get("interior")), //(String(f.get("interior") || "").trim()),
+      mz: getOptionalString(f.get("mz")), //(String(f.get("mz") || "").trim()),
+      lt: getOptionalString(f.get("lt")),
+      otros: getOptionalString(f.get("otros")), //(String(f.get("otros") || "").trim()),
+      urb_aa_hh_otros: getOptionalString(f.get("urb_aa_hh_otros")),
+      distrito: getOptionalString(f.get("distrito")), //(String(f.get("distrito") || "").trim()),
+      provincia: getOptionalString(f.get("provincia")), //(String(f.get("provincia") || "").trim()),
+      departamento: getOptionalString(f.get("departamento")) //(String(f.get("departamento") || "").trim()),
     } as const;
 
     if (!payload.nombre_razon_social) {
@@ -271,7 +273,7 @@ export default function PersonasList() {
         await personasApi.create(payload);
         await swalSuccess("Persona creada");
       }
-      // refrescar la lista manteniendo búsqueda/paginación
+
       const { data, total } = await personasApi.list(dq, page, limit);
       setRows(data);
       setTotal(total);
@@ -297,7 +299,7 @@ export default function PersonasList() {
     const defaultPersonaId = selectedPersonaId ?? juridicas[0]?.id_persona ?? null;
     if (!defaultPersonaId) {
       alert("Primero selecciona o crea una PERSONA JURÍDICA para registrar representantes.");
-      setTab("personas");
+      setActiveTab("personas");
       return;
     }
     setEditingRep({
@@ -326,7 +328,7 @@ export default function PersonasList() {
       nombres: String(f.get("nombres") || "").trim(),
       tipo_documento: String(f.get("tipo_documento") || "DNI"),
       numero_documento: String(f.get("numero_documento") || "").trim(),
-      sunarp_partida_asiento: String(f.get("sunarp") || "").trim() || null,
+      sunarp_partida_asiento: String(f.get("sunarp") || "").trim(),
     };
 
     const personaSel = personasById.get(payload.id_persona);
@@ -339,12 +341,12 @@ export default function PersonasList() {
     setRepSaving(true);
     try {
       if (editingRep.id_representante) {
-        const updated = (await representantesApi.update(editingRep.id_representante, payload)) as RepApi;
+        const updated = (await representantesApi.update(editingRep.id_representante, payload)) as Representate;
         const rep = mapRep(updated);
         setReps((prev) => prev.map((x) => (x.id_representante === rep.id_representante ? rep : x)));
         Toast.fire({ icon: "success", title: "Representante actualizado" });
       } else {
-        const created = (await representantesApi.create(payload)) as RepApi;
+        const created = (await representantesApi.create(payload)) as Representate;
         const rep = mapRep(created);
         setReps((prev) => {
           if (selectedPersonaId && rep.id_persona !== selectedPersonaId) return prev;
@@ -397,14 +399,12 @@ export default function PersonasList() {
       setDeletingIds((prev) => ({ ...prev, per: { ...prev.per, [id]: false } }));
     }
   }
-
-  // ------- eliminar REPRESENTANTE -------
+  
   async function onDeleteRep(id_representante: number) {
     const rep = reps.find((r) => r.id_representante === id_representante);
     const label =
       rep?.nombres ||
       (rep?.numero_documento ? `Doc ${rep.numero_documento}` : `ID ${id_representante}`);
-    //if (!confirm(`¿Eliminar al representante "${label}"?`)) return;
 
     const ok = await swalConfirm({
       title: "¿Eliminar representante?",
@@ -420,86 +420,81 @@ export default function PersonasList() {
       setReps((prev) => prev.filter((r) => r.id_representante !== id_representante));
       Toast.fire({ icon: "warning", title: "Representante eliminado" });
     } catch (err: any) {
-      await swalError(err?.message ?? "Error al eliminar representante");
+      await swalError(err?.message ?? "Error al eliminar representante");      
     } finally {
       setDeletingIds((prev) => ({ ...prev, rep: { ...prev.rep, [id_representante]: false } }));
     }
   }
 
   return (
-      <div className="mx-auto max-w-6xl p-5 text-[13.5px] sm:text-[14px]">
-        {/* <Toast show={toast.show} message={toast.message} /> */}
+    <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <TabsList className="grid w-full grid-cols-2 p-0 h-10">
+        <TabsTrigger 
+          value="personas"
+          className="
+          data-[state=active]:bg-black 
+          data-[state=active]:text-white
+          data-[state=active]:font-bold
+          data-[state=active]:shadow-lg
+          data-[state=active]:border-b-4
+          data-[state=active]:border-black
 
-        {/* Tabs */}
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <button
-            className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm shadow",
-              tab === "personas"
-                ? "bg-black text-white"
-                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-            )}
-            onClick={() => setTab("personas")}
-          >
-            <Users size={18} /> Personas
-          </button>
-          <button
-            className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm shadow",
-              tab === "representantes"
-                ? "bg-black text-white"
-                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-            )}
-            onClick={() => setTab("representantes")}
-          >
-            <BriefcaseBusiness size={18} /> Representantes{" "}
-            <span className="ml-1 text-[11px] text-gray-400">(solo jurídicas)</span>
-          </button>
-        </div>
+          // Estilos INACTIVO
+          text-gray-600 hover:text-black 
+          bg-transparent 
+          rounded-lg 
+          transition-all duration-300
+          "
+          >Personas</TabsTrigger>
+        <TabsTrigger 
+          value="representantes"
+          className="
+            data-[state=active]:bg-black 
+            data-[state=active]:text-white
+            data-[state=active]:font-bold
+            data-[state=active]:shadow-lg
+            data-[state=active]:border-b-4
+            data-[state=active]:border-black
 
-        {/* ===== PERSONAS (server) ===== */}
-        {tab === "personas" && (
-          <div>
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Personas</h1>
-                <p className="text-sm text-gray-500">Listado desde servicio (búsqueda y paginación en servidor).</p>
+            // Estilos INACTIVO
+            text-gray-600 hover:text-black 
+            bg-transparent 
+            rounded-lg 
+            transition-all duration-300
+          "
+          >Representantes</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="personas">
+        <Card className="rounded-2xl shadow">
+          <CardHeader>
+            <CardTitle>Personas</CardTitle>
+            <CardDescription>Administra las personas</CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="grow">
+                <Label htmlFor="buscarR">Buscar por nombre</Label>
+                <Input id="buscarR" placeholder="ADMIN" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" size={18} />
-                  <input
-                    value={q}
-                    onChange={(e) => {
-                      setPage(1);
-                      setQ(e.target.value);
-                    }}
-                    placeholder="Buscar por nombre, RUC, contacto, distrito…"
-                    className="w-72 rounded-lg border border-gray-300 bg-white py-1.5 pl-9 pr-3 text-xs sm:text-sm outline-none ring-0 transition focus:border-gray-400"
-                  />
-                </div>
-                <button
-                  onClick={onOpenNewPersona}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-                >
-                  <Plus size={18} /> Nuevo
-                </button>
-              </div>
+              <Button
+                onClick={onOpenNewPersona}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
+              >
+                <Plus size={18} /> Nuevo
+              </Button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm mb-4">
-              {loading && <div className="px-4 py-3 text-sm text-gray-500">Cargando…</div>}
-              {error && !loading && <div className="px-4 py-3 text-sm text-red-600">{error}</div>}
-
-              <table className="min-w-full table-auto text-left text-xs sm:text-sm">
-                <thead className="bg-gray-50 text-gray-700">
+            <div className="overflow-auto border rounded-xl">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">#</th>
-                    <th className="px-4 py-3 font-semibold">Tipo</th>
-                    <th className="w-[45%] md:w-[55%] px-4 py-3 font-semibold">Nombre / Razón social</th>
-                    <th className="px-4 py-3 font-semibold">RUC</th>
-                    <th className="px-4 py-3 font-semibold">Correo</th>
-                    <th className="px-4 py-3 font-semibold w-[1%] whitespace-nowrap">Acciones</th>
+                    <th className="text-left p-3">#</th>
+                    <th className="text-left p-3">Tipo</th>
+                    <th className="text-left p-3">Nombre / Razón social</th>
+                    <th className="text-left p-3">RUC</th>
+                    <th className="text-left p-3">Correo</th>
+                    <th className="text-right p-3">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -522,24 +517,29 @@ export default function PersonasList() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 whitespace-nowrap text-xs sm:text-xs">
                             {p.tipo_persona === "JURIDICA" && (
-                              <button
+                              <Button size="sm" 
                                 onClick={() => onVerRepresentantes(p.id_persona)}
-                                className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2.5 py-1.5 text-[11px] sm:text-xs hover:bg-gray-50"
+                                variant="outline" 
+                                className="border-gray-300 text-gray-700 hover:bg-gray-50"
                                 title="Ver representantes"
                               >
                                 Ver reps
-                              </button>
+                              </Button>
                             )}
-                            <button
+
+                            <Button size="sm" 
                               onClick={() => onOpenEditPersona(p)}
-                              className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
+                              variant="outline"
+                              className="border-blue-300 text-blue-700 hover:bg-blue-50"
                               title="Editar persona"
                             >
                               <Edit2 size={16} /> Editar
-                            </button>
-                            <button
+                            </Button>
+
+                            <Button size="sm" 
                               onClick={() => onDeletePersona(p.id_persona)}
                               disabled={deleting}
+                              variant="outline" 
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
                                 deleting
@@ -550,7 +550,7 @@ export default function PersonasList() {
                             >
                               <Trash2 size={16} />
                               {deleting ? "Eliminando…" : "Eliminar"}
-                            </button>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -567,172 +567,203 @@ export default function PersonasList() {
               onPageChange={setPage}
             />
 
-            {/* Modal Persona */}
-            <Modal
-              open={openPersona}
-              onClose={() => setOpenPersona(false)}
-              title={editingPersona?.id_persona ? "Editar persona" : "Nueva persona"}
-            >
-              <form onSubmit={onSubmitPersona} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Tipo de persona</label>
-                  <select
-                    name="tipo_persona"
-                    defaultValue={editingPersona?.tipo_persona ?? "JURIDICA"}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  >
-                    <option value="JURIDICA">JURÍDICA</option>
-                    <option value="NATURAL">NATURAL</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium">Nombre / Razón social</label>
-                  <input
-                    name="nombre"
-                    defaultValue={editingPersona?.nombre_razon_social ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">RUC (solo jurídicas)</label>
-                  <input
-                    name="ruc"
-                    defaultValue={(editingPersona as any)?.ruc ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    placeholder="###########"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Teléfono</label>
-                  <input
-                    name="telefono"
-                    defaultValue={(editingPersona as any)?.telefono ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium">Correo</label>
-                  <input
-                    name="correo"
-                    defaultValue={(editingPersona as any)?.correo ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    type="email"
-                  />
-                </div>
+            <Dialog open={openPersona} onOpenChange={setOpenPersona}>
+              <DialogContent 
+                className="sm:max-w-[800px]"
+                onInteractOutside={(e) => {
+                  e.preventDefault(); 
+                }}
+              >
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingPersona?.id_persona ? "Editar persona" : "Nueva persona"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Completa los campos para {editingPersona?.id_persona ? "Editar la persona" : "Crear una nueva persona"}.
+                  </DialogDescription>
+                </DialogHeader>
 
-                {/* Dirección (opcional) */}
-                <div className="md:col-span-2 mt-2">
-                  <h4 className="mb-2 text-sm font-semibold text-gray-700">Dirección (opcional)</h4>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <div className="md:col-span-1">
-                      <label className="mb-1 block text-sm font-medium">Tipo de vía</label>
-                      <input name="via_tipo" defaultValue={(editingPersona as any)?.via_tipo ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" placeholder="Av., Jr., Psje., Calle…" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium">Nombre de vía</label>
-                      <input name="via_nombre" defaultValue={(editingPersona as any)?.via_nombre ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" placeholder="Ej. AV. PERÚ" />
-                    </div>
+                <form onSubmit={onSubmitPersona} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <Label className={labelClasses}>Tipo de persona</Label>
+                    <Select
+                      name="tipo_persona"
+                      defaultValue={editingPersona?.tipo_persona ?? "JURIDICA"}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un tipo" />
+                      </SelectTrigger>
 
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Número</label>
-                      <input name="numero" defaultValue={(editingPersona as any)?.numero ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Interior</label>
-                      <input name="interior" defaultValue={(editingPersona as any)?.interior ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" placeholder="Dpto., Int., Of." />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">MZ</label>
-                      <input name="mz" defaultValue={(editingPersona as any)?.mz ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">LT</label>
-                      <input name="lt" defaultValue={(editingPersona as any)?.lt ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="mb-1 block text-sm font-medium">Otros</label>
-                      <input name="otros" defaultValue={(editingPersona as any)?.otros ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" placeholder="Referencia adicional" />
-                    </div>
-
-                    <div className="md:col-span-3">
-                      <label className="mb-1 block text-sm font-medium">Urb./AA.HH./Otros</label>
-                      <input name="urb_aa_hh_otros" defaultValue={(editingPersona as any)?.urb_aa_hh_otros ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" placeholder="Urbanización, AA.HH., etc." />
-                    </div>
-
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Distrito</label>
-                      <input name="distrito" defaultValue={(editingPersona as any)?.distrito ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Provincia</label>
-                      <input name="provincia" defaultValue={(editingPersona as any)?.provincia ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Departamento</label>
-                      <input name="departamento" defaultValue={(editingPersona as any)?.departamento ?? ""} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
+                      <SelectContent>
+                        <SelectItem value="JURIDICA">JURÍDICA</SelectItem>
+                        <SelectItem value="NATURAL">NATURAL</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className={labelClasses}>Nombre / Razón social</Label>
+                    <Input
+                      name="nombre"
+                      defaultValue={editingPersona?.nombre_razon_social ?? ""}
+                      className={inputClasses}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className={labelClasses}>RUC (solo jurídicas)</Label>
+                    <Input name="ruc" 
+                      defaultValue={(editingPersona as any)?.ruc ?? ""} 
+                      className={inputClasses} 
+                      placeholder="###########" />
+                  </div>
+                  <div>
+                    <Label className={labelClasses}>Teléfono</Label>
+                    <Input name="telefono" 
+                      defaultValue={(editingPersona as any)?.telefono ?? ""} 
+                      className={inputClasses} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className={labelClasses}>Correo</Label>
+                    <Input name="correo" 
+                    defaultValue={(editingPersona as any)?.correo ?? ""} 
+                    className={inputClasses} 
+                    type="email" />
+                  </div>
+                  <div className="md:col-span-2 mt-2">
+                    <h4 className="mb-2 text-sm font-semibold text-gray-700">Dirección (opcional)</h4>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      <div className="md:col-span-1">
+                        <Label className={labelClasses}>Tipo de vía</Label>
+                        <Input name="via_tipo" 
+                          defaultValue={(editingPersona as any)?.via_tipo ?? ""} 
+                          className={inputClasses} 
+                          placeholder="Av., Jr., Psje., Calle…" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label className={labelClasses}>Nombre de vía</Label>
+                        <Input name="via_nombre" 
+                          defaultValue={(editingPersona as any)?.via_nombre ?? ""} 
+                          className={inputClasses} 
+                          placeholder="Ej. AV. PERÚ" />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>Número</Label>
+                        <Input name="numero" 
+                          defaultValue={(editingPersona as any)?.numero ?? ""} 
+                          className={inputClasses} />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>Interior</Label>
+                        <Input name="interior" 
+                          defaultValue={(editingPersona as any)?.interior ?? ""} 
+                          className={inputClasses} 
+                          placeholder="Dpto., Int., Of." />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>MZ</Label>
+                        <Input name="mz" 
+                          defaultValue={(editingPersona as any)?.mz ?? ""} 
+                          className={inputClasses} />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>LT</Label>
+                        <Input name="lt" 
+                          defaultValue={(editingPersona as any)?.lt ?? ""} 
+                          className={inputClasses} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label className={labelClasses}>Otros</Label>
+                        <Input name="otros" 
+                          defaultValue={(editingPersona as any)?.otros ?? ""} 
+                          className={inputClasses} placeholder="Referencia adicional" />
+                      </div>
+                      <div className="md:col-span-3">
+                        <Label className={labelClasses}>Urb./AA.HH./Otros</Label>
+                        <Input name="urb_aa_hh_otros" 
+                          defaultValue={(editingPersona as any)?.urb_aa_hh_otros ?? ""} 
+                          className={inputClasses} placeholder="Urbanización, AA.HH., etc." />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>Distrito</Label>
+                        <Input name="distrito" 
+                          defaultValue={(editingPersona as any)?.distrito ?? ""} 
+                          className={inputClasses} />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>Provincia</Label>
+                        <Input name="provincia" 
+                          defaultValue={(editingPersona as any)?.provincia ?? ""} 
+                          className={inputClasses} />
+                      </div>
+                      <div>
+                        <Label className={labelClasses}>Departamento</Label>
+                        <Input name="departamento" 
+                          defaultValue={(editingPersona as any)?.departamento ?? ""} 
+                          className={inputClasses} />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setOpenPersona(false)}
-                    className="rounded-xl border border-gray-300 px-3 py-1.5 text-xs sm:text-sm hover:bg-gray-50"
-                    disabled={personaSaving}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-black px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50"
-                    disabled={personaSaving}
-                  >
-                    {personaSaving
-                      ? "Guardando…"
-                      : editingPersona?.id_persona
-                      ? "Guardar cambios"
-                      : "Crear"}
-                  </button>
-                </div>
-              </form>
-            </Modal>
-          </div>
-        )}
+                  <DialogFooter className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      onClick={() => setOpenPersona(false)}
+                      variant="outline"
+                      disabled={personaSaving}
+                      className="text-xs sm:text-sm"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={personaSaving}
+                      className="text-xs sm:text-sm font-medium"
+                    >
+                      {personaSaving
+                        ? "Guardando…"
+                        : editingPersona?.id_persona
+                        ? "Guardar cambios"
+                        : "Crear"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-        {/* ===== REPRESENTANTES (on-demand por persona) ===== */}
-        {tab === "representantes" && (
-          <div>
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Representantes</h1>
-                <p className="text-sm text-gray-500">Mantenimiento opcional y solo para Personas JURÍDICAS.</p>
-                {selectedPersonaId != null && (
-                  <div className="mt-1 text-sm text-gray-700">
-                    Persona seleccionada:{" "}
-                    <span className="font-semibold">
-                      {personasById.get(selectedPersonaId)?.nombre_razon_social ?? `ID ${selectedPersonaId}`}
-                    </span>
-                  </div>
-                )}
+      <TabsContent value="representantes">
+        <Card className="rounded-2xl shadow">
+          <CardHeader>
+            <CardTitle>Representantes</CardTitle>
+            <CardDescription>Gestión solo para Personas JURÍDICAS</CardDescription>
+            {selectedPersonaId != null && (
+              <div className="mt-1 text-sm text-gray-700">
+                Persona seleccionada:{" "}
+                <span className="font-semibold">
+                  {personasById.get(selectedPersonaId)?.nombre_razon_social ?? `ID ${selectedPersonaId}`}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onOpenNewRep}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-                >
-                  <Plus size={18} /> Nueva
-                </button>
+            )}            
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="grow">
               </div>
+              <Button
+                onClick={onOpenNewRep}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
+              >
+                <Plus size={18} /> Nueva
+              </Button>
             </div>
 
             {!!repsLoading && <div className="px-4 py-2 text-sm text-gray-500">Cargando representantes…</div>}
             {!!repsError && <div className="px-4 py-2 text-sm text-red-600">{repsError}</div>}
 
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <table className="min-w-full table-auto text-left text-xs sm:text-sm">
+            <div className="overflow-auto border rounded-xl">
+              <table className="w-full text-sm">
                 <thead className="bg-gray-50 text-gray-700">
                   <tr>
                     <th className="px-4 py-3 font-semibold">#</th>
@@ -742,7 +773,6 @@ export default function PersonasList() {
                     <th className="px-4 py-3 font-semibold">Persona (JUR.)</th>
                     <th className="px-4 py-3 font-semibold">RUC</th>
                     <th className="px-4 py-3 font-semibold">SUNARP</th>
-                    {/* <th className="px-4 py-3 font-semibold">Acciones</th> */}
                     <th className="px-4 py-3 font-semibold w-[1%] whitespace-nowrap">Acciones</th>
                   </tr>
                 </thead>
@@ -767,16 +797,18 @@ export default function PersonasList() {
                         <td className="px-4 py-3">{row.sunarp_partida_asiento ?? "—"}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 whitespace-nowrap text-xs sm:text-xs">
-                            <button
+                            <Button size="sm" 
                               onClick={() => onOpenEditRep(row)}
+                              variant="outline" 
                               className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
                               title="Editar representante"
                             >
                               <Edit2 size={16} /> Editar
-                            </button>
-                            <button
+                            </Button>
+                            <Button size="sm" 
                               onClick={() => onDeleteRep(row.id_representante)}
                               disabled={deleting}
+                              variant="outline" 
                               className={cn(
                                 "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium",
                                 deleting
@@ -787,7 +819,7 @@ export default function PersonasList() {
                             >
                               <Trash2 size={16} />
                               {deleting ? "Eliminando…" : "Eliminar"}
-                            </button>
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -797,107 +829,129 @@ export default function PersonasList() {
               </table>
             </div>
 
-            {/* Modal Rep */}
-            <Modal
-              open={openRep}
-              onClose={() => setOpenRep(false)}
-              title={editingRep?.id_representante ? "Editar representante" : "Nuevo representante"}
-            >
-              <form onSubmit={onSubmitRep} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium">Persona JURÍDICA</label>
-                  <select
-                    name="id_persona"
-                    defaultValue={
-                      editingRep?.id_persona ??
-                      selectedPersonaId ??
-                      (juridicas[0]?.id_persona || "")
-                    }
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    required
-                  >
-                    {juridicas.map((p) => (
-                      <option key={p.id_persona} value={p.id_persona}>
-                        {p.nombre_razon_social} — RUC {(p as any).ruc}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <Dialog open={openRep} onOpenChange={setOpenPersona}>
+              <DialogContent className="sm:max-w-[800px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingRep?.id_representante ? "Editar representante" : "Nuevo representante"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Completa los campos para {editingRep?.id_representante ? "Editar representante" : "Crear nuevo representante"}.
+                  </DialogDescription>
+                </DialogHeader>
 
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium">Nombres del representante</label>
-                  <input
-                    name="nombres"
-                    defaultValue={editingRep?.nombres ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    placeholder="Ej. JUAN PEREZ GOMEZ"
-                    required
-                  />
-                </div>
+                <form onSubmit={onSubmitRep} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <Label className="mb-1 block text-sm font-medium">Persona JURÍDICA</Label>
+                    <Select
+                      name="id_persona"
+                      defaultValue={
+                        String(
+                          editingRep?.id_persona ??
+                          selectedPersonaId ??
+                          (juridicas[0]?.id_persona || "")
+                        )
+                      }                      
+                      required
+                    >
+                      <SelectTrigger className="w-full"> 
+                        <SelectValue placeholder="Selecciona una Persona Jurídica" /> 
+                      </SelectTrigger>
 
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Tipo de documento</label>
-                  <select
-                    name="tipo_documento"
-                    defaultValue={editingRep?.tipo_documento ?? "DNI"}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    required
-                  >
-                    {DOC_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                      <SelectContent>
+                        {juridicas.map((p) => (
+                          <SelectItem 
+                            key={p.id_persona} 
+                            value={String(p.id_persona)}>
+                            {p.nombre_razon_social} — RUC {(p as any).ruc}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Número de documento</label>
-                  <input
-                    name="numero_documento"
-                    defaultValue={editingRep?.numero_documento ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm tabular-nums"
-                    placeholder="########"
-                    required
-                  />
-                </div>
+                  <div className="md:col-span-2">
+                    <Label className="mb-1 block text-sm font-medium">Nombres del representante</Label>
+                    <Input
+                      name="nombres"
+                      defaultValue={editingRep?.nombres ?? ""}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                      placeholder="Ej. JUAN PEREZ GOMEZ"
+                      required
+                    />
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-sm font-medium">SUNARP (Partida / Asiento)</label>
-                  <input
-                    name="sunarp"
-                    defaultValue={editingRep?.sunarp_partida_asiento ?? ""}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                    placeholder="Ej. Partida 13001234 - Asiento B1002"
-                  />
-                </div>
+                  <div>
+                    <Label className="mb-1 block text-sm font-medium">Tipo de documento</Label>
+                    <Select
+                      name="tipo_documento"
+                      defaultValue={editingRep?.tipo_documento ?? "DNI"}
+                      required
+                    >
+                      <SelectTrigger className="w-full"> 
+                        <SelectValue placeholder="Selecciona tipo de documento" /> 
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DOC_TYPES.map((t) => (
+                          <SelectItem 
+                            key={t.value} 
+                            value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setOpenRep(false)}
-                    className="rounded-xl border border-gray-300 px-3 py-1.5 text-xs sm:text-sm hover:bg-gray-50"
-                    disabled={repSaving}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-black px-3 py-1.5 text-xs sm:text-sm font-medium text-white hover:bg-black/90 disabled:opacity-50"
-                    disabled={repSaving}
-                  >
-                    {repSaving
-                      ? "Guardando…"
-                      : editingRep?.id_representante
-                      ? "Guardar cambios"
-                      : "Crear"}
-                  </button>
-                </div>
-              </form>
-            </Modal>
-          </div>
-        )}
-      </div>
-      
+                  <div>
+                    <Label className="mb-1 block text-sm font-medium">Número de documento</Label>
+                    <Input
+                      name="numero_documento"
+                      defaultValue={editingRep?.numero_documento ?? ""}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm tabular-nums"
+                      placeholder="########"
+                      required
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label className="mb-1 block text-sm font-medium">SUNARP (Partida / Asiento)</Label>
+                    <Input
+                      name="sunarp"
+                      defaultValue={editingRep?.sunarp_partida_asiento ?? ""}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                      placeholder="Ej. Partida 13001234 - Asiento B1002"
+                    />
+                  </div>
+
+                  <DialogFooter className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      type="button"
+                      onClick={() => setOpenRep(false)}
+                      variant="outline"
+                      disabled={repSaving}
+                      className="text-xs sm:text-sm"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={repSaving}
+                      className="text-xs sm:text-sm font-medium"
+                    >
+                      {repSaving
+                        ? "Guardando…"
+                        : editingRep?.id_representante
+                        ? "Guardar cambios"
+                        : "Crear"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>  
   );
 }

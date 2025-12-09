@@ -367,7 +367,7 @@ export default function ExpedientesList() {
           onClick={handleBuscar}
           className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs sm:text-sm font-medium text-white shadow hover:bg-blue-700 active:bg-blue-800"
         >
-          <Search className="w-4 h-4 mr-1"/> Buscar Trámites
+          <Search className="w-4 h-4 mr-1"/> Buscar
         </Button>
 
         <div 
@@ -378,7 +378,7 @@ export default function ExpedientesList() {
             to="/licfuncionamiento/nueva"
             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
           >
-            <Plus className="w-4 h-4 mr-2"/> Crear Nuevo DJ
+            <Plus className="w-4 h-4 mr-2"/> Nuevo DJ
           </Link>
         </div>
 

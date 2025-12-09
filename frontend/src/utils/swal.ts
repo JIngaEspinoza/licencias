@@ -2,7 +2,15 @@ import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
 export async function swalError(text: string, title = "Ups…") {
-  await Swal.fire({ icon: "error", title, text, confirmButtonText: "Entendido" });
+  await Swal.fire({ 
+    icon: "error", 
+    title, 
+    text, 
+    confirmButtonText: "Entendido",
+    customClass: {
+      container: 'my-high-zindex-swal'
+    } 
+  });
 }
 export async function swalInfo(text: string, title = "Aviso") {
   await Swal.fire({ icon: "info", title, text, confirmButtonText: "Ok" });

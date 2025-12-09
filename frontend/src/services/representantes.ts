@@ -19,8 +19,8 @@ export const representantesApi = {
 
   get: (id: number) => http<Representantes>(`${BASE_PATH}/${id}`),
 
-  getByPersona: (id_persona: number) => http<Representantes>(`${BASE_PATH}/persona/${id_persona}`),
-
+  getByPersona: (id_persona: number) => http<Representantes[]>(`${BASE_PATH}/persona/${id_persona}`),
+  
   create: (payload: RepresentanteCreate) =>
     http<Representantes>(`${BASE_PATH}`, { method: "POST", body: JSON.stringify(payload) }),
 

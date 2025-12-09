@@ -25,3 +25,8 @@ body { @apply bg-gray-50 text-gray-800; }
     @apply border-border outline-ring/50; }
   body {
     @apply bg-background text-foreground; } }
+    
+.swal2-container {
+  /* ¡Importante! Esto sobreescribe cualquier "pointer-events: none" */
+  pointer-events: auto !important; 
+}
