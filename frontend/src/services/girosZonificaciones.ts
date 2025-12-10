@@ -48,7 +48,7 @@ export const giroszonificacionesApi = {
 
   updateAsignacion: (giroId: number, zonificacionId: number, estado: string) => 
     http<void>(`${BASE_PATH}/asignacion`, {
-      method: 'PUT', // O 'POST', dependiendo de tu backend
+      method: 'PATCH',
       body: JSON.stringify({ giroId, zonificacionId, estado_codigo: estado }),
     }),
 };

@@ -10,8 +10,8 @@ export default function Login() {
     // Nuevo estado para controlar qué formulario se muestra
     const [viewMode, setViewMode] = useState<ViewMode>('login')
 
-    const [email, setEmail] = useState('admin@local')
-    const [password, setPassword] = useState('admin123')
+    const [email, setEmail] = useState('')//admin@local
+    const [password, setPassword] = useState('')//admin123
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate()

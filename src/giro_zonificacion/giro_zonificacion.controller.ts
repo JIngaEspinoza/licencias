@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { GiroZonificacionService } from './giro_zonificacion.service';
 import { CreateGiroZonificacionDto } from './dto/create-giro_zonificacion.dto';
 import { UpdateGiroZonificacionDto } from './dto/update-giro_zonificacion.dto';
 import { FindGirosZonificacionesDto } from './dto/find-giro-zonificacion.dto';
 import { MatrixResponse } from './interfaces/matrix-response.interface';
+import { UpdateAsignacionDto } from './dto/update-asignacion.dto';
 
 @Controller('giro-zonificacion')
 export class GiroZonificacionController {
@@ -29,10 +30,10 @@ export class GiroZonificacionController {
     return this.giroZonificacionService.findOne(+id, +id2);
   }*/
 
-  @Patch(':id')
+  /*@Patch(':id')
   async update(@Param('id') id: string, id2: string, @Body() updateGiroZonificacionDto: UpdateGiroZonificacionDto) {
     return this.giroZonificacionService.update(+id, +id2,  updateGiroZonificacionDto);
-  }
+  }*/
 
   @Delete(':id')
   async remove(@Param('id') id: string, id2: string) {
@@ -65,36 +66,41 @@ export class GiroZonificacionController {
    * Endpoint llamado por el Input.onBlur para guardar un solo cambio.
    * Body: { id_giro: 101, id_zonificacion: 1, codigo: 'C' }
    */
-  public async updateAsignacion(req: any, res: any) {
-    const { id_giro, id_zonificacion, codigo } = req.body;
+  @Patch('asignacion')
+  async updateAsignacion(@Body() dto: UpdateAsignacionDto) {
+
+    //console.log('DTO recibido por NestJS:', dto);
+
+    const { giroId, zonificacionId, estado_codigo } = dto;
     
-    if (!id_giro || !id_zonificacion) {
-      return res.status(400).json({ message: "Faltan ID de Giro o Zonificación." });
+    if (!giroId || !zonificacionId) {
+      throw new BadRequestException("Faltan ID de Giro o Zonificación.");
     }
 
     try {
       // Llamamos a la lógica de negocio en el servicio
       const result = await this.giroZonificacionService.updateAsignacion(
-        Number(id_giro), 
-        Number(id_zonificacion), 
-        codigo
+        Number(giroId), 
+        Number(zonificacionId), 
+        estado_codigo
       );
       
-      res.status(200).json({ 
+      return { 
         success: true, 
         message: "Asignación actualizada/creada correctamente.",
         data: result
-      });
+      };
         
     } catch (error: any) {
       console.error("Error al actualizar asignación:", error.message);
       
       // Manejo de errores específicos del servicio
       if (error.message.includes("inválido")) {
-        return res.status(400).json({ message: error.message });
+        // Lanza 400 Bad Request
+        throw new BadRequestException(error.message);
       }
       
-      res.status(500).json({ message: "Error interno al guardar la asignación." });
+      throw new InternalServerErrorException("Error interno al guardar la asignación.");
     }
   }
 

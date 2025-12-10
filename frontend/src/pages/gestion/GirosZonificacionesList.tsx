@@ -6,6 +6,8 @@ import { usosApi, Uso } from "../../services/usos";
 import { girosApi, Giro } from "../../services/giros";
 // Importa el objeto corregido (debes asegurarte que updateAsignacion esté definido allí)
 import { giroszonificacionesApi, GiroZonificacion } from "../../services/girosZonificaciones"; 
+import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
+import { Toast } from "../../lib/toast";
 
 // --- SIMULACIÓN DE COMPONENTES DE LIBRERÍA Y UTILIDADES ---
 const Tabs = ({ children, value, onValueChange }) => <div className="space-y-4">{children}</div>;
@@ -56,8 +58,8 @@ const DialogHeader = ({ children }) => <div className="mb-4">{children}</div>;
 const DialogTitle = ({ children }) => <h3 className="text-lg font-semibold">{children}</h3>;
 const DialogFooter = ({ children, className }) => <div className={`mt-4 pt-2 border-t flex justify-end gap-2 ${className}`}>{children}</div>;
 const cn = (classes) => classes.filter(Boolean).join(' '); 
-const swalError = async (message) => { alert(`[ERROR] ${message}`); };
-const swalSuccess = async (message) => { alert(`[SUCCESS] ${message}`); };
+//const swalError = async (message) => { alert(`[ERROR] ${message}`); };
+//const swalSuccess = async (message) => { alert(`[SUCCESS] ${message}`); };
 // --- DATOS GLOBALES Y SIMULADOR CRUD ---
 const crudSimulador = (data, setData) => ({
     save: async (item, editingId) => {
@@ -174,7 +176,8 @@ const GiroZonificacionTableComponent = ({ girosData, zonificacionesData, initial
                 nuevoEstado
             );
             
-            await swalSuccess(`Guardado: Giro ${giroId} en Zona ${zonificacionId} actualizado a ${nuevoEstado}.`);
+            //await swalSuccess(`Guardado: Giro ${giroId} en Zona ${zonificacionId} actualizado a ${nuevoEstado}.`);
+            Toast.fire({ icon: "success", title: `Guardado: Giro ${giroId} en Zona ${zonificacionId} actualizado a ${nuevoEstado}.` });
         } catch (error) {
             console.error("Error al actualizar estado:", error);
             await swalError("Error al guardar el cambio en la API. Revirtiendo.");
@@ -197,6 +200,10 @@ const GiroZonificacionTableComponent = ({ girosData, zonificacionesData, initial
                 ({girosData.length} de {totalGiros} Giros mostrados)
               </span>
             </h2>
+            <div className="mt-4 text-sm text-gray-600">
+                Estados de Uso: 
+                {estadosUso.map(e => <span key={e.codigo} className="ml-2 font-semibold">{e.codigo} = {e.descripcion}</span>)}
+            </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 border border-gray-300">
                     <thead className="bg-blue-50">
@@ -240,10 +247,7 @@ const GiroZonificacionTableComponent = ({ girosData, zonificacionesData, initial
                     </tbody>
                 </table>
             </div>
-            <div className="mt-4 text-sm text-gray-600">
-                Estados de Uso: 
-                {estadosUso.map(e => <span key={e.codigo} className="ml-2 font-semibold">{e.codigo} = {e.descripcion}</span>)}
-            </div>
+            
         </div>
     );
 };

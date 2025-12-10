@@ -113,37 +113,37 @@ export class GiroZonificacionService {
     return giro_zonificacion;
   }*/
 
-  async update(cod_giro: number, cod_zonificaion: number, dto: UpdateGiroZonificacionDto) {
+  async update(cod_giro: number, cod_zonificacion: number, dto: UpdateGiroZonificacionDto) {
     const giro_zonificacion = await this.prisma.giroZonificacion.findUnique({ 
       where: {
         uq_gz_giro_zon: {
           id_giro: cod_giro,
-          id_zonificacion: cod_zonificaion
+          id_zonificacion: cod_zonificacion
         }
       }
     });
     
     if (!giro_zonificacion){
-      throw new NotFoundException(`Giro Zonificacicón con código ${cod_giro}${cod_zonificaion} no encontrado`);
+      throw new NotFoundException(`Giro Zonificacicón con código ${cod_giro}${cod_zonificacion} no encontrado`);
     }
 
     return await this.prisma.giroZonificacion.update({ 
       where: {
         uq_gz_giro_zon: {
           id_giro: cod_giro,
-          id_zonificacion: cod_zonificaion
+          id_zonificacion: cod_zonificacion
         }
       },
       data : dto
     });
   }
 
-  async remove(cod_giro: number, cod_zonificaion: number) {
+  async remove(cod_giro: number, cod_zonificacion: number) {
     const giro_zonificacion = await this.prisma.giroZonificacion.findUnique({ 
       where: {
         uq_gz_giro_zon: {
           id_giro: cod_giro,
-          id_zonificacion: cod_zonificaion
+          id_zonificacion: cod_zonificacion
         }
       }
     });
@@ -154,7 +154,7 @@ export class GiroZonificacionService {
       where: {
         uq_gz_giro_zon: {
           id_giro: cod_giro,
-          id_zonificacion: cod_zonificaion
+          id_zonificacion: cod_zonificacion
         }
       }
     });
@@ -342,13 +342,24 @@ export class GiroZonificacionService {
    * Lógica para manejar la actualización de un solo registro de asignación (el guardado del Input).
    */
   public async updateAsignacion(id_giro: number, id_zonificacion: number, codigo_estado: string | null) {
-    // 1. Validar el código de estado (opcional si la validación se hace en el controlador)
-    if (codigo_estado && !['A', 'C', 'I'].includes(codigo_estado.toUpperCase())) {
+    /*
+    // 1. Validar el código de estado (opcional si la validación se hace en el controlador)    
+    if (codigo_estado && !['H', 'O', 'R', 'X'].includes(codigo_estado.toUpperCase())) {
       throw new Error("Código de estado de uso inválido.");
-    }
-    
+    }    
     // El código puede ser NULL (si se envía una cadena vacía desde el frontend)
     const estadoFinal = (codigo_estado === "") ? null : codigo_estado;
+    */
+
+    // --- 1. Obtener la lista dinámica de códigos válidos ---
+    // Esto asegura que la aplicación usa los datos de la DB
+    const codigosValidos = await this.getCodigosUsoValidos();  
+    // --- 2. Validar el código de estado (si no es nulo o vacío) ---
+    const estadoFinal = (codigo_estado === "") ? null : codigo_estado;
+    if (estadoFinal !== null && !codigosValidos.includes(estadoFinal.toUpperCase())) {
+      //  Ahora lanzamos un error si el código NO está en la DB
+      throw new Error(`Código de estado de uso inválido: ${estadoFinal}. Los códigos permitidos son: ${codigosValidos.join(', ')}.`);
+    }
 
     // 2. Usar upsert: Crea el registro si no existe, o lo actualiza si ya existe.
     const result = await this.prisma.giroZonificacion.upsert({
@@ -370,6 +381,18 @@ export class GiroZonificacionService {
     });
 
     return result;
+  }
+
+  private async getCodigosUsoValidos(): Promise<string[]> {
+    // Usando Prisma para consultar la tabla de estados de uso
+    const estados = await this.prisma.estadoUso.findMany({
+      select: {
+        codigo: true, // Solo necesitamos el campo 'codigo'
+      },
+    });
+
+    // Mapear el resultado a un array simple de strings (Ej: ['H', 'O', 'R', 'X'])
+    return estados.map(e => e.codigo.toUpperCase());
   }
 
 
