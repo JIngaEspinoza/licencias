@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsInt, Min } from "class-validator";
+import { IsOptional, IsString, IsInt, Min, Max, IsNumber } from "class-validator";
 import { Type } from "class-transformer";
 
 export class FindGirosZonificacionesDto {
@@ -8,13 +8,14 @@ export class FindGirosZonificacionesDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber()
   @Min(1)
-  page?: number = 1;
+  page?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber()
   @Min(1)
-  limit?: number = 10;
+  @Max(100)
+  limit?: number;
 }

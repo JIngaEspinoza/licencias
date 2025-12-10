@@ -18,8 +18,10 @@ export const usosApi = {
   create: (payload: UsoCreate) =>
     http<Uso>(`${BASE_PATH}`, { method: "POST", body: JSON.stringify(payload) }),
 
-  update: (id: number, payload: Partial<UsoCreate>) =>
+  update: (id: string, payload: Partial<UsoCreate>) =>
     http<Uso>(`${BASE_PATH}/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
-  remove: (id: string) => http<void>(`${BASE_PATH}${id}`, { method: "DELETE" }),
+  remove: (id: string) => http<void>(`${BASE_PATH}/${id}`, { method: "DELETE" }),
+
+  listWithoutPagination: () => http<Uso[]>(`${BASE_PATH}/list`, { method: "GET", auth: true }),
 };

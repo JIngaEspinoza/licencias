@@ -1,14 +1,8 @@
 import { RouterProvider } from 'react-router-dom'
 import { router } from './routes'
-import { Toaster } from "./types/components/ui/sonner"
 
 export default function App() {
-  return (
-    <>
-      <RouterProvider router={router} />
-      <Toaster />
-    </>
-  );
+  return <RouterProvider router={router} />
 }
 /*import { useState } from 'react'
 import reactLogo from './assets/react.svg'

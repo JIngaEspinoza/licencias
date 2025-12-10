@@ -18,6 +18,11 @@ export class GiroController {
     return this.giroService.findAll(query);
   }
 
+  @Get('list')
+  async findAllWithoutPagination() {
+    return this.giroService.findAllWithoutPagination();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.giroService.findOne(id);
@@ -25,11 +30,12 @@ export class GiroController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateGiroDto: UpdateGiroDto) {
-    return this.giroService.update(id, updateGiroDto);
+    return this.giroService.update(+id, updateGiroDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.giroService.remove(id);
+    return this.giroService.remove(+id);
   }
+
 }

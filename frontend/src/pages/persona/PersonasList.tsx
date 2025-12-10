@@ -224,8 +224,6 @@ export default function PersonasList() {
 
     const getOptionalString = (value: FormDataEntryValue | null) => {
       const trimmedValue = String(value || "").trim();
-      // Si la cadena está vacía después de trim, retorna undefined.
-      // De lo contrario, retorna la cadena.
       return trimmedValue === "" ? undefined : trimmedValue;
     };
 
@@ -320,15 +318,20 @@ export default function PersonasList() {
 
   const onSubmitRep: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
+    const getOptionalString = (value: FormDataEntryValue | null) => {
+      const trimmedValue = String(value || "").trim();
+      return trimmedValue === "" ? undefined : trimmedValue;
+    };
+
     if (!editingRep) return;
 
     const f = new FormData(e.currentTarget);
     const payload: RepSave = {
       id_persona: Number(f.get("id_persona")),
       nombres: String(f.get("nombres") || "").trim(),
-      tipo_documento: String(f.get("tipo_documento") || "DNI"),
-      numero_documento: String(f.get("numero_documento") || "").trim(),
-      sunarp_partida_asiento: String(f.get("sunarp") || "").trim(),
+      tipo_documento: String(f.get("tipo_documento")),
+      numero_documento: String(f.get("numero_documento")),
+      sunarp_partida_asiento: getOptionalString(String(f.get("sunarp"))),
     };
 
     const personaSel = personasById.get(payload.id_persona);

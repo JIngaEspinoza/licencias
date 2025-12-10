@@ -18,6 +18,11 @@ export class ZonificacionController {
     return this.zonificacionService.findAll(query);
   }
 
+  @Get('list')
+  async findAllWithoutPagination() {
+    return this.zonificacionService.findAllWithoutPagination();
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.zonificacionService.findOne(id);
@@ -25,11 +30,11 @@ export class ZonificacionController {
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateZonificacionDto: UpdateZonificacionDto) {
-    return this.zonificacionService.update(id, updateZonificacionDto);
+    return this.zonificacionService.update(+id, updateZonificacionDto);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string) {
-    return this.zonificacionService.remove(id);
+    return this.zonificacionService.remove(+id);
   }
 }

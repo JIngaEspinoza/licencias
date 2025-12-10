@@ -61,6 +61,10 @@ export class EstadoUsoService {
     };
   }
 
+  async findAllWithoutPagination(){
+    return this.prisma.estadoUso.findMany({ orderBy: { codigo: 'asc' } });
+  }
+
   async findOne(id: string) {
     const estado_uso = await this.prisma.estadoUso.findUnique({ where: { codigo: id } });
     if (!estado_uso) throw new NotFoundException('Estado uso no encontrado');

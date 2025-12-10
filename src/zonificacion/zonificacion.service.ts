@@ -66,23 +66,27 @@ export class ZonificacionService {
     return zonificacion;
   }
 
-  async update(id: string, dto: UpdateZonificacionDto) {
+  async update(id: number, dto: UpdateZonificacionDto) {
     const zonificacion = await this.prisma.zonificacion.findUnique({ 
-      where: { codigo: id }
+      where: { id_zonificacion: id }
     });
     
     if (!zonificacion){
       throw new NotFoundException(`Zonificación con código ${id} no encontrado`);
     }
 
-    return await this.prisma.zonificacion.update({ where: { codigo: id }, data : dto});
+    return await this.prisma.zonificacion.update({ where: { id_zonificacion: id }, data : dto});
   }
 
-  async remove(id: string) {
-    const zonificacion = await this.prisma.zonificacion.delete({ where: { codigo: id } });
+  async remove(id: number) {
+    const zonificacion = await this.prisma.zonificacion.findUnique({ where: { id_zonificacion: id } });
     if (!zonificacion) throw new NotFoundException('Zonificación no encontrado');
 
-    await this.prisma.zonificacion.delete({ where: {codigo: id}});
+    await this.prisma.zonificacion.delete({ where: {id_zonificacion: id}});
     return { ok: true};
+  }
+
+  async findAllWithoutPagination(){
+    return this.prisma.zonificacion.findMany({ orderBy: { id_zonificacion: 'asc' } });
   }
 }

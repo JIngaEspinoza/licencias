@@ -1,11 +1,12 @@
 import { http, httpList, toQuery } from "../lib/http";
 
 export type Giro = {
+  id_giro: number;
   codigo: string;
   nombre: string; 
 };
 
-export type GiroCreate = Omit<Giro, "codigo">;
+export type GiroCreate = Omit<Giro, "id_giro">;
 export type GiroUpdate = Partial<GiroCreate>;
 const BASE_PATH = "/giro";
 
@@ -21,5 +22,7 @@ export const girosApi = {
   update: (id: number, payload: Partial<GiroCreate>) =>
     http<Giro>(`${BASE_PATH}/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
-  remove: (id: string) => http<void>(`${BASE_PATH}${id}`, { method: "DELETE" }),
+  remove: (id: number) => http<void>(`${BASE_PATH}/${id}`, { method: "DELETE" }),
+
+  listWithoutPagination: () => http<Giro[]>(`${BASE_PATH}/list`, { method: "GET", auth: true }),
 };

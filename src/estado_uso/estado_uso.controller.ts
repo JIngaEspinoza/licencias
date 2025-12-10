@@ -18,6 +18,11 @@ export class EstadoUsoController {
     return this.estadoUsoService.findAll(query);
   }
 
+  @Get('list')
+  async findAllWithoutPagination() {
+    return this.estadoUsoService.findAllWithoutPagination();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.estadoUsoService.findOne(id);

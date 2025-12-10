@@ -62,27 +62,32 @@ export class GiroService {
 
   async findOne(id: string) {
     const giro = await this.prisma.giro.findUnique({ where: { codigo: id } });
-        if (!giro) throw new NotFoundException('Giro no encontrado');
-        return giro;
+    if (!giro) throw new NotFoundException('Giro no encontrado');
+    return giro;
   }
 
-  async update(id: string, dto: UpdateGiroDto) {
+  async update(id: number, dto: UpdateGiroDto) {
     const giro = await this.prisma.giro.findUnique({ 
-      where: { codigo: id }
+      where: { id_giro: id }
     });
     
     if (!giro){
       throw new NotFoundException(`Giro con código ${id} no encontrado`);
     }
 
-    return await this.prisma.giro.update({ where: { codigo: id }, data : dto});
+    return await this.prisma.giro.update({ where: { id_giro: id }, data : dto});
   }
 
-  async remove(id: string) {
-    const giro = await this.prisma.giro.findUnique({ where: { codigo: id } });
+  async remove(id: number) {
+    const giro = await this.prisma.giro.findUnique({ where: { id_giro: id } });
     if (!giro) throw new NotFoundException('Giro no encontrado');
 
-    await this.prisma.giro.delete({ where: {codigo: id}});
+    await this.prisma.giro.delete({ where: {id_giro: id}});
     return { ok: true};
   }
+
+  async findAllWithoutPagination(){
+    return this.prisma.giro.findMany({ orderBy: { id_giro: 'asc' } });
+  }
+
 }

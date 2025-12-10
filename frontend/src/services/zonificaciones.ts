@@ -1,11 +1,12 @@
 import { http, httpList, toQuery } from "../lib/http";
 
 export type Zonificacion = {
+  id_zonificacion: number;
   codigo: string;
   descripcion: string; 
 };
 
-export type ZonificacionCreate = Omit<Zonificacion, "codigo">;
+export type ZonificacionCreate = Omit<Zonificacion, "id_zonificacion">;
 export type ZonificacionUpdate = Partial<ZonificacionCreate>;
 const BASE_PATH = "/zonificacion";
 
@@ -21,5 +22,7 @@ export const zonificacionesApi = {
   update: (id: number, payload: Partial<ZonificacionCreate>) =>
     http<Zonificacion>(`${BASE_PATH}/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
-  remove: (id: string) => http<void>(`${BASE_PATH}${id}`, { method: "DELETE" }),
+  remove: (id: number) => http<void>(`${BASE_PATH}/${id}`, { method: "DELETE" }),
+
+  listWithoutPagination: () => http<Zonificacion[]>(`${BASE_PATH}/list`, { method: "GET", auth: true }),
 };
