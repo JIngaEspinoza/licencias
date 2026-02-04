@@ -15,7 +15,7 @@ export type Personas = {
   urb_aa_hh_otros?: string;
   distrito?: string;
   provincia?: string;
-  departamento?: string;
+  departamento?: string; 
 };
 
 export type PersonaCreate = Omit<Personas, "id_persona">;

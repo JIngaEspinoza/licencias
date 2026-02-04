@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { AutorizacionViaPublicaService } from './autorizacion_via_publica.service';
 import { CreateAutorizacionViaPublicaDto } from './dto/create-autorizacion_via_publica.dto';
 import { UpdateAutorizacionViaPublicaDto } from './dto/update-autorizacion_via_publica.dto';
+import { FindAutorizacionViaPublicaDto } from './dto/find-autorizacion_via_publica.dto';
 
 @Controller('autorizacion-via-publica')
 export class AutorizacionViaPublicaController {
@@ -13,8 +14,8 @@ export class AutorizacionViaPublicaController {
   }
 
   @Get()
-  findAll() {
-    return this.autorizacionViaPublicaService.findAll();
+  findAll(@Query() query: FindAutorizacionViaPublicaDto) {
+    return this.autorizacionViaPublicaService.findAll(query);
   }
 
   @Get(':id')
@@ -22,10 +23,10 @@ export class AutorizacionViaPublicaController {
     return this.autorizacionViaPublicaService.findOne(+id);
   }
 
-  @Patch(':id')
+  /*@Patch(':id')
   update(@Param('id') id: string, @Body() updateAutorizacionViaPublicaDto: UpdateAutorizacionViaPublicaDto) {
     return this.autorizacionViaPublicaService.update(+id, updateAutorizacionViaPublicaDto);
-  }
+  }*/
 
   @Delete(':id')
   remove(@Param('id') id: string) {

@@ -13,7 +13,7 @@ export class AutorizacionEstablecimientoController {
   }
 
   @Get()
-  findAll() {
+  findAll() {    
     return this.autorizacionEstablecimientoService.findAll();
   }
 

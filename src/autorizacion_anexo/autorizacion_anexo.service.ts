@@ -30,7 +30,18 @@ export class AutorizacionAnexoService {
   }
 
   async findAll() {
-    return this.prisma.autorizacionAnexo.findMany({ orderBy: { id_autorizacion_anexo: 'desc' } });
+    const anexos = await this.prisma.autorizacionAnexo.findMany({ 
+      orderBy: { id_autorizacion_anexo: 'desc' } 
+    });
+
+    // Mapear los resultados para convertir el BigInt a String
+    return anexos.map(anexo => ({
+      ...anexo,
+      // ¡Aquí es donde ocurre la magia manual!
+      tamano_bytes: anexo.tamano_bytes !== null 
+        ? anexo.tamano_bytes.toString() 
+        : null,
+    }));
   }
 
   async findOne(id: number) {

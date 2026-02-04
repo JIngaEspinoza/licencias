@@ -5,7 +5,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { autorizacionesApi } from '../../services/autorizaciones_temporales';
-import type { VistaDTO } from '@/types/autorizaciones';
+import type { VistaDTO } from '@/types/autorizacionesViaPublicaList';
 
 export default function AutorizacionesTemporalesList() {
   const [selected, setSelected] = React.useState(null) // modal de requisitos

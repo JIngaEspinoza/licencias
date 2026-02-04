@@ -14,6 +14,7 @@ export class AutorizacionAnexoController {
 
   @Get()
   findAll() {
+    console.log('--- Endpoint findAll de autorizacionAnexoService llamado ---');
     return this.autorizacionAnexoService.findAll();
   }
 

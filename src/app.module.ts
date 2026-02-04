@@ -25,9 +25,9 @@ import { RolePermisoModule } from './role_permiso/role_permiso.module';
 import { UserRoleModule } from './user_role/user_role.module';
 import { PermisoModule } from './permiso/permiso.module';
 import { RoleModule } from './role/role.module';
-/*import { AutorizacionAnexoModule } from './autorizacion_anexo/autorizacion_anexo.module';
+import { AutorizacionAnexoModule } from './autorizacion_anexo/autorizacion_anexo.module';
 import { AutorizacionEstablecimientoModule } from './autorizacion_establecimiento/autorizacion_establecimiento.module';
-import { DeclaracionJuradaViaPublicaModule } from './declaracion_jurada_via_publica/declaracion_jurada_via_publica.module';
+/*import { DeclaracionJuradaViaPublicaModule } from './declaracion_jurada_via_publica/declaracion_jurada_via_publica.module';
 import { RequisitoAutorizacionModule } from './requisito_autorizacion/requisito_autorizacion.module';
 import { FiscalizacionAutorizacionModule } from './fiscalizacion_autorizacion/fiscalizacion_autorizacion.module';
 import { MedioVentaModule } from './medio_venta/medio_venta.module';*/
@@ -90,8 +90,8 @@ import { MailModule } from './mail/mail.module';
     MedioVentaModule,*/ 
     EstadoUsoModule, ZonificacionModule, GiroModule, GiroZonificacionModule, PersonasModule, RepresentantesModule, ExpedientesModule, ExpedienteLicenciaModule, DeclaracionJuradaModule, ExpedienteOpcionesModule, DeclaracionJuradaGiroModule, SeguridadItseModule, AnexosModule, PagoTramiteModule, FiscalizacionVisitaModule, ActividadCatalogoModule, DjActividadesModule, DjCesionarioModule, DjConstanciasModule, CatCategoriaModule, CatRequisitoModule, CatTipoModule, CatTipoRequisitoModule, EventosModule, EventoHorarioModule, EventoRequisitoModule, EventoArchivoModule, AutorizacionViaPublicaModule, 
     AutorizacionesTemporalesModule, RoleModule, PermisoModule, UserRoleModule, RolePermisoModule, PasswordResetTokenModule, 
-    AuthModule, MailModule
-    /*AutorizacionEstablecimientoModule, AutorizacionAnexoModule*/],
+    AuthModule, MailModule,
+    AutorizacionEstablecimientoModule, AutorizacionAnexoModule],
   controllers: [AppController],
   providers: [AppService],
 })
