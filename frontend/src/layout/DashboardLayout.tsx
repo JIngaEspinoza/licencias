@@ -1,19 +1,35 @@
-import { useState } from 'react'
-import Sidebar from '../components/Sidebar'
-import Header from '../components/Header'
-import { Outlet } from 'react-router-dom'
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import Sidebar from '../components/Sidebar'; 
+import Header from '../components/Header';
 
 export default function DashboardLayout() {
-    const [open, setOpen] = useState(false)
-        return (
-        <div className="min-h-screen bg-gray-50">
-            <Sidebar open={open} />
-            <div className="lg:pl-64">
-                <Header onToggleSidebar={() => setOpen(!open)} />
-                <main className="w-full max-w-none px-4 md:px-6 lg:px-8 py-4">
-                    <Outlet />
-                </main>
-            </div>
-        </div>
-    )
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const openSidebar = () => setSidebarOpen(true);
+  const closeSidebar = () => setSidebarOpen(false);
+
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      
+      {/* SIDEBAR: Se mantiene fixed pero ahora el contenido lo respeta */}
+      <Sidebar 
+        open={sidebarOpen} 
+        onClose={closeSidebar} 
+      />
+
+      {/* CONTENEDOR PRINCIPAL: 
+          Añadimos lg:pl-64 para que en escritorio el contenido no sea tapado por el menú */}
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
+        
+        {/* HEADER: Ahora se verá completo desde el borde del Sidebar */}
+        <Header onToggleSidebar={openSidebar} />
+
+        <main className="flex-1 p-4 md:p-6">
+          <Outlet />
+        </main>
+
+      </div>
+    </div>
+  );
 }

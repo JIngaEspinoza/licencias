@@ -1,230 +1,167 @@
-import { NavLink, useLocation } from 'react-router-dom'
-import { useState, useMemo } from 'react'
+import { NavLink, useLocation } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { auth } from "../auth/auth";
+import { 
+  LayoutDashboard, Users, FileText, ChevronRight, 
+  ShieldCheck, Settings, Briefcase, UserCircle, 
+  Lock, Key, X 
+} from 'lucide-react';
 
-const linkBase = "block px-3 py-2 rounded";
-const linkActive = "bg-gray-100 font-medium";
+const linkBase = "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group";
+const linkActive = "bg-white/10 text-white shadow-sm border border-white/10";
+const linkInactive = "text-white/70 hover:bg-white/5 hover:text-white";
 
-export default function Sidebar({ open }: { open: boolean }) {
-  const location = useLocation()
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ open, onClose }: SidebarProps) {
+  const location = useLocation();
   const user = auth.current();
 
-  // Rutas del grupo "Gestión"
   const gestionLinks = useMemo(() => ([
     { to: '/gestion/uso', label: 'Uso' },
     { to: '/gestion/zonificacion', label: 'Zonificación' },
     { to: '/gestion/giro', label: 'Giro' },
     { to: '/gestion/giro-zonificacion', label: 'Giro x Zonificación' },
-  ]), [])
+  ]), []);
 
-  // Rutas del grupo "Autorización Temporal"
-  const gestionAutorizacionTemporalLinks = useMemo(() => ([
+  const autTempLinks = useMemo(() => ([
     { to: '/autemp/list', label: 'Listado' },
     { to: '/autemp/req', label: 'Registro' }
-  ]), [])
+  ]), []);
 
-  // Si estás en cualquiera de las subrutas, el acordeón inicia abierto
-  const isInGestion = gestionLinks.some(l => location.pathname.startsWith(l.to.replace(/\/$/, '')))
-  const [isGestionOpen, setIsGestionOpen] = useState<boolean>(isInGestion)
-
-  const isInGestionAutorizacionTemporal = gestionAutorizacionTemporalLinks.some(l => location.pathname.startsWith(l.to.replace(/\/$/, '')))
-  const [isGestionAutorizacionTemporalOpen, setIsGestionAutorizacionTemporalOpen] = useState<boolean>(isInGestion)
+  const [isAutOpen, setIsAutOpen] = useState(autTempLinks.some(l => location.pathname.startsWith(l.to)));
+  const [isGestionOpen, setIsGestionOpen] = useState(gestionLinks.some(l => location.pathname.startsWith(l.to)));
 
   return (
-    <aside className={`${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed z-30 inset-y-0 left-0 w-64 bg-white border-r transition-transform`}>
-      <div className="h-16 flex items-center px-4 border-b">
-        <span className="font-semibold leading-tight">
-          Municipalidad de <br /> San Miguel
-        </span>
-      </div>
+    <>
+      {/* OVERLAY: Al hacer clic aquí, se ejecuta onClose */}
+      {open && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
 
-      <nav className="p-3 space-y-1 text-sm">
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? linkActive : 'hover:bg-gray-50'}`
-          }
-        >
-          Inicio
-        </NavLink>
-
-        <NavLink
-          to="/personas"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-          }
-        >
-          Personas
-        </NavLink>
-
-        <NavLink
-          to="/licfuncionamiento"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-          }
-        >
-          Licencia de Funcionamiento
-        </NavLink>
-
-        {/* <NavLink
-          to="/autemp"
-          className={({ isActive }) =>
-            `${linkBase} rounded ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-          }
-        >
-          Autorización Temporal
-        </NavLink>  */}
-
-        {/* Acordeón Autorización Temporal */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setIsGestionAutorizacionTemporalOpen(v => !v)}
-            aria-expanded={isGestionAutorizacionTemporalOpen}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 ${isInGestion ? 'bg-gray-100 font-medium' : ''}`}
-          >
-            <span>Autorización</span>
-            <svg
-              className={`h-4 w-4 transform transition-transform ${isGestionAutorizacionTemporalOpen ? 'rotate-90' : ''}`}
-              viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-            >
-              <path fillRule="evenodd" d="M6.293 7.293a1 1 0 011.414 0L12 11.586l-4.293 4.293a1 1 0 01-1.414-1.414L9.586 12 6.293 8.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-
-          {isGestionAutorizacionTemporalOpen && (
-            <div className="mt-1 ml-2 space-y-1">
-              {gestionAutorizacionTemporalLinks.map(link => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    `block px-3 py-2 rounded text-gray-700 ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+      <aside className={`
+        ${open ? 'translate-x-0' : '-translate-x-full'} 
+        lg:translate-x-0 fixed z-50 inset-y-0 left-0 w-64 
+        bg-[#0c7286] text-white transition-transform duration-300 ease-in-out shadow-2xl
+      `}>
+        
+        {/* HEADER DEL SIDEBAR */}
+        <div className="h-20 flex items-center justify-between px-6 border-b border-white/10">
+          <div className="flex items-center">
+            <div className="bg-white p-2 rounded-xl mr-3">
+                <ShieldCheck className="text-[#0c7286]" size={24} />
             </div>
-          )}
+            <span className="font-bold text-white leading-tight text-sm tracking-wide uppercase">
+              Muni <br /> San Miguel
+            </span>
+          </div>
+
+          {/* BOTÓN X: IMPORTANTE - Llama a onClose */}
+          <button 
+            onClick={onClose}
+            className="lg:hidden p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+          >
+            <X size={24} />
+          </button>
         </div>
 
-        <NavLink
-          to="/autempr"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-          }
-        >
-          Autorización para Emprendedores
-        </NavLink> 
-        {/*
-        <NavLink
-          to="/licencias"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-          }
-        >
-          Licencias
-        </NavLink>
+        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-160px)]">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-3 mb-2">Menú Principal</p>
 
-        <NavLink
-          to="/ciudadanos"
-          className={({ isActive }) =>
-            `${linkBase} ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-          }
-        >
-          Ciudadanos
-        </NavLink>*}
+          <NavItem to="/" icon={LayoutDashboard} label="Inicio" end onClick={onClose} />
+          <NavItem to="/personas" icon={Users} label="Personas" onClick={onClose} />
+          <NavItem to="/licfuncionamiento" icon={FileText} label="Licencia Func." onClick={onClose} />
 
-        {/* Acordeón Gestión */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setIsGestionOpen(v => !v)}
-            aria-expanded={isGestionOpen}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50 ${isInGestion ? 'bg-gray-100 font-medium' : ''}`}
-          >
-            <span>Gestión</span>
-            <svg
-              className={`h-4 w-4 transform transition-transform ${isGestionOpen ? 'rotate-90' : ''}`}
-              viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
-            >
-              <path fillRule="evenodd" d="M6.293 7.293a1 1 0 011.414 0L12 11.586l-4.293 4.293a1 1 0 01-1.414-1.414L9.586 12 6.293 8.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
+          {/* Autorización */}
+          <div>
+            <button onClick={() => setIsAutOpen(!isAutOpen)} className={`${linkBase} w-full justify-between ${isAutOpen ? 'text-white bg-white/5' : 'text-white/70 hover:bg-white/5'}`}>
+              <div className="flex items-center gap-3">
+                <Briefcase size={20} />
+                <span className="font-medium">Autorización</span>
+              </div>
+              <ChevronRight size={16} className={`transition-transform ${isAutOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {isAutOpen && (
+              <div className="mt-1 ml-6 space-y-1 border-l border-white/20">
+                {autTempLinks.map(link => (
+                  <NavLink key={link.to} to={link.to} onClick={onClose} className={({ isActive }) => 
+                    `block py-2 px-6 text-sm transition-colors ${isActive ? 'text-white font-bold' : 'text-white/60 hover:text-white'}`
+                  }>
+                    {link.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
 
-          {isGestionOpen && (
-            <div className="mt-1 ml-2 space-y-1">
-              {gestionLinks.map(link => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  className={({ isActive }) =>
-                    `block px-3 py-2 rounded text-gray-700 ${isActive ? 'bg-gray-100 font-medium' : 'hover:bg-gray-50'}`
-                  }
-                >
-                  {link.label}
-                </NavLink>
-              ))}
+          <NavItem to="/autempr" icon={Settings} label="Emprendedores" onClick={onClose} />
+
+          {/* Gestión */}
+          <div>
+            <button onClick={() => setIsGestionOpen(!isGestionOpen)} className={`${linkBase} w-full justify-between ${isGestionOpen ? 'text-white bg-white/5' : 'text-white/70 hover:bg-white/5'}`}>
+              <div className="flex items-center gap-3">
+                <Settings size={20} />
+                <span className="font-medium">Gestión</span>
+              </div>
+              <ChevronRight size={16} className={`transition-transform ${isGestionOpen ? 'rotate-90' : ''}`} />
+            </button>
+            {isGestionOpen && (
+              <div className="mt-1 ml-6 space-y-1 border-l border-white/20">
+                {gestionLinks.map(link => (
+                  <NavLink key={link.to} to={link.to} onClick={onClose} className={({ isActive }) => 
+                     `block py-2 px-6 text-sm transition-colors ${isActive ? 'text-white font-bold' : 'text-white/60 hover:text-white'}`
+                  }>
+                    {link.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Admin Section */}
+          {user?.roles?.includes("ADMIN") && (
+            <div className="pt-4">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-3 mb-2">Seguridad</p>
+              <NavItem to="/seguridad/usuarios" icon={UserCircle} label="Usuarios" onClick={onClose} />
+              <NavItem to="/seguridad/roles" icon={Lock} label="Roles" onClick={onClose} />
+              <NavItem to="/seguridad/permisos" icon={Key} label="Permisos" onClick={onClose} />
             </div>
           )}
-        </div>
+        </nav>
 
-        {/* Sección visible SOLO para ADMIN */}
-        {user?.roles?.includes("ADMIN") && (
-          <>
-            <div className="mt-4 text-xs font-semibold text-gray-500 px-4">
-              Administración
+        {/* Perfil */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-black/10 border-t border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-xs font-bold text-[#0c7286] shrink-0">
+              {user?.email?.substring(0,2).toUpperCase()}
             </div>
-            <NavLink
-              to="/seguridad/usuarios"
-              className={({ isActive }) =>
-                `${linkBase} ${isActive ? linkActive : "hover:bg-gray-50"}`
-              }
-            >
-              👤 Usuarios
-            </NavLink>
-            <NavLink
-              to="/seguridad/roles"
-              className={({ isActive }) =>
-                `${linkBase} ${isActive ? linkActive : "hover:bg-gray-50"}`
-              }
-            >
-              🛡️ Roles
-            </NavLink>
-            <NavLink
-              to="/seguridad/permisos"
-              className={({ isActive }) =>
-                `${linkBase} ${isActive ? linkActive : "hover:bg-gray-50"}`
-              }
-            >
-              ✅ Permisos
-            </NavLink>
-          </>
-        )}
-      </nav>
-      <div className="absolute bottom-0 left-0 right-0 border-t p-3 text-xs text-gray-500">
-        <div className="px-1 truncate">{user?.email}</div>
-        <div className="px-1 truncate">{user?.roles?.join(", ")}</div>
-      </div>
-    </aside>
+            <div className="flex-1 min-w-0 text-white">
+              <p className="text-xs font-bold truncate">{user?.email}</p>
+              <p className="text-[10px] text-white/60 truncate capitalize">{user?.roles?.join(", ")}</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </>
   )
 }
 
-/*import { NavLink } from 'react-router-dom'
-
-export default function Sidebar({ open }: { open: boolean }) {
-    return (
-        <aside className={`${open ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed z-30 inset-y-0 left-0 w-64 bg-white border-r transition-transform`}>
-            <div className="h-16 flex items-center px-4 border-b">
-                <span className="font-semibold">Municipalidad de <br /> San Miguel</span>
-            </div>
-            <nav className="p-3 space-y-1 text-sm">
-                <NavLink to="/" end className={({isActive}) => `block px-3 py-2 rounded ${isActive?'bg-gray-100':''}`}>Inicio</NavLink>
-                <NavLink to="/licencias" className={({isActive}) => `block px-3 py-2 rounded ${isActive?'bg-gray-100':''}`}>Licencias</NavLink>
-                <NavLink to="/ciudadanos" className={({isActive}) => `block px-3 py-2 rounded ${isActive?'bg-gray-100':''}`}>Ciudadanos</NavLink>
-            </nav>
-        </aside>
-    )
-}*/
+function NavItem({ to, icon: Icon, label, end = false, onClick }: any) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={() => window.innerWidth < 1024 && onClick()}
+      className={({ isActive }) => `${linkBase} ${isActive ? linkActive : linkInactive}`}
+    >
+      <Icon size={20} className="shrink-0" />
+      <span className="font-medium text-sm">{label}</span>
+    </NavLink>
+  );
+}
