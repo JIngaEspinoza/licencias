@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { expedientesApi } from "../../services/expedientes";
-import { ChevronLeft, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronDown, Upload, Building2, AlertTriangle, ShieldCheck, Plus, AlertCircle, Copy, FileText, Search } from "lucide-react";
 import type { NuevaDJTransaccionalRequest } from "@/types/declaracionJurada";
 
 /*const BuscarExpedienteDialog = React.lazy(() => import("../../components/BuscarExpedientesDialog"));
@@ -581,724 +581,932 @@ export default function ExpedienteForm() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-slate-100 text-slate-800 py-8">
-      <div className="mx-auto max-w-6xl px-4">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Nueva DJ — Licencia de Funcionamiento</h1>
-            <p className="text-sm text-slate-600">Formulario en página separada + payload</p>
-          </div>
-          <div className="flex gap-2">
-            <button 
-                onClick={() => navigate("/licfuncionamiento")} 
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-white 
-                 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 
-                 disabled:opacity-60 disabled:cursor-not-allowed">
-                <ChevronLeft className="h-4 w-4" /> Volver al listado
-            </button>
-            <button 
-                onClick={onGuardar} 
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white 
-                 hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 
-                 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                <Plus className="h-4 w-4" /> {saving ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </header>
-
-        {/* Selector de modo */}
-        <div className="mb-4 flex items-center gap-4">
-          <span className="text-sm font-medium">Modo de trámite:</span>
-          <label className="inline-flex items-center gap-2">
-            <input type="radio" name="modo" checked={modo === "NUEVA"} onChange={() => setModo("NUEVA")} />
-            <span>Nueva licencia</span>
+  <div className="min-h-screen w-full bg-[#f8fafc] text-slate-800  px-4 md:px-10">
+    
+    {/* Header extendido a los extremos */}
+    <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center  gap-6">
+      <div>
+        
+        <div className="flex items-center gap-8 mt-6 bg-white p-3 rounded-2xl shadow-sm border border-slate-200 w-fit">
+          <span className="text-sm font-bold text-slate-500 uppercase tracking-widest ml-2">Modo:</span>
+          <label className="flex items-center gap-2 text-sm font-bold cursor-pointer group">
+            <input type="radio" name="modo" checked={modo === 'NUEVA'} onChange={() => setModo('NUEVA')} className="w-5 h-5 text-blue-600 focus:ring-blue-500" />
+            <span className="group-hover:text-blue-600 transition-colors">Nueva licencia</span>
           </label>
-          <label className="inline-flex items-center gap-2">
-            <input type="radio" name="modo" checked={modo === "MODIFICACION"} onChange={() => setModo("MODIFICACION")} />
-            <span>Cambios / Modificaciones</span>
+          <label className="flex items-center gap-2 text-sm font-bold cursor-pointer group">
+            <input type="radio" name="modo" checked={modo === 'MODIFICACION'} onChange={() => setModo('MODIFICACION')} className="w-5 h-5 text-blue-600 focus:ring-blue-500" />
+            <span className="group-hover:text-blue-600 transition-colors">Modificaciones</span>
           </label>
         </div>
+      </div>
 
-        {/* (El resto del formulario es tu mismo contenido adaptado; para brevedad no repito todos los JSX inputs aquí) */}
-        {/* COPIA aquí exactamente tu bloque de UI por secciones tal como lo tenías en la demo (Datos generales, Seguridad/ITSE, Nueva/Modif, Solicitante, Representante, Establecimiento, DJ, etc.). */}
-        {/* ---- Inicio extracto abreviado para que no sobrepase el límite del mensaje ---- */}
+      <div className="flex gap-4">
+        <button className="flex items-center gap-2 px-8 py-3.5 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition-all shadow-sm">
+          <ChevronLeft size={20} /> Cancelar
+        </button>
+        <button onClick={onGuardar} className="flex items-center gap-2 px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100">
+          Guardar Trámite
+        </button>
+      </div>
+    </div>
 
+    <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-8 mt-6">
+      {/* SECCIÓN I: DATOS GENERALES (FULL WIDTH) */}
+      <div className="w-full">
         <Card title="Datos generales de la DJ">
-          <div className="grid md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm">N.º expediente</label>
-              <div className="mt-1 flex gap-2">
-                <input className="flex-1 h-10 rounded-md border border-gray-300 px-3 text-sm leading-none
-                 focus:outline-none focus:ring-2 focus:ring-blue-500" value={numeroExpediente} onChange={(e) => setNumeroExpediente(e.target.value)} />
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-end">
+            
+            {/* N.º Expediente - Ocupa casi la mitad del ancho (5/12) */}
+            <div className="md:col-span-5 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                N.º expediente
+              </label>
+              <div className="flex gap-2">
+                <input 
+                  className="flex-1 h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm 
+                            focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
+                  placeholder="Ingrese el número..."
+                  value={numeroExpediente} 
+                  onChange={(e) => setNumeroExpediente(e.target.value)} 
+                />
                 <BuscarExpedienteDialog
                   fetchExpedientes={fetchExpedientes}
                   onPick={(exp) => setNumeroExpediente(exp.numero)}
                   trigger={
                     <button
                       type="button"
-                      className="h-10 inline-flex items-center whitespace-nowrap rounded-md
-                     border border-gray-300 px-3 text-sm leading-none shadow-sm
-                     hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="h-12 px-6 inline-flex items-center whitespace-nowrap rounded-xl
+                                border-2 border-blue-600 text-blue-600 font-bold text-sm
+                                hover:bg-blue-600 hover:text-white transition-all focus:outline-none shadow-sm shadow-blue-50"
                     >
                       <Search className="mr-2 h-4 w-4" />
-                      Expediente
+                      Buscar Expediente
                     </button>
                   }
                 />
               </div>
             </div>
-            <div>
-              <label className="text-sm">Fecha recepción</label>
-              <input type="date" className="mt-1 w-full rounded-lg border px-3 py-2" value={fechaRecepcion} onChange={(e) => setFechaRecepcion(e.target.value)} />
+
+            {/* Fecha Recepción - Ocupa 3/12 del ancho */}
+            <div className="md:col-span-3 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                Fecha recepción
+              </label>
+              <input 
+                type="date" 
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm 
+                          focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
+                value={fechaRecepcion} 
+                onChange={(e) => setFechaRecepcion(e.target.value)} 
+              />
             </div>
-            <div>
-              <label className="text-sm">Estado</label>
-              <select className="mt-1 w-full rounded-lg border px-3 py-2" value={estado} onChange={(e) => setEstado(e.target.value)}>
-                <option value="EN_EVALUACION">EN_EVALUACION</option>
-                <option value="OBSERVADO">OBSERVADO</option>
-                <option value="APROBADO">APROBADO</option>
-                <option value="RECHAZADO">RECHAZADO</option>
-              </select>
+
+            {/* Estado - Ocupa el resto (4/12) */}
+            <div className="md:col-span-4 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                Estado del Trámite
+              </label>
+              <div className="relative group">
+                <select 
+                  className={`w-full h-12 rounded-xl border-2 border-slate-100 px-4 text-sm font-bold outline-none transition-all appearance-none cursor-pointer
+                    ${estado === 'APROBADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                      estado === 'RECHAZADO' ? 'bg-rose-50 text-rose-700 border-rose-100' : 
+                      'bg-slate-50/50 text-slate-700 focus:bg-white focus:border-blue-500'}
+                  `}
+                  value={estado} 
+                  onChange={(e) => setEstado(e.target.value)}
+                >
+                  <option value="EN_EVALUACION">🟡 EN EVALUACIÓN</option>
+                  <option value="OBSERVADO">🟠 OBSERVADO</option>
+                  <option value="APROBADO">🟢 APROBADO</option>
+                  <option value="RECHAZADO">🔴 RECHAZADO</option>
+                </select>
+                {/* Icono de flecha personalizado para el select */}
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <ChevronDown size={18} />
+                </div>
+              </div>
             </div>
+
           </div>
         </Card>
+      </div>
 
-        {/* ... Pega aquí el resto de secciones de tu formulario (idénticas a tu demo) ... */}
-        {/* Seguridad / ITSE */}
-        <div className="mt-5">
-          <Card title="Seguridad e ITSE">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm">Nivel de riesgo</label>
-                <select className="mt-1 w-full rounded-lg border px-3 py-2" value={nivel} onChange={(e) => setNivel(e.target.value)}>
-                  <option value="BAJO">BAJO</option>
-                  <option value="MEDIO">MEDIO</option>
-                  <option value="ALTO">ALTO</option>
-                  <option value="MUY_ALTO">MUY_ALTO</option>
-                </select>
-              </div>
-              <label className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={condSeguridad} onChange={(e) => setCondSeguridad(e.target.checked)} />
-                <span>Declaro condiciones de seguridad</span>
+      {/* SECCIÓN: SEGURIDAD E ITSE (FULL WIDTH) */}
+      <div className="w-full">
+        <Card title="Seguridad e ITSE">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+            
+            {/* Nivel de Riesgo - Ocupa 4/12 */}
+            <div className="md:col-span-4 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                Nivel de riesgo
               </label>
-              <div className="text-sm text-slate-600 flex items-center">
-                ITSE requerida: <strong className="ml-1">{itseRequierePrevia ? "PREVIA" : "POSTERIOR"}</strong>
+              <div className="relative">
+                <select 
+                  className={`w-full h-12 rounded-xl border-2 px-4 text-sm font-bold outline-none transition-all appearance-none cursor-pointer
+                    ${nivel === 'BAJO' || nivel === 'MEDIO' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}
+                  `} 
+                  value={nivel} 
+                  onChange={(e) => setNivel(e.target.value)}
+                >
+                  <option value="BAJO">🟢 RIESGO BAJO</option>
+                  <option value="MEDIO">🟡 RIESGO MEDIO</option>
+                  <option value="ALTO">🟠 RIESGO ALTO</option>
+                  <option value="MUY_ALTO">🔴 RIESGO MUY ALTO</option>
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+                  <ChevronDown size={18} />
+                </div>
               </div>
             </div>
-            
-            {itseRequierePrevia && (
-              <div className="grid md:grid-cols-2 gap-4 mt-3">
-                <div>
-                  <label className="text-sm">N.º ITSE (previa)</label>
-                  <input className="mt-1 w-full rounded-lg border px-3 py-2" value={itseNumero} onChange={(e) => setItseNumero(e.target.value)} />
+
+            {/* Checkbox de Declaración - Ocupa 5/12 */}
+            <div className="md:col-span-5 pt-6">
+              <label className="flex items-center gap-4 p-3.5 rounded-xl border-2 border-slate-100 bg-slate-50/30 hover:bg-white hover:border-blue-200 transition-all cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  className="w-6 h-6 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer"
+                  checked={condSeguridad} 
+                  onChange={(e) => setCondSeguridad(e.target.checked)} 
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-blue-700">Declaración de Seguridad</span>
+                  <span className="text-[11px] text-slate-500 uppercase font-medium">Cumplo con las condiciones de seguridad</span>
                 </div>
-                <div>
-                  <label className="text-sm">Archivo ITSE (simulado)</label>
-                  <input className="mt-1 w-full rounded-lg border px-3 py-2" placeholder="itse.pdf" value={itseArchivo} onChange={(e) => setItseArchivo(e.target.value)} />
+              </label>
+            </div>
+
+            {/* Indicador de ITSE - Ocupa 3/12 */}
+            <div className="md:col-span-3 flex flex-col items-center md:items-end gap-1">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Tipo de Inspección</span>
+              <div className={`px-4 py-2 rounded-full text-xs font-black tracking-tighter shadow-sm border
+                ${itseRequierePrevia ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-blue-100 text-blue-700 border-blue-200'}
+              `}>
+                {itseRequierePrevia ? "⚠️ INSPECCIÓN PREVIA" : "✅ INSPECCIÓN POSTERIOR"}
+              </div>
+            </div>
+
+          </div>
+
+          {/* SECCIÓN CONDICIONAL (SI ES PREVIA) - OCUPA TODO EL ANCHO ABAJO */}
+          {itseRequierePrevia && (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mt-8 pt-8 border-t-2 border-slate-50 animate-in fade-in slide-in-from-top-2">
+              <div className="md:col-span-6 flex flex-col gap-2">
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  N.º ITSE (previa)
+                </label>
+                <input 
+                  className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm font-bold focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
+                  placeholder="Ingrese el número de certificado ITSE"
+                  value={itseNumero} 
+                  onChange={(e) => setItseNumero(e.target.value)} 
+                />
+              </div>
+              <div className="md:col-span-6 flex flex-col gap-2">
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                  Archivo ITSE (Adjunto digital)
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input 
+                      className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-blue-500 outline-none transition-all" 
+                      placeholder="itse_certificado_2024.pdf" 
+                      value={itseArchivo} 
+                      onChange={(e) => setItseArchivo(e.target.value)} 
+                    />
+                  </div>
+                  <button className="h-12 px-6 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-black transition-all flex items-center gap-2">
+                    <Upload size={18} /> Subir
+                  </button>
                 </div>
               </div>
-            )}
-          </Card>
-        </div>
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
 
-        <div className="grid md:grid-cols-2 gap-5 mt-5">
-          {/* NUEVA */}
-          <Card title="NUEVA — Licencia de funcionamiento" disabled={nuevaDisabled}>
-            <fieldset disabled={nuevaDisabled} className="space-y-3">
-              <span className="text-sm font-medium">Modalidad (vigencia)</span>
-              <div className="flex gap-4">
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="modalidad" checked={modalidad === "INDETERMINADA"} onChange={() => setModalidad("INDETERMINADA")} />
-                  <span>Indeterminada</span>
+    {/* SECCIÓN: MODALIDAD Y ACCIÓN (NUEVA VS MODIFICACIÓN) - FULL WIDTH */}
+    <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-8 mt-6">
+      
+      {/* COLUMNA IZQUIERDA: NUEVA LICENCIA */}
+      <div className={`transition-all duration-300 ${modo !== 'NUEVA' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
+        <Card title="NUEVA — Licencia de Funcionamiento">
+          <fieldset disabled={modo !== 'NUEVA'} className="space-y-6">
+            
+            {/* Modalidad de Vigencia */}
+            <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-4">
+                Modalidad (Vigencia)
+              </span>
+              <div className="flex gap-8">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="radio" name="modalidad" checked={modalidad === "INDETERMINADA"} onChange={() => setModalidad("INDETERMINADA")} className="w-5 h-5 text-blue-600 border-slate-300" />
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600">Indeterminada</span>
                 </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="modalidad" checked={modalidad === "TEMPORAL"} onChange={() => setModalidad("TEMPORAL")} />
-                  <span>Temporal</span>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input type="radio" name="modalidad" checked={modalidad === "TEMPORAL"} onChange={() => setModalidad("TEMPORAL")} className="w-5 h-5 text-blue-600 border-slate-300" />
+                  <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600">Temporal</span>
                 </label>
               </div>
 
               {modalidad === "TEMPORAL" && (
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-4 animate-in fade-in slide-in-from-top-2">
                   <div>
-                    <label className="text-sm">Inicio</label>
-                    <input type="date" className="mt-1 w-full rounded-lg border px-3 py-2" value={fechaIni} onChange={(e) => setFechaIni(e.target.value)} />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Inicio</label>
+                    <input type="date" className="mt-1 w-full h-11 rounded-lg border border-slate-200 px-3 text-sm focus:bg-white outline-none transition-all" value={fechaIni} onChange={(e) => setFechaIni(e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-sm">Fin</label>
-                    <input type="date" className="mt-1 w-full rounded-lg border px-3 py-2" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Fin</label>
+                    <input type="date" className="mt-1 w-full h-11 rounded-lg border border-slate-200 px-3 text-sm focus:bg-white outline-none transition-all" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="pt-2">
-                <span className="text-sm font-medium">Opciones (combinables)</span>
-                <div className="grid md:grid-cols-3 gap-3 mt-2">
-                  <label className="inline-flex items-center gap-2">
-                    <input type="checkbox" checked={opAnuncio} onChange={(e) => setOpAnuncio(e.target.checked)} />
-                    <span>Anuncio publicitario</span>
+            {/* Opciones Combinables */}
+            <div className="p-4 rounded-xl border border-slate-100 bg-white">
+              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-4">
+                Opciones (Combinables)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { id: 'anuncio', label: 'Anuncio Publicitario', state: opAnuncio, setter: setOpAnuncio },
+                  { id: 'cese', label: 'Cesionario', state: opCesionario, setter: setOpCesionario },
+                  { id: 'mercado', label: 'Mercado / Galería', state: opMercado, setter: setOpMercado }
+                ].map(op => (
+                  <label key={op.id} className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${op.state ? 'border-blue-500 bg-blue-50/50' : 'border-slate-50 bg-slate-50/30'}`}>
+                    <input type="checkbox" checked={op.state} onChange={(e) => op.setter(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
+                    <span className={`text-xs font-bold ${op.state ? 'text-blue-700' : 'text-slate-600'}`}>{op.label}</span>
                   </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input type="checkbox" checked={opCesionario} onChange={(e) => setOpCesionario(e.target.checked)} />
-                    <span>Cesionario</span>
-                  </label>
-                  <label className="inline-flex items-center gap-2">
-                    <input type="checkbox" checked={opMercado} onChange={(e) => setOpMercado(e.target.checked)} />
-                    <span>Mercado/Galería/CC</span>
-                  </label>
-                </div>
+                ))}
+              </div>
 
+              {/* Inputs Condicionales Nueva */}
+              <div className="space-y-4 mt-4">
                 {opAnuncio && (
-                  <div className="mt-3">
-                    <label className="text-sm">Tipo de anuncio</label>
-                    <input className="mt-1 w-full rounded-lg border px-3 py-2" placeholder="LUMINOSO / AFICHE / PINTADO..." value={tipoAnuncio} onChange={(e) => setTipoAnuncio(e.target.value)} />
+                  <div className="animate-in slide-in-from-left-2 duration-200">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Tipo de anuncio</label>
+                    <input className="mt-1 w-full h-11 rounded-lg border border-slate-200 px-4 text-sm focus:border-blue-500 outline-none" placeholder="EJ. LUMINOSO, AFICHE, PINTADO..." value={tipoAnuncio} onChange={(e) => setTipoAnuncio(e.target.value)} />
                   </div>
                 )}
                 {opCesionario && (
-                  <div className="mt-3">
-                    <label className="text-sm">N.º Licencia principal</label>
-                    <input className="mt-1 w-full rounded-lg border px-3 py-2" placeholder="LIC-2024-000X" value={licenciaPrincipal} onChange={(e) => setLicenciaPrincipal(e.target.value)} />
+                  <div className="animate-in slide-in-from-left-2 duration-200">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">N.º Licencia Principal</label>
+                    <input className="mt-1 w-full h-11 rounded-lg border border-slate-200 px-4 text-sm focus:border-blue-500 outline-none" placeholder="LIC-2024-XXXX" value={licenciaPrincipal} onChange={(e) => setLicenciaPrincipal(e.target.value)} />
                   </div>
                 )}
               </div>
-            </fieldset>
-          </Card>
+            </div>
+          </fieldset>
+        </Card>
+      </div>
 
-          {/* MODIFICACIONES */}
-          <Card title="Cambios / Modificaciones (acción única)" disabled={modifDisabled}>
-            <fieldset disabled={modifDisabled} className="space-y-3">
-              <label className="text-sm">Acción</label>
-              <select className="w-full rounded-lg border px-3 py-2" value={accion} onChange={(e) => setAccion(e.target.value)}>
-                <option value="">— Selecciona —</option>
-                <option value="CAMBIO_DENOMINACION">CAMBIO_DENOMINACION</option>
-                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
-                <option value="CESE">CESE</option>
-                <option value="OTROS">OTROS</option>
+      {/* COLUMNA DERECHA: MODIFICACIONES */}
+      <div className={`transition-all duration-300 ${modo !== 'MODIFICACION' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
+        <Card title="Cambios / Modificaciones (Acción única)">
+          <fieldset disabled={modo !== 'MODIFICACION'} className="space-y-6">
+            <div>
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-2 ml-1">
+                Tipo de Acción
+              </label>
+              <select 
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm font-bold focus:bg-white focus:border-orange-500 outline-none transition-all appearance-none"
+                value={accion} 
+                onChange={(e) => setAccion(e.target.value)}
+              >
+                <option value="">— SELECCIONE ACCIÓN —</option>
+                <option value="CAMBIO_DENOMINACION">🔄 CAMBIO DE DENOMINACIÓN</option>
+                <option value="TRANSFERENCIA">🤝 TRANSFERENCIA</option>
+                <option value="CESE">🛑 CESE DE ACTIVIDADES</option>
+                <option value="OTROS">📝 OTROS CAMBIOS</option>
               </select>
+            </div>
 
-              {accion && (
-                <div className="space-y-3">
-                  {(["CAMBIO_DENOMINACION","TRANSFERENCIA","CESE"].includes(accion)) && (
-                    <div>
-                      <label className="text-sm">N.º Licencia (origen)</label>
-                      <input className="mt-1 w-full rounded-lg border px-3 py-2" value={nroLicenciaOrigen} onChange={(e) => setNroLicenciaOrigen(e.target.value)} />
-                    </div>
-                  )}
-                  {accion === "CAMBIO_DENOMINACION" && (
-                    <div>
-                      <label className="text-sm">Nueva denominación / nombre comercial</label>
-                      <input className="mt-1 w-full rounded-lg border px-3 py-2" value={nuevaDenominacion} onChange={(e) => setNuevaDenominacion(e.target.value)} />
-                    </div>
-                  )}
-                  {accion === "OTROS" && (
-                    <div>
-                      <label className="text-sm">Detalle</label>
-                      <textarea className="mt-1 w-full rounded-lg border px-3 py-2" rows={3} value={detalleOtros} onChange={(e) => setDetalleOtros(e.target.value)} />
-                    </div>
-                  )}
-                </div>
-              )}
-            </fieldset>
-          </Card>
-        </div>
+            {accion && (
+              <div className="space-y-5 animate-in fade-in slide-in-from-right-2">
+                {(["CAMBIO_DENOMINACION","TRANSFERENCIA","CESE"].includes(accion)) && (
+                  <div className="p-4 bg-orange-50/30 rounded-xl border border-orange-100">
+                    <label className="text-[10px] font-bold text-orange-600 uppercase">N.º Licencia (Origen)</label>
+                    <input className="mt-1 w-full h-11 rounded-lg border border-orange-200 px-4 text-sm focus:bg-white outline-none" placeholder="Ingrese licencia previa..." value={nroLicenciaOrigen} onChange={(e) => setNroLicenciaOrigen(e.target.value)} />
+                  </div>
+                )}
+                
+                {accion === "CAMBIO_DENOMINACION" && (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Nueva denominación / Nombre comercial</label>
+                    <input className="mt-1 w-full h-11 rounded-lg border border-slate-200 px-4 text-sm focus:border-blue-500 outline-none" value={nuevaDenominacion} onChange={(e) => setNuevaDenominacion(e.target.value)} />
+                  </div>
+                )}
 
-        {/* II Datos del solicitante */}
-        <div className="mt-5">
-          <Card title="II Datos del solicitante">
-            {/* Identidad */}
-            <div className="grid md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm">Tipo de persona</label>
-                <select className="mt-1 w-full rounded-lg border px-3 py-2" value={tipoPersona} onChange={(e) => setTipoPersona(e.target.value)}>
-                  <option value="NATURAL">NATURAL</option>
-                  <option value="JURIDICA">JURIDICA</option>
+                {accion === "OTROS" && (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase">Detalle del cambio</label>
+                    <textarea className="mt-1 w-full rounded-xl border border-slate-200 p-4 text-sm focus:border-blue-500 outline-none" rows={4} placeholder="Describa el cambio solicitado..." value={detalleOtros} onChange={(e) => setDetalleOtros(e.target.value)} />
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {!accion && modo === 'MODIFICACION' && (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400 italic text-sm">
+                <div className="mb-2 opacity-20"><FileText size={48} /></div>
+                Seleccione una acción para ver los campos requeridos
+              </div>
+            )}
+          </fieldset>
+        </Card>
+      </div>
+    </div>
+
+
+    <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-8 mt-6">
+      {/* SECCIÓN II: DATOS DEL TITULAR (FULL WIDTH) */}
+      <div className="w-full">
+        <Card title="II. Datos del Titular (Persona Natural o Jurídica)">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+            
+            {/* Selector de Tipo Persona */}
+            <div className="md:col-span-3">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">
+                Tipo de Persona
+              </label>
+              <select 
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm font-bold focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                value={tipoPersona} 
+                onChange={(e) => setTipoPersona(e.target.value)}
+              >
+                <option value="NATURAL">👤 Persona Natural</option>
+                <option value="JURIDICA">🏢 Persona Jurídica</option>
+              </select>
+            </div>
+
+            {/* Nombre o Razón Social - Ocupa el resto del ancho de la fila */}
+            <div className="md:col-span-9">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">
+                Nombres y Apellidos / Razón Social
+              </label>
+              <input 
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-5 text-sm focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                placeholder="Ingrese el nombre completo o denominación social"
+                value={nombreRazon} 
+                onChange={(e) => setNombreRazon(e.target.value)} 
+              />
+            </div>
+
+            {/* Fila de Documentos y Contacto */}
+            <div className="md:col-span-3">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">
+                Documento
+              </label>
+              <div className="flex gap-2">
+                <select className="w-24 h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-2 text-xs font-bold focus:bg-white outline-none" value={docTipo} onChange={e => setDocTipo(e.target.value)}>
+                  <option>DNI</option>
+                  <option>C.E.</option>
                 </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="text-sm">Apellidos y Nombres / Razón social</label>
-                <input className="mt-1 w-full rounded-lg border px-3 py-2" value={nombreRazon} onChange={(e) => setNombreRazon(e.target.value)} />
+                <input className="flex-1 h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white outline-none" value={docNumero} onChange={e => setDocNumero(e.target.value)} />
               </div>
             </div>
 
-            {/* Documentos y contacto */}
-            <div className="grid md:grid-cols-4 gap-4 mt-3">
-              {tipoPersona === "NATURAL" && (
-                <div className="md:col-span-1">
-                  <label className="text-sm">N° DNI / N° C.E.</label>
-                  <div className="flex gap-2 mt-1">
-                    <select className="rounded-lg border px-2 py-2" value={docTipo} onChange={(e) => setDocTipo(e.target.value)}>
-                      <option value="DNI">DNI</option>
-                      <option value="CE">C.E.</option>
-                    </select>
-                    <input className="flex-1 min-w-0 rounded-lg border px-3 py-2" value={docNumero} onChange={(e) => setDocNumero(e.target.value)} />
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="text-sm">N° RUC</label>
-                <input className="mt-1 w-full rounded-lg border px-3 py-2" value={ruc} onChange={(e) => setRuc(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-sm">N° Teléfono</label>
-                <input className="mt-1 w-full rounded-lg border px-3 py-2" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-              </div>
-              <div className={tipoPersona === "JURIDICA" ? "md:col-span-2" : "md:col-span-1"}>
-                <label className="text-sm">Correo electrónico</label>
-                <input className="mt-1 w-full rounded-lg border px-3 py-2" value={correo} onChange={(e) => setCorreo(e.target.value)} />
+            <div className="md:col-span-3">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">
+                RUC
+              </label>
+              <input className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-5 text-sm focus:bg-white outline-none" placeholder="10XXXXXXXXX" value={ruc} onChange={e => setRuc(e.target.value)} />
+            </div>
+
+            <div className="md:col-span-3">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">
+                Teléfono
+              </label>
+              <input className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-5 text-sm focus:bg-white outline-none" placeholder="999 999 999" value={telefono} onChange={e => setTelefono(e.target.value)} />
+            </div>
+
+            <div className="md:col-span-3">
+              <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">
+                Correo Electrónico
+              </label>
+              <input className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-5 text-sm focus:bg-white outline-none" placeholder="correo@ejemplo.com" value={correo} onChange={e => setCorreo(e.target.value)} />
+            </div>
+
+          </div>
+        </Card>
+      </div>
+
+      {/* SECCIÓN III: DATOS DEL REPRESENTANTE LEGAL (FULL WIDTH) */}
+      <div className="w-full">
+        <Card title="III. Datos del Representante Legal o Apoderado">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+            
+            {/* Apellidos y Nombres - Ocupa 5/12 */}
+            <div className="md:col-span-5 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                Apellidos y Nombres Completos
+              </label>
+              <input
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm 
+                          focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                placeholder="Ej. María López Huamán"
+                value={repNombre}
+                onChange={(e) => setRepNombre(e.target.value)}
+              />
+            </div>
+
+            {/* Documento de Identidad - Ocupa 3/12 */}
+            <div className="md:col-span-3 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                N° DNI / N° C.E.
+              </label>
+              <div className="flex gap-2">
+                <select
+                  className="w-24 h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-3 text-xs font-bold 
+                            focus:bg-white outline-none transition-all appearance-none cursor-pointer"
+                  value={repDocTipo}
+                  onChange={(e) => setRepDocTipo(e.target.value)}
+                >
+                  <option value="DNI">DNI</option>
+                  <option value="CE">C.E.</option>
+                </select>
+                <input
+                  className="flex-1 h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm 
+                            focus:bg-white focus:border-blue-500 outline-none transition-all"
+                  placeholder={repDocTipo === "DNI" ? "12345678" : "00000000"}
+                  value={repDocNumero}
+                  onChange={(e) => setRepDocNumero(e.target.value)}
+                />
               </div>
             </div>
 
-            {/* Dirección */}
-            <div className="mt-4">
-              <div className="text-sm font-medium mb-1">Dirección</div>
-              <div className="grid md:grid-cols-4 gap-3">
-                <div className="md:col-span-2">
-                  <label className="text-sm">Av./Jr./Ca./Pje./Otros</label>
-                  <div className="flex gap-2 mt-1">
-                    <select className="rounded-lg border px-2 py-2" value={viaTipo} onChange={(e) => setViaTipo(e.target.value)}>
-                      <option>Av.</option><option>Jr.</option><option>Ca.</option><option>Pje.</option><option>Otros</option>
-                    </select>
-                    <input className="flex-1 rounded-lg border px-3 py-2" placeholder="Nombre de vía" value={viaNombre} onChange={(e) => setViaNombre(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm">N°/Int./Mz./Lt./Otros</label>
-                  <div className="grid grid-cols-5 gap-2 mt-1">
-                    <input className="rounded-lg border px-2 py-2" placeholder="N°" value={numeroPuerta} onChange={(e) => setNumeroPuerta(e.target.value)} />
-                    <input className="rounded-lg border px-2 py-2" placeholder="Int." value={interior} onChange={(e) => setInterior(e.target.value)} />
-                    <input className="rounded-lg border px-2 py-2" placeholder="Mz" value={mz} onChange={(e) => setMz(e.target.value)} />
-                    <input className="rounded-lg border px-2 py-2" placeholder="Lt" value={lt} onChange={(e) => setLt(e.target.value)} />
-                    <input className="rounded-lg border px-2 py-2" placeholder="Otros" value={otrosDir} onChange={(e) => setOtrosDir(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm">Urb./AA.HH./Otros</label>
-                  <input className="mt-1 w-full rounded-lg border px-3 py-2" value={urbAAHH} onChange={(e) => setUrbAAHH(e.target.value)} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm">Distrito y Provincia</label>
-                  <div className="grid grid-cols-2 gap-2 mt-1">
-                    <input className="rounded-lg border px-3 py-2" placeholder="Distrito" value={distrito} onChange={(e) => setDistrito(e.target.value)} />
-                    <input className="rounded-lg border px-3 py-2" placeholder="Provincia" value={provincia} onChange={(e) => setProvincia(e.target.value)} />
-                  </div>
-                </div>
+            {/* SUNARP - Ocupa 4/12 */}
+            <div className="md:col-span-4 flex flex-col gap-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">
+                Partida Electrónica y Asiento <span className="text-slate-400 font-medium">(SUNARP)</span>
+              </label>
+              <div className="relative">
+                <input
+                  className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 pl-10 text-sm 
+                            focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 outline-none transition-all"
+                  placeholder="Partida XXXXXX, Asiento YY"
+                  value={repSunarp}
+                  onChange={(e) => setRepSunarp(e.target.value)}
+                />
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              </div>
+              <p className="text-[10px] text-slate-400 italic ml-1">* Solo si actúa en representación de una persona jurídica.</p>
+            </div>
+
+          </div>
+        </Card>
+      </div>
+    </div>
+
+
+
+
+    {/* SECCIÓN IV: DATOS DEL ESTABLECIMIENTO (FULL WIDTH) */}
+    <div className="w-full mt-6">
+      <Card title="IV. Datos del Establecimiento">
+        <fieldset disabled={isModBasica} className={`space-y-8 ${isModBasica ? 'opacity-50' : ''}`}>
+          
+          {/* 1. Identificación y Actividad */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-end">
+            <div className="md:col-span-4">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Nombre Comercial</label>
+              <input
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white focus:border-blue-500 outline-none transition-all font-bold"
+                placeholder="Ej. Restaurante Sazón Peruana"
+                value={estNombreComercial}
+                onChange={(e) => setEstNombreComercial(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Código CIIU*</label>
+              <input
+                className="w-full h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm focus:border-blue-500 outline-none transition-all text-center font-mono"
+                placeholder="5610"
+                value={estCiiu}
+                onChange={(e) => setEstCiiu(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-6">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Giro(s) del Negocio*</label>
+              <div className="flex gap-2">
+                <input
+                  className="flex-1 h-12 rounded-xl border-2 border-slate-100 bg-slate-50/50 px-4 text-sm focus:bg-white outline-none"
+                  placeholder="Ej. Venta de abarrotes..."
+                  value={estGiroInput}
+                  onChange={(e) => setEstGiroInput(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="h-12 px-6 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 flex items-center gap-2"
+                  onClick={() => {
+                    const v = estGiroInput.trim();
+                    if (v) { setEstGiros((prev) => [...prev, v]); setEstGiroInput(""); }
+                  }}
+                >
+                  <Plus size={18} /> Agregar
+                </button>
               </div>
             </div>
 
-            {/* Representación (solo jurídica) */}
-            {tipoPersona === "JURIDICA" && (
-              <div className="grid md:grid-cols-3 gap-4 mt-3">
-                <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" checked={poderVigente} onChange={(e) => setPoderVigente(e.target.checked)} />
-                  <span>Poder vigente (SUNARP)</span>
-                </label>
+            {/* Chips de giros (Ancho completo debajo de la fila) */}
+            {estGiros.length > 0 && (
+              <div className="md:col-span-12 flex flex-wrap gap-2 pt-2">
+                {estGiros.map((g, i) => (
+                  <span key={i} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold animate-in zoom-in-95">
+                    {g}
+                    <button type="button" onClick={() => setEstGiros(estGiros.filter((_, idx) => idx !== i))} className="hover:text-red-500">
+                      <X size={14} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div className="md:col-span-8">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Actividad Específica</label>
+              <input
+                className="w-full h-11 rounded-lg border-2 border-slate-100 bg-slate-50/30 px-4 text-sm outline-none focus:border-blue-400 transition-all"
+                placeholder="Detalle la actividad principal..."
+                value={estActividad}
+                onChange={(e) => setEstActividad(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-4">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Zonificación</label>
+              <input
+                className="w-full h-11 rounded-lg border-2 border-slate-100 bg-slate-50/30 px-4 text-sm outline-none focus:border-blue-400 transition-all"
+                placeholder="Ej. CZ (Comercio Zonal)"
+                value={estZonificacion}
+                onChange={(e) => setEstZonificacion(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* 2. Ubicación Física (Dirección) */}
+          <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+            <span className="text-xs font-black text-blue-600 uppercase tracking-[0.2em] mb-4 block">Ubicación del Establecimiento</span>
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="md:col-span-5 flex gap-2">
+                <select className="w-24 h-11 rounded-lg border-2 border-white shadow-sm px-2 text-sm font-bold outline-none" value={estViaTipo} onChange={(e) => setEstViaTipo(e.target.value)}>
+                  <option>Av.</option><option>Jr.</option><option>Ca.</option><option>Pje.</option>
+                </select>
+                <input className="flex-1 h-11 rounded-lg border-2 border-white shadow-sm px-4 text-sm outline-none focus:border-blue-400" placeholder="Nombre de vía" value={estViaNombre} onChange={(e) => setEstViaNombre(e.target.value)} />
+              </div>
+              
+              <div className="md:col-span-7 grid grid-cols-5 gap-2">
+                <input className="h-11 rounded-lg border-2 border-white shadow-sm px-2 text-sm text-center outline-none" placeholder="N°" value={estNumeroPuerta} onChange={(e) => setEstNumeroPuerta(e.target.value)} />
+                <input className="h-11 rounded-lg border-2 border-white shadow-sm px-2 text-sm text-center outline-none" placeholder="Int." value={estInterior} onChange={(e) => setEstInterior(e.target.value)} />
+                <input className="h-11 rounded-lg border-2 border-white shadow-sm px-2 text-sm text-center outline-none" placeholder="Mz" value={estMz} onChange={(e) => setEstMz(e.target.value)} />
+                <input className="h-11 rounded-lg border-2 border-white shadow-sm px-2 text-sm text-center outline-none" placeholder="Lt" value={estLt} onChange={(e) => setEstLt(e.target.value)} />
+                <input className="h-11 rounded-lg border-2 border-white shadow-sm px-2 text-sm text-center outline-none" placeholder="Otros" value={estOtrosDir} onChange={(e) => setEstOtrosDir(e.target.value)} />
+              </div>
+
+              <div className="md:col-span-4 mt-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Urb. / AA.HH. / Sector</label>
+                <input className="w-full h-11 rounded-lg border-2 border-white shadow-sm px-4 text-sm mt-1 outline-none" value={estUrbAAHH} onChange={(e) => setEstUrbAAHH(e.target.value)} />
+              </div>
+              <div className="md:col-span-4 mt-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Provincia</label>
+                <input className="w-full h-11 rounded-lg border-2 border-white shadow-sm px-4 text-sm mt-1 outline-none" value={estProvincia} onChange={(e) => setEstProvincia(e.target.value)} />
+              </div>
+              <div className="md:col-span-4 mt-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Área Total (m²)</label>
+                <div className="relative mt-1">
+                  <input type="number" className="w-full h-11 rounded-lg border-2 border-white shadow-sm px-4 pr-10 text-sm font-bold text-blue-700 outline-none" value={estAreaTotal} onChange={(e) => setEstAreaTotal(e.target.value)} />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">m²</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Autorización Sectorial */}
+          <div className="border-t border-slate-100 pt-6">
+            <label className="flex items-center gap-3 cursor-pointer group mb-6">
+              <input type="checkbox" className="w-5 h-5 rounded border-slate-300 text-blue-600 transition-all" checked={estTieneAutSectorial} onChange={(e) => setEstTieneAutSectorial(e.target.checked)} />
+              <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors underline decoration-slate-200 underline-offset-4">
+                Requiere Autorización Sectorial (Salud, Educación, MTC, etc.)
+              </span>
+            </label>
+
+            {estTieneAutSectorial && (
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 bg-amber-50/30 rounded-2xl border border-amber-100 animate-in fade-in zoom-in-95 duration-200">
+                <div className="md:col-span-3">
+                  <label className="text-[10px] font-bold text-amber-700 uppercase mb-2 block">Entidad</label>
+                  <input className="w-full h-11 rounded-lg border border-amber-200 px-4 text-sm focus:bg-white outline-none transition-all" placeholder="MINSA, MTC..." value={estAutEntidad} onChange={(e) => setEstAutEntidad(e.target.value)} />
+                </div>
+                <div className="md:col-span-4">
+                  <label className="text-[10px] font-bold text-amber-700 uppercase mb-2 block">Denominación</label>
+                  <input className="w-full h-11 rounded-lg border border-amber-200 px-4 text-sm focus:bg-white outline-none transition-all" placeholder="Nombre del permiso..." value={estAutDenominacion} onChange={(e) => setEstAutDenominacion(e.target.value)} />
+                </div>
                 <div className="md:col-span-2">
-                  <label className="text-sm">Archivo vigencia de poder (simulado)</label>
-                  <input className="mt-1 w-full rounded-lg border px-3 py-2" placeholder="vigencia_poder.pdf" value={sunarpArchivo} onChange={(e) => setSunarpArchivo(e.target.value)} />
+                  <label className="text-[10px] font-bold text-amber-700 uppercase mb-2 block">Fecha</label>
+                  <input type="date" className="w-full h-11 rounded-lg border border-amber-200 px-3 text-sm focus:bg-white outline-none transition-all" value={estAutFecha} onChange={(e) => setEstAutFecha(e.target.value)} />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="text-[10px] font-bold text-amber-700 uppercase mb-2 block">N° Resolución / Código</label>
+                  <input className="w-full h-11 rounded-lg border border-amber-200 px-4 text-sm focus:bg-white outline-none transition-all" value={estAutNumero} onChange={(e) => setEstAutNumero(e.target.value)} />
                 </div>
               </div>
             )}
-          </Card>
-        </div>
+          </div>
+        </fieldset>
+      </Card>
+    </div>
 
-        {/* III Datos del representante legal o apoderado */}
-        <div className="mt-5">
-          <Card title="III Datos del representante legal o apoderado">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="md:col-span-1">
-                <label className="text-sm">Apellidos y Nombres</label>
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  placeholder="Ej. María López Huamán"
-                  value={repNombre}
-                  onChange={(e) => setRepNombre(e.target.value)}
+    {/* SECCIÓN V: DECLARACIÓN JURADA Y FIRMA (FULL WIDTH) */}
+    <div className="w-full mt-6">
+      <Card title="V. Declaración Jurada de Cumplimiento">
+        <div className="space-y-8">
+          
+          {/* 1. Bloque de Compromisos Legales */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[
+              {
+                id: 'poder',
+                state: djDeclaroPoder,
+                setter: setDjDeclaroPoder,
+                text: "Cuento con poder suficiente vigente para actuar como representante legal de la persona jurídica o natural que represento.",
+                sub: "(Marcar solo si aplica)"
+              },
+              {
+                id: 'itse',
+                state: condSeguridad,
+                setter: setCondSeguridad,
+                text: "El establecimiento cumple con las condiciones de seguridad en edificaciones y me someto a la inspección ITSE correspondiente.",
+                sub: "Obligatorio"
+              },
+              {
+                id: 'titulo',
+                state: djDeclaroTituloProf,
+                setter: setDjDeclaroTituloProf,
+                text: "Cuento con título profesional vigente y habilitación del colegio respectivo para servicios vinculados a salud o educación.",
+                sub: "(Si corresponde)"
+              }
+            ].map((item) => (
+              <label 
+                key={item.id} 
+                className={`flex flex-col gap-4 p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md
+                  ${item.state ? 'border-blue-500 bg-blue-50/30' : 'border-slate-100 bg-white'}
+                `}
+              >
+                <div className="flex justify-between items-start">
+                  <input 
+                    type="checkbox" 
+                    className="w-6 h-6 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    checked={item.state} 
+                    onChange={(e) => item.setter(e.target.checked)} 
+                  />
+                  <span className={`text-[10px] font-black px-2 py-1 rounded ${item.state ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                    {item.state ? 'ACEPTADO' : 'PENDIENTE'}
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed font-medium text-slate-700">
+                  {item.text} <br/>
+                  <span className="text-[11px] text-slate-400 font-normal italic">{item.sub}</span>
+                </p>
+              </label>
+            ))}
+          </div>
+
+          {/* 2. Advertencia de Fiscalización (Banner) */}
+          <div className="relative overflow-hidden bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
+              <div className="bg-amber-400 p-3 rounded-full text-slate-900 animate-pulse">
+                <AlertTriangle size={24} />
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h4 className="font-black text-sm uppercase tracking-widest mb-1 text-amber-400">Aviso de Fiscalización Posterior</h4>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Tengo conocimiento de que la presente Declaración Jurada está sujeta a fiscalización. De comprobarse falsedad o inexactitud, 
+                  se aplicarán las sanciones administrativas y penales correspondientes, incluyendo la nulidad de la licencia.
+                </p>
+              </div>
+              <label className="flex items-center gap-3 bg-white/10 p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-all cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-5 h-5 rounded border-none text-amber-500 focus:ring-amber-500"
+                  checked={djAcepto} 
+                  onChange={(e) => setDjAcepto(e.target.checked)} 
+                />
+                <span className="text-sm font-black uppercase tracking-tighter">Acepto bajo juramento</span>
+              </label>
+            </div>
+            {/* Decoración de fondo */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 -mr-10 -mt-10 rounded-full blur-3xl"></div>
+          </div>
+
+          {/* 3. Observaciones */}
+          <div>
+            <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">
+              Observaciones o comentarios adicionales
+            </label>
+            <textarea 
+              rows={2} 
+              className="w-full rounded-xl border-2 border-slate-100 bg-slate-50/30 p-4 text-sm focus:bg-white focus:border-blue-500 outline-none transition-all"
+              placeholder="Opcional: Indique cualquier detalle relevante para la evaluación..." 
+              value={djObservaciones}
+              onChange={(e) => setDjObservaciones(e.target.value)} 
+            />
+          </div>
+
+          {/* 4. Firma del Responsable (Grid Full Width) */}
+          <div className="bg-slate-50 p-8 rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-end">
+              
+              <div className="md:col-span-3">
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Fecha de Declaración</label>
+                <input 
+                  type="date" 
+                  className="w-full h-12 rounded-xl border border-slate-200 px-4 text-sm font-bold bg-white"
+                  value={djFecha} 
+                  onChange={(e) => setDjFecha(e.target.value)} 
                 />
               </div>
 
-              <div className="md:col-span-1">
-                <label className="text-sm">N° DNI / N° C.E.</label>
-                <div className="flex gap-2 mt-1">
-                  <select
-                    className="rounded-lg border px-2 py-2"
-                    value={repDocTipo}
+              <div className="md:col-span-3">
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Calidad del Firmante</label>
+                <select 
+                  className="w-full h-12 rounded-xl border border-slate-200 px-4 text-sm font-bold bg-white outline-none"
+                  value={djFirmanteTipo} 
+                  onChange={(e) => setDjFirmanteTipo(e.target.value)}
+                >
+                  <option value="SOLICITANTE">EL SOLICITANTE</option>
+                  <option value="REPRESENTANTE">REPRESENTANTE LEGAL</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-6">
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Nombres y Apellidos del Firmante</label>
+                <input 
+                  className="w-full h-12 rounded-xl border border-slate-200 px-4 text-sm font-bold bg-white"
+                  placeholder="Nombre completo"
+                  value={djFirmanteNombre} 
+                  onChange={(e) => setDjFirmanteNombre(e.target.value)} 
+                />
+              </div>
+
+              <div className="md:col-span-4">
+                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Documento de Identidad</label>
+                <div className="flex gap-2">
+                  <select 
+                    className="w-24 h-12 rounded-xl border border-slate-200 bg-white px-2 text-xs font-bold" 
+                    value={djFirmanteDocTipo}
                     onChange={(e) => setRepDocTipo(e.target.value)}
                   >
                     <option value="DNI">DNI</option>
                     <option value="CE">C.E.</option>
                   </select>
-                  <input
-                    className="flex-1 rounded-lg border px-3 py-2"
-                    placeholder={repDocTipo === "DNI" ? "12345678" : "CE-000000"}
-                    value={repDocNumero}
-                    onChange={(e) => setRepDocNumero(e.target.value)}
+                  <input 
+                    className="flex-1 h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold font-mono"
+                    placeholder="Número"
+                    value={djFirmanteDocNumero} 
+                    onChange={(e) => setDjFirmanteDocNumero(e.target.value)} 
                   />
                 </div>
               </div>
 
-              <div className="md:col-span-1">
-                <label className="text-sm">
-                  N° de partida electrónica y asiento (SUNARP) <span className="text-slate-500">(de corresponder)</span>
-                </label>
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  placeholder="Partida XXXXXX, Asiento YY"
-                  value={repSunarp}
-                  onChange={(e) => setRepSunarp(e.target.value)}
-                />
+              <div className="md:col-span-8">
+                <div className="p-4 bg-white/50 rounded-xl border border-slate-200/50 flex items-center gap-3 text-slate-500 italic">
+                  <ShieldCheck className="text-emerald-500" size={24} />
+                  <p className="text-[11px] leading-tight">
+                    Esta declaración se firma electrónicamente mediante la aceptación del formulario bajo la Ley N° 27269. 
+                    Se generará una evidencia digital con el ID del trámite.
+                  </p>
+                </div>
               </div>
             </div>
-          </Card>
-        </div>
-
-        {/* IV */}
-        <div className="mt-5">
-          <Card title="IV Datos del establecimiento" disabled={isModBasica}>
-            <fieldset disabled={isModBasica} className="space-y-3">
-              {/* Nombre comercial */}
-              <div>
-                <label className="text-sm">Nombre Comercial</label>
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  placeholder="Ej. Restaurante Sazón Peruana"
-                  value={estNombreComercial}
-                  onChange={(e) => setEstNombreComercial(e.target.value)}
-                />
-              </div>
-
-              {/* CIIU, Giros, Botón, Actividad, Zonificación en UNA sola línea */}
-              <div className="grid grid-cols-1 md:grid-cols-[120px_minmax(0,2fr)_auto_minmax(0,1fr)_minmax(0,1fr)] gap-4 mt-3 items-end">
-                {/* 1) CIIU pequeño */}
-                <div>
-                  <label className="text-sm">Código CIIU*</label>
-                  <input
-                    className="mt-1 w-full rounded-lg border px-3 py-2"
-                    placeholder="5610"
-                    value={estCiiu}
-                    onChange={(e) => setEstCiiu(e.target.value)}
-                  />
-                </div>
-
-                {/* 2) Giros grande */}
-                <div>
-                  <label className="text-sm">Giro/s*</label>
-                  <input
-                    className="mt-1 w-full rounded-lg border px-3 py-2 min-w-0"
-                    placeholder="Ej. Restaurante"
-                    value={estGiroInput}
-                    onChange={(e) => setEstGiroInput(e.target.value)}
-                  />
-                </div>
-
-                {/* 3) Botón Agregar */}
-                <div className="flex md:block">
-                  <button
-                    type="button"
-                    className="rounded-lg border px-3 py-2 shrink-0"
-                    onClick={() => {
-                      const v = estGiroInput.trim();
-                      if (v) {
-                        setEstGiros((prev) => [...prev, v]);
-                        setEstGiroInput("");
-                      }
-                    }}
-                  >
-                    Agregar
-                  </button>
-                </div>
-
-                {/* 4) Actividad */}
-                <div>
-                  <label className="text-sm">Actividad</label>
-                  <input
-                    className="mt-1 w-full rounded-lg border px-3 py-2 min-w-0"
-                    placeholder="Restaurantes y servicios de comida"
-                    value={estActividad}
-                    onChange={(e) => setEstActividad(e.target.value)}
-                  />
-                </div>
-
-                {/* 5) Zonificación (misma fila) */}
-                <div>
-                  <label className="text-sm">Zonificación</label>
-                  <input
-                    className="mt-1 w-full rounded-lg border px-3 py-2 min-w-0"
-                    placeholder="ZC-COM"
-                    value={estZonificacion}
-                    onChange={(e) => setEstZonificacion(e.target.value)}
-                  />
-                </div>
-
-                {/* Chips de giros debajo, ocupan toda la fila */}
-                {estGiros.length > 0 && (
-                  <div className="md:col-span-5 flex flex-wrap gap-2 mt-1 text-xs">
-                    {estGiros.map((g, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 rounded-full border px-2 py-1">
-                        {g}
-                        <button
-                          type="button"
-                          className="text-slate-500"
-                          onClick={() => setEstGiros(estGiros.filter((_, idx) => idx !== i))}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Dirección */}
-              <div className="mt-4">
-                <div className="text-sm font-medium mb-1">Dirección</div>
-                <div className="grid md:grid-cols-4 gap-3">
-                  <div className="md:col-span-2">
-                    <label className="text-sm">Av./Jr./Ca./Pje./Otros</label>
-                    <div className="flex gap-2 mt-1">
-                      <select
-                        className="rounded-lg border px-2 py-2"
-                        value={estViaTipo}
-                        onChange={(e) => setEstViaTipo(e.target.value)}
-                      >
-                        <option>Av.</option><option>Jr.</option><option>Ca.</option><option>Pje.</option><option>Otros</option>
-                      </select>
-                      <input
-                        className="flex-1 rounded-lg border px-3 py-2"
-                        placeholder="Nombre de vía"
-                        value={estViaNombre}
-                        onChange={(e) => setEstViaNombre(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm">N°/Int./Mz./Lt./Otros</label>
-                    <div className="grid grid-cols-5 gap-2 mt-1">
-                      <input className="rounded-lg border px-2 py-2" placeholder="N°"
-                             value={estNumeroPuerta} onChange={(e) => setEstNumeroPuerta(e.target.value)} />
-                      <input className="rounded-lg border px-2 py-2" placeholder="Int."
-                             value={estInterior} onChange={(e) => setEstInterior(e.target.value)} />
-                      <input className="rounded-lg border px-2 py-2" placeholder="Mz"
-                             value={estMz} onChange={(e) => setEstMz(e.target.value)} />
-                      <input className="rounded-lg border px-2 py-2" placeholder="Lt"
-                             value={estLt} onChange={(e) => setEstLt(e.target.value)} />
-                      <input className="rounded-lg border px-2 py-2" placeholder="Otros"
-                             value={estOtrosDir} onChange={(e) => setEstOtrosDir(e.target.value)} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm">Urb./AA.HH./Otros</label>
-                    <input
-                      className="mt-1 w-full rounded-lg border px-3 py-2"
-                      value={estUrbAAHH}
-                      onChange={(e) => setEstUrbAAHH(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-sm">Provincia</label>
-                    <input
-                      className="mt-1 w-full rounded-lg border px-3 py-2"
-                      placeholder="Lima"
-                      value={estProvincia}
-                      onChange={(e) => setEstProvincia(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Autorización sectorial (de corresponder) */}
-              <div className="mt-5">
-                <div className="text-sm font-medium mb-2">Autorización sectorial (de corresponder)</div>
-
-                <label className="inline-flex items-center gap-2 mb-3">
-                  <input
-                    type="checkbox"
-                    checked={estTieneAutSectorial}
-                    onChange={(e) => setEstTieneAutSectorial(e.target.checked)}
-                  />
-                  <span>Declaro que requiero y adjuntaré autorización sectorial</span>
-                </label>
-
-                {estTieneAutSectorial && (
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="text-sm">Entidad que otorga autorización</label>
-                      <input
-                        className="mt-1 w-full rounded-lg border px-3 py-2"
-                        placeholder="Ej. MINSA / SUTRAN / MTC"
-                        value={estAutEntidad}
-                        onChange={(e) => setEstAutEntidad(e.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="text-sm">Denominación de la autorización sectorial</label>
-                      <input
-                        className="mt-1 w-full rounded-lg border px-3 py-2"
-                        placeholder="Ej. Autorización sanitaria para ..."
-                        value={estAutDenominacion}
-                        onChange={(e) => setEstAutDenominacion(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm">Fecha de autorización</label>
-                      <input
-                        type="date"
-                        className="mt-1 w-full rounded-lg border px-3 py-2"
-                        value={estAutFecha}
-                        onChange={(e) => setEstAutFecha(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm">Número de autorización</label>
-                      <input
-                        className="mt-1 w-full rounded-lg border px-3 py-2"
-                        placeholder="N°/Código"
-                        value={estAutNumero}
-                        onChange={(e) => setEstAutNumero(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Área total solicitada (m²) */}
-              <div className="mt-5">
-                <label className="text-sm">Área total solicitada (m²)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  placeholder="Ej. 120.50"
-                  value={estAreaTotal}
-                  onChange={(e) => setEstAreaTotal(e.target.value)}
-                />
-              </div>
-            </fieldset>
-          </Card>
-        </div>
-
-        {/* V Declaración Jurada */}
-        <div className="mt-5">
-          <Card title="V Declaración Jurada">
-            <div className="space-y-3">
-              {/* Declaraciones (checkbox) */}
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1" checked={djDeclaroPoder}
-                       onChange={(e) => setDjDeclaroPoder(e.target.checked)} />
-                <span className="text-sm">
-                  Cuento con poder suficiente vigente para actuar como representante legal de la persona jurídica conductora
-                  (o de la persona natural que represento). <span className="text-slate-500">(Marcar solo si aplica)</span>
-                </span>
-              </label>
-
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1" checked={condSeguridad}
-                       onChange={(e) => setCondSeguridad(e.target.checked)} />
-                <span className="text-sm">
-                  El establecimiento cumple con las condiciones de seguridad en edificaciones y me someto a la ITSE que corresponda.
-                </span>
-              </label>
-
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1" checked={djDeclaroTituloProf}
-                       onChange={(e) => setDjDeclaroTituloProf(e.target.checked)} />
-                <span className="text-sm">
-                  Cuento con título profesional vigente y estoy habilitado por el colegio profesional correspondiente
-                  <span className="text-slate-500"> (solo si corresponde: servicios vinculados a salud, etc.)</span>.
-                </span>
-              </label>
-
-              {/* Texto de conocimiento/aceptación */}
-              <div className="text-xs text-slate-600 border rounded-lg p-3 bg-slate-50">
-                Tengo conocimiento de que la presente Declaración Jurada y documentación está sujeta a fiscalización posterior.
-                De comprobarse falsedad o inexactitud, se aplicarán las sanciones correspondientes.
-              </div>
-
-              <label className="inline-flex items-center gap-2">
-                <input type="checkbox" checked={djAcepto} onChange={(e) => setDjAcepto(e.target.checked)} />
-                <span className="text-sm font-medium">Declaro bajo juramento y acepto lo señalado</span>
-              </label>
-
-              {/* Observaciones */}
-              <div>
-                <label className="text-sm">Observaciones o comentarios del solicitante</label>
-                <textarea rows={3} className="mt-1 w-full rounded-lg border px-3 py-2"
-                          placeholder="Opcional" value={djObservaciones}
-                          onChange={(e) => setDjObservaciones(e.target.value)} />
-              </div>
-
-              {/* Fecha y firmante */}
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm">Fecha</label>
-                  <input type="date" className="mt-1 w-full rounded-lg border px-3 py-2"
-                         value={djFecha} onChange={(e) => setDjFecha(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm">Quién firma</label>
-                  <select className="mt-1 w-full rounded-lg border px-3 py-2"
-                          value={djFirmanteTipo} onChange={(e) => setDjFirmanteTipo(e.target.value)}>
-                    <option value="SOLICITANTE">Solicitante</option>
-                    <option value="REPRESENTANTE">Representante legal / Apoderado</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-1"></div>
-
-                <div className="md:col-span-2">
-                  <label className="text-sm">Nombres y Apellidos del firmante</label>
-                  <input className="mt-1 w-full rounded-lg border px-3 py-2"
-                         value={djFirmanteNombre} onChange={(e) => setDjFirmanteNombre(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm">Documento del firmante</label>
-                  <div className="flex gap-2 mt-1">
-                    <select className="rounded-lg border px-2 py-2" value={djFirmanteDocTipo}
-                            onChange={(e) => setDjFirmanteDocTipo(e.target.value)}>
-                      <option value="DNI">DNI</option>
-                      <option value="CE">C.E.</option>
-                    </select>
-                    <input className="flex-1 rounded-lg border px-3 py-2"
-                           placeholder={djFirmanteDocTipo === "DNI" ? "12345678" : "CE-000000"}
-                           value={djFirmanteDocNumero}
-                           onChange={(e) => setDjFirmanteDocNumero(e.target.value)} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-xs text-slate-500">
-                * En trámite digital, la firma puede materializarse como aceptación electrónica; puedes guardar un hash/archivo de evidencia si corresponde.
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Errores */}
-        {error && (
-          <div className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">
-            {error}
-            {errores.length > 0 && (
-              <ul className="list-disc pl-6 mt-2 space-y-1 text-sm">
-                {errores.map((e, i) => <li key={i}>{e}</li>)}
-              </ul>
-            )}
           </div>
-        )}
+        </div>
+      </Card>
+    </div>
 
-        {/* Payload en vivo */}
-        <div className="mt-5">
-          <Card title="Payload simulado (JSON)">
-            <pre className="text-xs md:text-sm bg-slate-900 text-slate-100 rounded-lg p-4 overflow-auto max-h-96">
-              {pretty(payload)}
-            </pre>
-          </Card>
+    {/* PANEL DE VALIDACIÓN Y ERRORES (FULL WIDTH) */}
+    {error && (
+      <div className="w-full mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="relative overflow-hidden rounded-2xl border-2 border-rose-200 bg-rose-50 shadow-lg shadow-rose-100">
+          
+          {/* Decoración Lateral */}
+          <div className="absolute left-0 top-0 bottom-0 w-2 bg-rose-500"></div>
+
+          <div className="p-6 flex flex-col md:flex-row gap-6">
+            
+            {/* Icono y Encabezado */}
+            <div className="flex-shrink-0 flex items-center justify-center">
+              <div className="bg-rose-500 text-white p-4 rounded-full shadow-lg shadow-rose-200">
+                <AlertCircle size={32} strokeWidth={2.5} />
+              </div>
+            </div>
+
+            <div className="flex-grow">
+              <h3 className="text-lg font-black text-rose-800 uppercase tracking-tighter mb-1">
+                Revisión requerida
+              </h3>
+              <p className="text-rose-600 font-bold text-sm">
+                {error}
+              </p>
+
+              {/* Lista Detallada de Errores */}
+              {errores.length > 0 && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 bg-white/50 rounded-xl p-4 border border-rose-100">
+                  {errores.map((e, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm text-rose-700 font-medium">
+                      <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-rose-400 flex-shrink-0" />
+                      {e}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Acción sugerida (Opcional) */}
+            <div className="flex-shrink-0 flex items-center">
+              <button 
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="w-full md:w-auto px-4 py-2 bg-rose-100 text-rose-700 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-rose-200 transition-colors"
+              >
+                Revisar Arriba
+              </button>
+            </div>
+
+          </div>
+
+          {/* Footer del Error */}
+          <div className="bg-rose-100/50 px-6 py-2 border-t border-rose-200/50 flex justify-between items-center">
+            <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">
+              Estado: Formulario Incompleto
+            </span>
+            <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">
+              Código: ERR_VAL_04
+            </span>
+          </div>
         </div>
       </div>
+    )}
+
+    {/* SECCIÓN: PAYLOAD EN VIVO (ESTILO CONSOLA FULL WIDTH) */}
+    <div className="w-full mt-10">
+      <Card title="Inspección de Datos (Payload JSON)">
+        <div className="relative group">
+          
+          {/* Cabecera de la Consola */}
+          <div className="flex items-center justify-between bg-slate-800 px-4 py-2 rounded-t-xl border-b border-slate-700">
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
+              <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
+              <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
+                application/json — {new TextEncoder().encode(JSON.stringify(payload)).length} bytes
+              </span>
+              <button 
+                onClick={() => navigator.clipboard.writeText(JSON.stringify(payload, null, 2))}
+                className="flex items-center gap-2 text-[10px] font-black text-slate-300 hover:text-white transition-colors bg-slate-700 px-2 py-1 rounded border border-slate-600"
+              >
+                <Copy size={12} /> COPIAR
+              </button>
+            </div>
+          </div>
+
+          {/* Cuerpo de la Consola */}
+          <div className="relative">
+            <pre className="text-xs md:text-sm bg-slate-900 text-emerald-400 font-mono rounded-b-xl p-6 overflow-auto max-h-[500px] shadow-2xl border-x-2 border-b-2 border-slate-800 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+              <code className="block">
+                {/* Resaltado sintáctico simulado mediante el color del texto */}
+                {JSON.stringify(payload, null, 2)}
+              </code>
+            </pre>
+
+            {/* Overlay sutil de escaneo */}
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-emerald-500/[0.02] to-transparent opacity-20"></div>
+          </div>
+
+          {/* Badge de Tiempo Real */}
+          <div className="absolute -bottom-3 right-6 bg-emerald-500 text-slate-900 text-[10px] font-black px-3 py-1 rounded-full shadow-lg shadow-emerald-500/20 flex items-center gap-2 animate-pulse">
+            <div className="w-1.5 h-1.5 rounded-full bg-slate-900"></div>
+            LIVE PAYLOAD
+          </div>
+        </div>
+
+        {/* Nota aclaratoria debajo del JSON */}
+        <div className="mt-4 flex items-center gap-3 text-slate-400">
+          <div className="h-[1px] flex-1 bg-slate-100"></div>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Fin de la estructura de datos</span>
+          <div className="h-[1px] flex-1 bg-slate-100"></div>
+        </div>
+      </Card>
     </div>
+
+
+
+  </div>
   );
 }
