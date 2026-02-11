@@ -32,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../types/components/ui/select";
+import { PersonaModal } from './PersonaModal';
+import { RepresentanteModal } from "./RepresentanteModal";
 
 import { toast } from "sonner";
 
@@ -161,6 +163,24 @@ export default function PersonasList() {
     sunarp_partida_asiento: r.sunarp_partida_asiento ?? null,
   });
 
+  // Función serial para cargar representantes
+  const loadRepresentantes = async (personaId: number) => {
+    if (!personaId) return;
+    
+    setRepsLoading(true);
+    setRepsError("");
+    
+    try {
+      const data = (await representantesApi.getByPersona(personaId)) as Representate[];
+      const nuevos = data.map(mapRep);
+      setReps(nuevos);
+    } catch (e: any) {
+      setRepsError(e?.message ?? "Error cargando representantes");
+    } finally {
+      setRepsLoading(false);
+    }
+  };
+
   async function onVerRepresentantes(personaId: number) {
     setActiveTab("representantes");
     setSelectedPersonaId(personaId);
@@ -218,6 +238,8 @@ export default function PersonasList() {
     setEditingPersona({ ...row });
     setOpenPersona(true);
   };
+
+  //onSubmitPersona
 
   const onSubmitPersona: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
@@ -281,6 +303,29 @@ export default function PersonasList() {
       await swalError(err?.message ?? "Error al guardar persona");
     } finally {
       setPersonaSaving(false);
+    }
+  };
+
+  const fetchRepresentantes = async (personaId: number) => {
+    try {
+      const data = (await representantesApi.getByPersona(personaId)) as Representate[];
+      const nuevos = data.map(mapRep);
+      setReps(nuevos);
+    } catch (error) {
+      console.log("Error cargando representante:", error);
+    }
+  }
+
+  const fetchData = async () => { // 1. Debe ser async
+    try {
+      // 2. dq, page y limit deben ser estados o variables definidas arriba
+      const { data, total } = await personasApi.list(dq, page, limit);
+      
+      setRows(data);
+      setTotal(total);
+    } catch (error) {
+      console.error("Error cargando personas:", error);
+      // Opcional: swalError("No se pudo cargar la lista");
     }
   };
 
@@ -431,42 +476,45 @@ export default function PersonasList() {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="grid w-full grid-cols-2 p-0 h-10">
-        <TabsTrigger 
-          value="personas"
-          className="
-          data-[state=active]:bg-black 
+      <TabsList className="inline-flex w-auto p-1 h-10 bg-slate-100/80 rounded-xl border border-slate-200 shadow-sm">
+      <TabsTrigger 
+        value="personas"
+        className="
+          data-[state=active]:bg-[#0f766e] 
           data-[state=active]:text-white
-          data-[state=active]:font-bold
-          data-[state=active]:shadow-lg
-          data-[state=active]:border-b-4
-          data-[state=active]:border-black
-
-          // Estilos INACTIVO
-          text-gray-600 hover:text-black 
+          data-[state=active]:font-black
+          data-[state=active]:shadow-sm
+          
+          px-5
+          text-[10px] font-black uppercase tracking-widest
+          text-slate-500 hover:text-slate-800 
           bg-transparent 
           rounded-lg 
-          transition-all duration-300
-          "
-          >Personas</TabsTrigger>
-        <TabsTrigger 
-          value="representantes"
-          className="
-            data-[state=active]:bg-black 
-            data-[state=active]:text-white
-            data-[state=active]:font-bold
-            data-[state=active]:shadow-lg
-            data-[state=active]:border-b-4
-            data-[state=active]:border-black
+          transition-all duration-200
+        "
+      >
+        Personas
+      </TabsTrigger>
 
-            // Estilos INACTIVO
-            text-gray-600 hover:text-black 
-            bg-transparent 
-            rounded-lg 
-            transition-all duration-300
-          "
-          >Representantes</TabsTrigger>
-      </TabsList>
+      <TabsTrigger 
+        value="representantes"
+        className="
+          data-[state=active]:bg-[#0f766e] 
+          data-[state=active]:text-white
+          data-[state=active]:font-black
+          data-[state=active]:shadow-sm
+
+          px-5
+          text-[10px] font-black uppercase tracking-widest
+          text-slate-500 hover:text-slate-800 
+          bg-transparent 
+          rounded-lg 
+          transition-all duration-200
+        "
+      >
+        Representantes
+      </TabsTrigger>
+    </TabsList>
 
       <TabsContent value="personas">
         <Card className="rounded-2xl shadow">
@@ -481,11 +529,20 @@ export default function PersonasList() {
                 <Input id="buscarR" placeholder="ADMIN" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} />
               </div>
               <Button
-                onClick={onOpenNewPersona}
+                onClick={() => { setEditingPersona(null); setOpenPersona(true); }}
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
               >
                 <Plus size={18} /> Nuevo
               </Button>
+
+              <PersonaModal 
+                open={openPersona}
+                onOpenChange={setOpenPersona}
+                editingPersona={editingPersona}
+                onSuccess={() => {
+                  fetchData();
+                }}
+              />
             </div>
 
             <div className="overflow-auto border rounded-xl">
@@ -570,168 +627,6 @@ export default function PersonasList() {
               onPageChange={setPage}
             />
 
-            <Dialog open={openPersona} onOpenChange={setOpenPersona}>
-              <DialogContent 
-                className="sm:max-w-[800px]"
-                onInteractOutside={(e) => {
-                  e.preventDefault(); 
-                }}
-              >
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingPersona?.id_persona ? "Editar persona" : "Nueva persona"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Completa los campos para {editingPersona?.id_persona ? "Editar la persona" : "Crear una nueva persona"}.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <form onSubmit={onSubmitPersona} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className={labelClasses}>Tipo de persona</Label>
-                    <Select
-                      name="tipo_persona"
-                      defaultValue={editingPersona?.tipo_persona ?? "JURIDICA"}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un tipo" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        <SelectItem value="JURIDICA">JURÍDICA</SelectItem>
-                        <SelectItem value="NATURAL">NATURAL</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label className={labelClasses}>Nombre / Razón social</Label>
-                    <Input
-                      name="nombre"
-                      defaultValue={editingPersona?.nombre_razon_social ?? ""}
-                      className={inputClasses}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label className={labelClasses}>RUC (solo jurídicas)</Label>
-                    <Input name="ruc" 
-                      defaultValue={(editingPersona as any)?.ruc ?? ""} 
-                      className={inputClasses} 
-                      placeholder="###########" />
-                  </div>
-                  <div>
-                    <Label className={labelClasses}>Teléfono</Label>
-                    <Input name="telefono" 
-                      defaultValue={(editingPersona as any)?.telefono ?? ""} 
-                      className={inputClasses} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label className={labelClasses}>Correo</Label>
-                    <Input name="correo" 
-                    defaultValue={(editingPersona as any)?.correo ?? ""} 
-                    className={inputClasses} 
-                    type="email" />
-                  </div>
-                  <div className="md:col-span-2 mt-2">
-                    <h4 className="mb-2 text-sm font-semibold text-gray-700">Dirección (opcional)</h4>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div className="md:col-span-1">
-                        <Label className={labelClasses}>Tipo de vía</Label>
-                        <Input name="via_tipo" 
-                          defaultValue={(editingPersona as any)?.via_tipo ?? ""} 
-                          className={inputClasses} 
-                          placeholder="Av., Jr., Psje., Calle…" />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Label className={labelClasses}>Nombre de vía</Label>
-                        <Input name="via_nombre" 
-                          defaultValue={(editingPersona as any)?.via_nombre ?? ""} 
-                          className={inputClasses} 
-                          placeholder="Ej. AV. PERÚ" />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>Número</Label>
-                        <Input name="numero" 
-                          defaultValue={(editingPersona as any)?.numero ?? ""} 
-                          className={inputClasses} />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>Interior</Label>
-                        <Input name="interior" 
-                          defaultValue={(editingPersona as any)?.interior ?? ""} 
-                          className={inputClasses} 
-                          placeholder="Dpto., Int., Of." />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>MZ</Label>
-                        <Input name="mz" 
-                          defaultValue={(editingPersona as any)?.mz ?? ""} 
-                          className={inputClasses} />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>LT</Label>
-                        <Input name="lt" 
-                          defaultValue={(editingPersona as any)?.lt ?? ""} 
-                          className={inputClasses} />
-                      </div>
-                      <div className="md:col-span-2">
-                        <Label className={labelClasses}>Otros</Label>
-                        <Input name="otros" 
-                          defaultValue={(editingPersona as any)?.otros ?? ""} 
-                          className={inputClasses} placeholder="Referencia adicional" />
-                      </div>
-                      <div className="md:col-span-3">
-                        <Label className={labelClasses}>Urb./AA.HH./Otros</Label>
-                        <Input name="urb_aa_hh_otros" 
-                          defaultValue={(editingPersona as any)?.urb_aa_hh_otros ?? ""} 
-                          className={inputClasses} placeholder="Urbanización, AA.HH., etc." />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>Distrito</Label>
-                        <Input name="distrito" 
-                          defaultValue={(editingPersona as any)?.distrito ?? ""} 
-                          className={inputClasses} />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>Provincia</Label>
-                        <Input name="provincia" 
-                          defaultValue={(editingPersona as any)?.provincia ?? ""} 
-                          className={inputClasses} />
-                      </div>
-                      <div>
-                        <Label className={labelClasses}>Departamento</Label>
-                        <Input name="departamento" 
-                          defaultValue={(editingPersona as any)?.departamento ?? ""} 
-                          className={inputClasses} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <DialogFooter className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
-                    <Button
-                      type="button"
-                      onClick={() => setOpenPersona(false)}
-                      variant="outline"
-                      disabled={personaSaving}
-                      className="text-xs sm:text-sm"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={personaSaving}
-                      className="text-xs sm:text-sm font-medium"
-                    >
-                      {personaSaving
-                        ? "Guardando…"
-                        : editingPersona?.id_persona
-                        ? "Guardar cambios"
-                        : "Crear"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
           </CardContent>
         </Card>
       </TabsContent>
@@ -760,6 +655,18 @@ export default function PersonasList() {
               >
                 <Plus size={18} /> Nueva
               </Button>
+
+              <RepresentanteModal
+                open={openRep}
+                onOpenChange={setOpenRep}
+                editingRep={editingRep}
+                juridicas={juridicas}
+                onSuccess={(rep) => {
+                  setSelectedPersonaId(rep.id_persona);
+                  loadRepresentantes(rep.id_persona);
+                }}
+              />
+
             </div>
 
             {!!repsLoading && <div className="px-4 py-2 text-sm text-gray-500">Cargando representantes…</div>}
@@ -832,126 +739,7 @@ export default function PersonasList() {
               </table>
             </div>
 
-            <Dialog open={openRep} onOpenChange={setOpenPersona}>
-              <DialogContent className="sm:max-w-[800px]">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingRep?.id_representante ? "Editar representante" : "Nuevo representante"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    Completa los campos para {editingRep?.id_representante ? "Editar representante" : "Crear nuevo representante"}.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <form onSubmit={onSubmitRep} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <Label className="mb-1 block text-sm font-medium">Persona JURÍDICA</Label>
-                    <Select
-                      name="id_persona"
-                      defaultValue={
-                        String(
-                          editingRep?.id_persona ??
-                          selectedPersonaId ??
-                          (juridicas[0]?.id_persona || "")
-                        )
-                      }                      
-                      required
-                    >
-                      <SelectTrigger className="w-full"> 
-                        <SelectValue placeholder="Selecciona una Persona Jurídica" /> 
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {juridicas.map((p) => (
-                          <SelectItem 
-                            key={p.id_persona} 
-                            value={String(p.id_persona)}>
-                            {p.nombre_razon_social} — RUC {(p as any).ruc}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <Label className="mb-1 block text-sm font-medium">Nombres del representante</Label>
-                    <Input
-                      name="nombres"
-                      defaultValue={editingRep?.nombres ?? ""}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="Ej. JUAN PEREZ GOMEZ"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="mb-1 block text-sm font-medium">Tipo de documento</Label>
-                    <Select
-                      name="tipo_documento"
-                      defaultValue={editingRep?.tipo_documento ?? "DNI"}
-                      required
-                    >
-                      <SelectTrigger className="w-full"> 
-                        <SelectValue placeholder="Selecciona tipo de documento" /> 
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DOC_TYPES.map((t) => (
-                          <SelectItem 
-                            key={t.value} 
-                            value={t.value}>
-                            {t.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="mb-1 block text-sm font-medium">Número de documento</Label>
-                    <Input
-                      name="numero_documento"
-                      defaultValue={editingRep?.numero_documento ?? ""}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm tabular-nums"
-                      placeholder="########"
-                      required
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <Label className="mb-1 block text-sm font-medium">SUNARP (Partida / Asiento)</Label>
-                    <Input
-                      name="sunarp"
-                      defaultValue={editingRep?.sunarp_partida_asiento ?? ""}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                      placeholder="Ej. Partida 13001234 - Asiento B1002"
-                    />
-                  </div>
-
-                  <DialogFooter className="md:col-span-2 flex items-center justify-end gap-2 pt-2">
-                    <Button
-                      type="button"
-                      onClick={() => setOpenRep(false)}
-                      variant="outline"
-                      disabled={repSaving}
-                      className="text-xs sm:text-sm"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={repSaving}
-                      className="text-xs sm:text-sm font-medium"
-                    >
-                      {repSaving
-                        ? "Guardando…"
-                        : editingRep?.id_representante
-                        ? "Guardar cambios"
-                        : "Crear"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            
           </CardContent>
         </Card>
       </TabsContent>
