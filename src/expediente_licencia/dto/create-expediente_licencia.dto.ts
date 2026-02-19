@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsIn, IsDateString } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsIn, IsDateString, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateExpedienteLicenciaDto {
@@ -6,19 +6,14 @@ export class CreateExpedienteLicenciaDto {
   id_expediente: number;
 
   @IsInt()
-  id_representante: number;
-
-  @IsOptional()
-  @IsString()
-  numero_licencia_origen?: string;
+  id_representante?: number;
+  
+  @IsBoolean()
+  tiene_apoderado: boolean;
 
   @IsDateString()
   fecha_recepcion: string;
 
-  @IsString({ message: 'tipo_tramite debe ser texto' })
-  @IsIn(['NUEVA', 'CAMBIO_DENOMINACION', 'TRANSFERENCIA', 'CESE', 'OTROS'], {
-      message: 'tipo_tramite debe ser NUEVA, CAMBIO_DENOMINACION, TRANSFERENCIA, CESE u OTROS',
-  })
   @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase().trim() : value))
   tipo_tramite?: 'NUEVA' | 'CAMBIO_DENOMINACION' | 'TRANSFERENCIA' | 'CESE' | 'OTROS';
 
@@ -34,6 +29,27 @@ export class CreateExpedienteLicenciaDto {
   @IsDateString()
   fecha_fin_plazo?: string;
 
+  @IsBoolean()
+  anuncio: boolean;
+
+  @IsOptional()
+  @IsString()
+  a_descripcion?: string;
+
+  @IsBoolean()
+  cesionario: boolean;
+
+  @IsOptional()
+  @IsString()
+  ces_nrolicencia?: string;
+
+  @IsBoolean()
+  mercado: boolean;
+
+  @IsOptional()
+  @IsString()
+  tipo_accion_tramite?: string;
+
   @IsOptional()
   @IsString()
   numero_resolucion?: string;
@@ -44,17 +60,34 @@ export class CreateExpedienteLicenciaDto {
 
   @IsOptional()
   @IsString()
+  numero_certificado?: string;
+
+  @IsString()
+  @IsOptional()
+  numero_licencia_origen?: string;
+
+  @IsOptional()
+  @IsString()
   nueva_denominacion?: string;
 
   @IsOptional()
   @IsString()
-  numero_certificado?: string;
+  detalle_otros?: string;
 
   @IsOptional()
   @IsString()
   qr_certificado?: string;
 
-  @IsOptional()
   @IsString()
-  detalle_otros?: string;
+  nivel_riesgo: string;
+
+  @IsString()
+  numero_itse?: string;
+
+  @IsString()
+  doc_itse?: string;
+
+  @IsBoolean()
+  bajo_juramento: boolean;
+  
 }

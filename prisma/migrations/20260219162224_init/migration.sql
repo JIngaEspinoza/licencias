@@ -78,6 +78,8 @@ CREATE TABLE "public"."giro" (
     "id_giro" SERIAL NOT NULL,
     "codigo" VARCHAR(100) NOT NULL,
     "nombre" VARCHAR(500) NOT NULL,
+    "actividad" VARCHAR(100),
+    "riesgo_base" VARCHAR(10),
 
     CONSTRAINT "giro_pkey" PRIMARY KEY ("id_giro")
 );
@@ -146,18 +148,29 @@ CREATE TABLE "public"."expediente_licencia" (
     "id_expediente_licencia" SERIAL NOT NULL,
     "id_expediente" INTEGER NOT NULL,
     "id_representante" INTEGER,
-    "numero_licencia_origen" VARCHAR(50),
+    "tiene_apoderado" BOOLEAN NOT NULL DEFAULT false,
     "fecha_recepcion" DATE NOT NULL,
     "tipo_tramite" VARCHAR(20),
     "modalidad" VARCHAR(20),
     "fecha_inicio_plazo" DATE,
     "fecha_fin_plazo" DATE,
+    "anuncio" BOOLEAN NOT NULL DEFAULT false,
+    "a_descripcion" VARCHAR(50),
+    "cesionario" BOOLEAN NOT NULL DEFAULT false,
+    "ces_nrolicencia" VARCHAR(50),
+    "mercado" BOOLEAN NOT NULL DEFAULT false,
+    "tipo_accion_tramite" VARCHAR(20),
     "numero_resolucion" VARCHAR(50),
     "resolucion_fecha" DATE,
-    "nueva_denominacion" VARCHAR(255),
     "numero_certificado" VARCHAR(50),
-    "qr_certificado" TEXT,
+    "numero_licencia_origen" VARCHAR(50),
+    "nueva_denominacion" VARCHAR(255),
     "detalle_otros" TEXT,
+    "qr_certificado" TEXT,
+    "nivel_riesgo" TEXT NOT NULL,
+    "numero_itse" VARCHAR(10),
+    "doc_itse" VARCHAR(100),
+    "bajo_juramento" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "expediente_licencia_pkey" PRIMARY KEY ("id_expediente_licencia")
 );
@@ -167,11 +180,12 @@ CREATE TABLE "public"."declaracion_jurada" (
     "id_declaracion" SERIAL NOT NULL,
     "id_expediente" INTEGER NOT NULL,
     "fecha" DATE,
-    "aceptacion" BOOLEAN NOT NULL DEFAULT false,
     "nombre_comercial" VARCHAR(255),
-    "codigo_ciiu" VARCHAR(20),
     "actividad" VARCHAR(255),
+    "codigo_ciiu" VARCHAR(20),
+    "nombre_giro" VARCHAR(20),
     "zonificacion" VARCHAR(50),
+    "chk_tolerancia" BOOLEAN DEFAULT false,
     "via_tipo" VARCHAR(20),
     "via_nombre" VARCHAR(100),
     "numero" VARCHAR(10),
@@ -181,6 +195,9 @@ CREATE TABLE "public"."declaracion_jurada" (
     "otros" VARCHAR(50),
     "urb_aa_hh_otros" VARCHAR(50),
     "provincia" VARCHAR(50),
+    "area_total_m2" DECIMAL(10,2),
+    "geom_x" DECIMAL(18,15),
+    "geom_y" DECIMAL(18,15),
     "tiene_aut_sectorial" BOOLEAN NOT NULL DEFAULT false,
     "aut_entidad" VARCHAR(100),
     "aut_denominacion" VARCHAR(255),
@@ -190,14 +207,11 @@ CREATE TABLE "public"."declaracion_jurada" (
     "aut_ministerio_cultura" BOOLEAN NOT NULL DEFAULT false,
     "num_aut_ministerio_cultura" VARCHAR(50),
     "fecha_aut_ministerio_cultura" DATE,
-    "area_total_m2" DECIMAL(10,2),
-    "firmante_tipo" VARCHAR(20),
-    "firmante_nombre" VARCHAR(255),
-    "firmante_doc_tipo" VARCHAR(10),
-    "firmante_doc_numero" VARCHAR(20),
+    "archivo_aut_ministerio_cultura" VARCHAR(100),
     "vigencia_poder" BOOLEAN NOT NULL DEFAULT false,
     "condiciones_seguridad" BOOLEAN NOT NULL DEFAULT false,
     "titulo_profesional" BOOLEAN NOT NULL DEFAULT false,
+    "aceptacion" BOOLEAN NOT NULL DEFAULT false,
     "observaciones" TEXT,
 
     CONSTRAINT "declaracion_jurada_pkey" PRIMARY KEY ("id_declaracion")
@@ -489,6 +503,9 @@ CREATE UNIQUE INDEX "user_email_key" ON "public"."user"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "role_nombre_key" ON "public"."role"("nombre");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "permiso_nombre_key" ON "public"."permiso"("nombre");
 
 -- CreateIndex
 CREATE INDEX "password_reset_token_user_id_idx" ON "public"."password_reset_token"("user_id");

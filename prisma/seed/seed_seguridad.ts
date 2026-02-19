@@ -9,7 +9,7 @@ export async function seedSeguridad() {
   // -------------------------------
   // PERMISOS BASE DEL SISTEMA
   // -------------------------------
-  const permisos = await prisma.permiso.createMany({
+  await prisma.permiso.createMany({
     data: [
       { nombre: 'CREAR_EXPEDIENTE' },
       { nombre: 'EDITAR_EXPEDIENTE' },
@@ -22,20 +22,20 @@ export async function seedSeguridad() {
     skipDuplicates: true,
   })
 
-  console.log(`Permisos insertados: ${permisos.count}`)
+  console.log('Permisos verificados')
 
   // -------------------------------
   // ROLES
   // -------------------------------
-  const adminRole = await prisma.role.upsert({
+  const todosPermisos = await prisma.permiso.findMany()
+
+  await prisma.role.upsert({
     where: { nombre: 'ADMIN' },
     update: {},
     create: {
       nombre: 'ADMIN',
       permisos: {
-        create: (
-          await prisma.permiso.findMany()
-        ).map((p) => ({
+        create: todosPermisos.map((p) => ({
           permiso: { connect: { id: p.id } },
         })),
       },
@@ -46,7 +46,7 @@ export async function seedSeguridad() {
   const permisoEditar = await prisma.permiso.findUnique({ where: { nombre: 'EDITAR_EXPEDIENTE' } })
   const permisoVer = await prisma.permiso.findUnique({ where: { nombre: 'VER_EXPEDIENTE' } })
 
-  const operadorRole = await prisma.role.upsert({
+  await prisma.role.upsert({
     where: { nombre: 'OPERADOR' },
     update: {},
     create: {
@@ -61,7 +61,7 @@ export async function seedSeguridad() {
     },
   })
 
-  const consultaRole = await prisma.role.upsert({
+  await prisma.role.upsert({
     where: { nombre: 'CONSULTA' },
     update: {},
     create: {
@@ -72,7 +72,7 @@ export async function seedSeguridad() {
     },
   })
 
-  console.log('Roles creados: ADMIN, OPERADOR, CONSULTA')
+  console.log('Roles verificados')
 
   // -------------------------------
   // USUARIOS
@@ -80,119 +80,79 @@ export async function seedSeguridad() {
   const hashPassword = (plain: string) =>
     crypto.createHash('sha256').update(plain).digest('hex')
 
-  const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@local' },
-    update: {},
-    create: {
-      email: 'admin@local',
-      passwordHash: hashPassword('admin123'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'ADMIN' } } }],
+  // Usuarios base
+  const usuariosBase = [
+    { email: 'admin@local', password: 'admin123', role: 'ADMIN' },
+    { email: 'operador@local', password: 'operador123', role: 'OPERADOR' },
+    { email: 'consulta@local', password: 'consulta123', role: 'CONSULTA' },
+  ]
+
+  for (const u of usuariosBase) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        passwordHash: hashPassword(u.password),
+        roles: {
+          create: [
+            {
+              role: {
+                connect: { nombre: u.role },
+              },
+            },
+          ],
+        },
       },
-    },
-  })
+    })
+  }
 
-  const operadorUser = await prisma.user.upsert({
-    where: { email: 'operador@local' },
-    update: {},
-    create: {
-      email: 'operador@local',
-      passwordHash: hashPassword('operador123'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'OPERADOR' } } }],
+  // Usuarios adicionales CONSULTA
+  const usuariosConsulta = [
+    'rodolfocondori@munisanmiguel.gob.pe',
+    'davidbrito@munisanmiguel.gob.pe',
+    'valhua2001@gmail.com',
+    'sglicencias@munisanmiguel.gob.pe',
+    'deisymadrid@munisanmiguel.gob.pe',
+  ]
+
+  for (const email of usuariosConsulta) {
+    await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        email,
+        passwordHash: hashPassword('123456'),
+        roles: {
+          create: [
+            {
+              role: {
+                connect: { nombre: 'CONSULTA' },
+              },
+            },
+          ],
+        },
       },
-    },
-  })
+    })
+  }
 
-  const consultaUser = await prisma.user.upsert({
-    where: { email: 'consulta@local' },
-    update: {},
-    create: {
-      email: 'consulta@local',
-      passwordHash: hashPassword('consulta123'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
-      },
-    },
-  })
-
-  /**
-   * 
-   */
-
-  const user1 = await prisma.user.upsert({
-    where: { email: 'rodolfocondori@munisanmiguel.gob.pe' },
-    update: {},
-    create: {
-      email: 'rodolfocondori@munisanmiguel.gob.pe',
-      passwordHash: hashPassword('123456'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
-      },
-    },
-  })
-
-  const user2 = await prisma.user.upsert({
-    where: { email: 'davidbrito@munisanmiguel.gob.pe' },
-    update: {},
-    create: {
-      email: 'davidbrito@munisanmiguel.gob.pe',
-      passwordHash: hashPassword('123456'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
-      },
-    },
-  })
-
-  const user3 = await prisma.user.upsert({
-    where: { email: 'valhua2001@gmail.com' },
-    update: {},
-    create: {
-      email: 'valhua2001@gmail.com',
-      passwordHash: hashPassword('123456'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
-      },
-    },
-  })
-
-  const user4 = await prisma.user.upsert({
-    where: { email: 'sglicencias@munisanmiguel.gob.pe' },
-    update: {},
-    create: {
-      email: 'sglicencias@munisanmiguel.gob.pe',
-      passwordHash: hashPassword('123456'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
-      },
-    },
-  })
-
-  const user5 = await prisma.user.upsert({
-    where: { email: 'deisymadrid@munisanmiguel.gob.pe' },
-    update: {},
-    create: {
-      email: 'deisymadrid@munisanmiguel.gob.pe',
-      passwordHash: hashPassword('123456'),
-      roles: {
-        create: [{ role: { connect: { nombre: 'CONSULTA' } } }],
-      },
-    },
-  })
-
-  console.log('Usuarios base creados')
+  console.log('Usuarios verificados')
 
   // -------------------------------
   // TOKEN DE RECUPERACIÓN (DEMO)
   // -------------------------------
+  const adminUser = await prisma.user.findUnique({
+    where: { email: 'admin@local' },
+  })
+
   const resetToken = crypto.randomBytes(32).toString('hex')
   const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex')
 
   await prisma.passwordResetToken.create({
     data: {
-      userId: adminUser.id,
+      userId: adminUser!.id,
       tokenHash,
-      expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 min
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     },
   })
 
@@ -201,11 +161,16 @@ export async function seedSeguridad() {
 }
 
 async function main() {
-    await prisma.$transaction(async () => {
-        await seedSeguridad();
-    });
+  try {
+    await seedSeguridad()
+    console.log('Seed completado correctamente')
+  } catch (error) {
+    console.error('Error en seed:', error)
+  } finally {
+    await prisma.$disconnect()
+  }
 }
 
 if (require.main === module) {
-  main();
+  main()
 }

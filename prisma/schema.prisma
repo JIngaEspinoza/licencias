@@ -106,8 +106,8 @@ model Giro {
   id_giro Int    @id @default(autoincrement())
   codigo  String @unique @db.VarChar(100)         // C 10 1 0 2
   nombre  String @db.VarChar(500)
-  actividad String @db.VarChar(100)
-  riesgo_base String @db.VarChar(10)             // BAJO, MEDIO, ALTO, MUY_ALTO
+  actividad String? @db.VarChar(100)
+  riesgo_base String? @db.VarChar(10)             // BAJO, MEDIO, ALTO, MUY_ALTO
 
   giro_zonificacion GiroZonificacion[]
 

@@ -358,6 +358,9 @@ export class ExpedientesService {
           numero_certificado: p.expediente_licencia.numero_certificado ?? null,
           qr_certificado: p.expediente_licencia.qr_certificado ?? null,
           detalle_otros: p.expediente_licencia.detalle_otros ?? null,
+          nivel_riesgo: p.expediente_licencia.nivel_riesgo,
+          numero_itse: p.expediente_licencia.numero_itse ?? null,
+          doc_itse: p.expediente_licencia.doc_itse ?? null
         },
       });
 
@@ -395,10 +398,10 @@ export class ExpedientesService {
 
           area_total_m2: toNumber(p.declaracion_jurada.area_total_m2) as any,
 
-          firmante_tipo: p.declaracion_jurada.firmante_tipo ?? null,
-          firmante_nombre: p.declaracion_jurada.firmante_nombre ?? null,
-          firmante_doc_tipo: p.declaracion_jurada.firmante_doc_tipo ?? null,
-          firmante_doc_numero: p.declaracion_jurada.firmante_doc_numero ?? null,
+          //firmante_tipo: p.declaracion_jurada.firmante_tipo ?? null,
+          //firmante_nombre: p.declaracion_jurada.firmante_nombre ?? null,
+          //firmante_doc_tipo: p.declaracion_jurada.firmante_doc_tipo ?? null,
+          //firmante_doc_numero: p.declaracion_jurada.firmante_doc_numero ?? null,
 
           vigencia_poder: !!p.declaracion_jurada.vigencia_poder,
           condiciones_seguridad: !!p.declaracion_jurada.condiciones_seguridad,

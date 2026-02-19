@@ -45,6 +45,10 @@ export interface NuevaDJTransaccionalRequest {
     resolucion_fecha?: string | Date | null;
     numero_certificado?: string | null;
     qr_certificado?: string | null;
+    nivel_riesgo: string;
+    numero_itse: string | null;
+    doc_itse: string | null;
+    bajo_juramento: boolean
   };
   declaracion_jurada: {
     fecha?: string | Date | null;
@@ -77,10 +81,10 @@ export interface NuevaDJTransaccionalRequest {
 
     area_total_m2?: number | string | null;
 
-    firmante_tipo?: string | null;
-    firmante_nombre?: string | null;
-    firmante_doc_tipo?: string | null;
-    firmante_doc_numero?: string | null;
+    //firmante_tipo?: string | null;
+    //firmante_nombre?: string | null;
+    //firmante_doc_tipo?: string | null;
+    //firmante_doc_numero?: string | null;
 
     vigencia_poder: boolean;
     condiciones_seguridad: boolean;

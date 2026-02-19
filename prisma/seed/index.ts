@@ -6,7 +6,7 @@ import { seedSeguridad } from "./seed_seguridad";
 import { seedAutorizacionViaPublica } from "./seed_autorizacion_via_publica";
 
 async function main() {
-  /*await seedUsos();
+  await seedUsos();
   await seedPersonas();
   await seedRepresentantesSoloJuridicas();
   await seedExpedientes();
@@ -14,8 +14,8 @@ async function main() {
   await seedRequisitos();
   await seedTipos();
   await seedTipoRequisitos();
-  await seedSeguridad();*/
-  await seedAutorizacionViaPublica();
+  await seedSeguridad();
+  await seedAutorizacionViaPublica();/**/
 
   //await seedDjs();
 }
