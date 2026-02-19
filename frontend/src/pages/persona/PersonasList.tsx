@@ -149,7 +149,7 @@ export default function PersonasList() {
     [repsWithPersona, selectedPersonaId]
   );
   const juridicas = useMemo(
-    () => rows.filter((p) => p.tipo_persona === "JURIDICA"),
+    () => rows.filter((p) => p.tipo_persona === "JURIDICA" || p.tipo_persona === "NATURAL"),
     [rows]
   );
 
@@ -576,14 +576,14 @@ export default function PersonasList() {
                         <td className="px-4 py-3">{(p as any).correo || "—"}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 whitespace-nowrap text-xs sm:text-xs">
-                            {p.tipo_persona === "JURIDICA" && (
+                            {(p.tipo_persona === "JURIDICA" || p.tipo_persona === "NATURAL") && (
                               <Button size="sm" 
                                 onClick={() => onVerRepresentantes(p.id_persona)}
                                 variant="outline" 
                                 className="border-gray-300 text-gray-700 hover:bg-gray-50"
-                                title="Ver representantes"
+                                title={p.tipo_persona === "JURIDICA" ? "Representantes" : "Apoderados"}
                               >
-                                Ver reps
+                                {p.tipo_persona === "JURIDICA" ? "Representantes" : "Apoderados"}
                               </Button>
                             )}
 

@@ -84,8 +84,8 @@ model PasswordResetToken {
 // ========== MODELOS ==========
 
 model EstadoUso {
-  codigo      String @id @db.VarChar(4)
-  descripcion String @db.VarChar(200)
+  codigo      String @id @db.VarChar(4)   // H, O, R, X
+  descripcion String @db.VarChar(200)     
 
   giro_zonificacion GiroZonificacion[]
 
@@ -94,7 +94,7 @@ model EstadoUso {
 
 model Zonificacion {
   id_zonificacion Int     @id @default(autoincrement())
-  codigo          String  @unique @db.VarChar(20)
+  codigo          String  @unique @db.VarChar(20) // VT, RDM, RDB, RDA, I-3, I-2, I-1, CZ, CV, CM
   descripcion     String? @db.VarChar(200)
 
   giro_zonificacion GiroZonificacion[]
@@ -104,8 +104,10 @@ model Zonificacion {
 
 model Giro {
   id_giro Int    @id @default(autoincrement())
-  codigo  String @unique @db.VarChar(100)
+  codigo  String @unique @db.VarChar(100)         // C 10 1 0 2
   nombre  String @db.VarChar(500)
+  actividad String @db.VarChar(100)
+  riesgo_base String @db.VarChar(10)             // BAJO, MEDIO, ALTO, MUY_ALTO
 
   giro_zonificacion GiroZonificacion[]
 
@@ -201,19 +203,30 @@ model Expediente {
 model ExpedienteLicencia {
   id_expediente_licencia Int       @id @default(autoincrement())
   id_expediente          Int
-  id_representante       Int?
-  numero_licencia_origen String?   @db.VarChar(50)
+  id_representante       Int? 
+  tiene_apoderado        Boolean   @default(false)    // CHECK PARA PERSONA NATURAL TENGA APODERADO
   fecha_recepcion        DateTime  @db.Date
-  tipo_tramite           String?   @db.VarChar(20)
-  modalidad              String?   @db.VarChar(20)
-  fecha_inicio_plazo     DateTime? @db.Date
-  fecha_fin_plazo        DateTime? @db.Date
-  numero_resolucion      String?   @db.VarChar(50)
-  resolucion_fecha       DateTime? @db.Date
-  nueva_denominacion     String?   @db.VarChar(255)
-  numero_certificado     String?   @db.VarChar(50)
-  qr_certificado         String?   @db.Text
-  detalle_otros          String?   @db.Text
+  tipo_tramite           String?   @db.VarChar(20)    // NUEVA_LICENCIA | MODIFICACIONES
+  modalidad              String?   @db.VarChar(20)    // INDETERMINADA | TEMPORAL
+  fecha_inicio_plazo     DateTime? @db.Date           // FECHA DE INICIO
+  fecha_fin_plazo        DateTime? @db.Date           // FECHA FIN
+  anuncio                Boolean   @default(false)
+  a_descripcion          String?   @db.VarChar(50)
+  cesionario             Boolean   @default(false)
+  ces_nrolicencia        String?   @db.VarChar(50)
+  mercado                Boolean   @default(false)
+  tipo_accion_tramite    String?   @db.VarChar(20)    // CAMBIO_DENOMINACION | TRANSFERENCIA | CESE_ACTIVIDAD, OTROS (TIPO_TRAMITE=MODIFICACIONES)
+  numero_resolucion      String?   @db.VarChar(50)    // NUMERO_REOSLUCION
+  resolucion_fecha       DateTime? @db.Date           // FECHA_RESOLUCION
+  numero_certificado     String?   @db.VarChar(50)    // NUMERO_CERTIFICADO
+  numero_licencia_origen String?   @db.VarChar(50)    // (TIPO_TRAMITE=MODIFICACIONES)
+  nueva_denominacion     String?   @db.VarChar(255)   // (TIPO_TRAMITE=MODIFICACIONES)
+  detalle_otros          String?   @db.Text           // (TIPO_TRAMITE=MODIFICACIONES)  
+  qr_certificado         String?   @db.Text           // QR_CERTIFICADO
+  nivel_riesgo           String    @db.Text           // BAJO, MEDIO, ALTO, MUY_ALTO
+  numero_itse            String?   @db.VarChar(10)    // NUMERO ITSE
+  doc_itse               String?   @db.VarChar(100)   // ARCHIVO PDF
+  bajo_juramento         Boolean   @default(false)    // CHECK DECLARACION BAJO JURAMENTO
 
   expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_explicencia_expediente")
   representante Representante? @relation(fields: [id_representante], references: [id_representante], map: "fk_expediente_representante")
@@ -225,39 +238,40 @@ model ExpedienteLicencia {
 model DeclaracionJurada {
   id_declaracion              Int       @id @default(autoincrement())
   id_expediente               Int
-  fecha                       DateTime? @db.Date
-  aceptacion                  Boolean   @default(false)
-  nombre_comercial            String?   @db.VarChar(255)
-  codigo_ciiu                 String?   @db.VarChar(20)
-  actividad                   String?   @db.VarChar(255)
-  zonificacion                String?   @db.VarChar(50)
-  via_tipo                    String?   @db.VarChar(20)
-  via_nombre                  String?   @db.VarChar(100)
-  numero                      String?   @db.VarChar(10)
-  interior                    String?   @db.VarChar(10)
-  mz                          String?   @db.VarChar(10)
-  lt                          String?   @db.VarChar(10)
-  otros                       String?   @db.VarChar(50)
-  urb_aa_hh_otros             String?   @db.VarChar(50)
-  provincia                   String?   @db.VarChar(50)
-  tiene_aut_sectorial         Boolean   @default(false)
-  aut_entidad                 String?   @db.VarChar(100)
-  aut_denominacion            String?   @db.VarChar(255)
-  aut_fecha                   DateTime? @db.Date
-  aut_numero                  String?   @db.VarChar(50)
-  monumento                   Boolean   @default(false)
-  aut_ministerio_cultura      Boolean   @default(false)
-  num_aut_ministerio_cultura  String?   @db.VarChar(50)
-  fecha_aut_ministerio_cultura DateTime? @db.Date
-  area_total_m2               Decimal?  @db.Decimal(10, 2)
-  firmante_tipo               String?   @db.VarChar(20)
-  firmante_nombre             String?   @db.VarChar(255)
-  firmante_doc_tipo           String?   @db.VarChar(10)
-  firmante_doc_numero         String?   @db.VarChar(20)
-  vigencia_poder              Boolean   @default(false)
-  condiciones_seguridad       Boolean   @default(false)
-  titulo_profesional          Boolean   @default(false)
-  observaciones               String?   @db.Text
+  fecha                       DateTime? @db.Date          // Fecha de emisión  
+  nombre_comercial            String?   @db.VarChar(255)  // NOMBRE COMERCIAL 
+  actividad                   String?   @db.VarChar(255)  // ACTIVIDAD
+  codigo_ciiu                 String?   @db.VarChar(20)   // CODIGO CIIU  
+  nombre_giro                 String?   @db.VarChar(20)   // NOMBRE GIRO
+  zonificacion                String?   @db.VarChar(50)   // ZONIFICACION
+  chk_tolerancia              Boolean?  @default(false)   // CHECK DE TOLERANCIA DE ZONIFICACION
+  via_tipo                    String?   @db.VarChar(20)   // VIA_TIPO
+  via_nombre                  String?   @db.VarChar(100)  // VIA_NOMBRE
+  numero                      String?   @db.VarChar(10)   // NUMERO
+  interior                    String?   @db.VarChar(10)   // INTERIOR
+  mz                          String?   @db.VarChar(10)   // MZ
+  lt                          String?   @db.VarChar(10)   // LT
+  otros                       String?   @db.VarChar(50)   // OTROS
+  urb_aa_hh_otros             String?   @db.VarChar(50)   // URBANIZACION
+  provincia                   String?   @db.VarChar(50)   // PROVINCIA
+  area_total_m2               Decimal?  @db.Decimal(10, 2)// AREA_TOTAL
+  geom_x                      Decimal?  @db.Decimal(18, 15) //Longitud (X)
+  geom_y                      Decimal?  @db.Decimal(18, 15) //Latitud (Y)
+  tiene_aut_sectorial         Boolean   @default(false)   // CHECK DE REQUIERE AUTORIDAD SECTORIAL
+  aut_entidad                 String?   @db.VarChar(100)  // ENTIDAD (tiene_aut_sectorial==TRUE)
+  aut_denominacion            String?   @db.VarChar(255)  // DENOMINACION DEL PERMISO (tiene_aut_sectorial==TRUE)
+  aut_fecha                   DateTime? @db.Date          // FECHA (tiene_aut_sectorial==TRUE)
+  aut_numero                  String?   @db.VarChar(50)   // NUMERO DE RESOLUCION, CODIGO (tiene_aut_sectorial==TRUE)
+  monumento                   Boolean   @default(false)   // CHECK ES PATRIMONIO CULTURAL (TRUE)
+  aut_ministerio_cultura      Boolean   @default(false)   // CHECK PARTICIPO EL MINISTERIO DE CULTURA
+  num_aut_ministerio_cultura  String?   @db.VarChar(50)   // Número de autorización del ministerio de cultura (aut_ministerio_cultura=false)
+  fecha_aut_ministerio_cultura DateTime? @db.Date         // Fecha de expeditación (aut_ministerio_cultura=false)
+  archivo_aut_ministerio_cultura String? @db.VarChar(100) // SUBIR EL ARCHIVO DE LA COPIA SIMPLE (aut_ministerio_cultura=false)  
+  vigencia_poder              Boolean   @default(false)   // CHECK DE CUENTO CON PODER SUFICIENTE VIGENTE PARA ACTUAR COMO REPRESENTANTE LEGAL
+  condiciones_seguridad       Boolean   @default(false)   // CHECK DE DECLARO BAJO JURAMENTO QUE EL LOCAL CUMPLE CON LAS CONDICIONES DE SEGURIDAD VIGENTE
+  titulo_profesional          Boolean   @default(false)   // CHECK DE CUENTO CON TITULO Y HABILITACION VIGENTE
+  aceptacion                  Boolean   @default(false)   // CHECK Aviso de fiscalización posterior
+  observaciones               String?   @db.Text          // OBSERVACIONES ADICIONALES
 
   expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_dj_expediente")
 
@@ -297,8 +311,8 @@ model DeclaracionJuradaGiro {
 model SeguridadItse {
   id_seguridad          Int       @id @default(autoincrement())
   id_expediente         Int
-  nivel                 String?   @db.VarChar(10)
-  condiciones_seguridad Boolean   @default(false)
+  nivel                 String?   @db.VarChar(10)   // BAJO, MEDIO, ALTO, MUY_ALTO
+  condiciones_seguridad Boolean   @default(false)   //
   modal_itse            String?   @db.VarChar(20)
   numero_itse           String?   @db.VarChar(50)
   archivo_itse          String?   @db.VarChar(255)

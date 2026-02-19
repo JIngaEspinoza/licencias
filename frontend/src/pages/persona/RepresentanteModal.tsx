@@ -13,23 +13,23 @@ import { Button } from "../../types/components/ui/button";
 import { swalError, swalSuccess } from "../../utils/swal";
 import { representantesApi } from "../../services/representantes";
 import { Toast } from "../../lib/toast";
-import type { Personas } from "@/types/persona";
-import { Search, Loader2, Building2, Check, ChevronsUpDown, X } from "lucide-react";
+import { Search, Loader2, Building2, Check, ChevronsUpDown, X, User } from "lucide-react";
 
-// --- COMPONENTE INTERNO: BUSCADOR DE EMPRESA ---
+// --- COMPONENTE INTERNO: BUSCADOR DE PERSONA/EMPRESA ---
 const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredJuridicas = useMemo(() => {
     if (!searchTerm) return juridicas;
+    const query = searchTerm.toLowerCase();
     return juridicas.filter((p: any) =>
-      p.nombre_razon_social?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.ruc?.includes(searchTerm)
+      p.nombre_razon_social?.toLowerCase().includes(query) ||
+      p.ruc?.includes(query) ||
+      p.numero_documento?.includes(query)
     );
   }, [juridicas, searchTerm]);
 
-  // Comparación robusta usando String para evitar fallos entre Number/String
   const selectedPersona = juridicas.find((p: any) => String(p.id_persona) === String(value));
 
   return (
@@ -42,11 +42,15 @@ const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
           ${selectedPersona ? 'text-slate-800' : 'text-slate-400'}`}
       >
         <div className="flex items-center gap-2 truncate">
-          <Building2 size={14} className={selectedPersona ? "text-[#0f766e]" : "text-slate-400"} />
+          {selectedPersona?.tipo_persona === 'JURIDICA' ? (
+            <Building2 size={14} className="text-[#0f766e]" />
+          ) : (
+            <User size={14} className="text-blue-600" />
+          )}
           <span className="truncate">
             {selectedPersona 
-              ? `${selectedPersona.nombre_razon_social} — ${selectedPersona.ruc}` 
-              : "BUSCAR EMPRESA POR NOMBRE O RUC..."}
+              ? `${selectedPersona.nombre_razon_social} — ${selectedPersona.ruc || selectedPersona.numero_documento}` 
+              : "BUSCAR PERSONA O EMPRESA..."}
           </span>
         </div>
         <ChevronsUpDown size={14} className="text-slate-400 shrink-0" />
@@ -59,7 +63,7 @@ const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
               <Search className="absolute left-2.5 text-slate-400" size={13} />
               <input
                 autoFocus
-                placeholder="Escribe RUC o Razón Social..."
+                placeholder="Escribe documento o nombre..."
                 className="w-full h-8 pl-8 pr-3 bg-white border border-slate-200 rounded-md text-[11px] font-bold outline-none focus:border-[#0f766e] transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -70,7 +74,7 @@ const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
             </button>
           </div>
 
-          <div className="max-h-52 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-slate-200">
+          <div className="max-h-52 overflow-y-auto p-1 scrollbar-thin">
             {filteredJuridicas.length > 0 ? (
               filteredJuridicas.map((p: any) => (
                 <button
@@ -87,23 +91,31 @@ const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
                       : "hover:bg-slate-50 text-slate-700"
                   }`}
                 >
-                  <div className="flex flex-col truncate">
-                    <span className="text-[10px] font-black leading-tight uppercase truncate">
-                      {p.nombre_razon_social}
-                    </span>
-                    <span className="text-[9px] text-slate-500 font-bold italic">
-                      RUC: {p.ruc}
-                    </span>
+                  <div className="flex items-center gap-3 truncate">
+                    <div className={`p-1.5 rounded-md ${p.tipo_persona === 'JURIDICA' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+                      {p.tipo_persona === 'JURIDICA' 
+                        ? <Building2 size={13} className="text-amber-600" /> 
+                        : <User size={13} className="text-blue-600" />
+                      }
+                    </div>
+                    <div className="flex flex-col truncate">
+                      <span className="text-[10px] font-black leading-tight uppercase truncate">
+                        {p.nombre_razon_social}
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-bold italic">
+                        {p.tipo_persona === 'JURIDICA' ? `RUC: ${p.ruc}` : `DNI: ${p.numero_documento}`}
+                      </span>
+                    </div>
                   </div>
-                  {String(value) === String(p.id_persona) && (
-                    <Check size={14} className="text-[#0f766e] shrink-0 ml-2" />
-                  )}
+                  <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${
+                    p.tipo_persona === 'JURIDICA' ? 'border-amber-200 text-amber-600' : 'border-blue-200 text-blue-600'
+                  }`}>
+                    {p.tipo_persona}
+                  </span>
                 </button>
               ))
             ) : (
-              <div className="py-8 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                No hay resultados
-              </div>
+              <div className="py-8 text-center text-[10px] font-black text-slate-400 uppercase">No hay resultados</div>
             )}
           </div>
         </div>
@@ -142,11 +154,16 @@ export const RepresentanteModal = ({
   const [repDocNumero, setRepDocNumero] = useState("");
   const [isSearchingSunat, setIsSearchingSunat] = useState(false);
 
+  const personaActual = useMemo(() => 
+    juridicas.find(p => String(p.id_persona) === String(empresaId || selectedPersonaId)),
+    [juridicas, empresaId, selectedPersonaId]
+  );
+
+  const esJuridica = personaActual?.tipo_persona === "JURIDICA";
   const maxLength = repDocTipo === "DNI" ? 8 : 9;
   const labelClasses = "text-[10px] font-black text-slate-800 uppercase tracking-tight mb-1.5 block ml-0.5";
-  const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 font-bold";
+  const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300";
 
-  // --- EFECTO CLAVE PARA EDICIÓN Y SINCRONIZACIÓN ---
   useEffect(() => {
     if (open) {
       if (editingRep) {
@@ -154,7 +171,6 @@ export const RepresentanteModal = ({
         setRepDocTipo(editingRep.tipo_documento || "DNI");
         setRepDocNumero(editingRep.numero_documento || "");
       } else {
-        // Si es nuevo y tenemos una persona seleccionada en el contexto padre, la pre-seleccionamos
         setEmpresaId(selectedPersonaId ? String(selectedPersonaId) : "");
         setRepDocNumero("");
         setRepDocTipo("DNI");
@@ -170,7 +186,7 @@ export const RepresentanteModal = ({
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    if (!juridicas || juridicas.length === 0) return swalError("No hay empresas cargadas.");
+    if (!juridicas || juridicas.length === 0) return swalError("No hay registros cargados.");
 
     const f = new FormData(e.currentTarget);
     const payload = {
@@ -181,11 +197,8 @@ export const RepresentanteModal = ({
       sunarp_partida_asiento: String(f.get("sunarp")).trim(),
     };
 
-    const personaSeleccionada = juridicas.find(p => String(p.id_persona) === String(payload.id_persona));
-
-    if (!payload.id_persona) return swalError("Selecciona una empresa vinculada");
-    if (personaSeleccionada?.tipo_persona !== "JURIDICA") return swalError("Solo se asignan representantes a PERSONAS JURÍDICAS");
-    if (!payload.nombres) return swalError("Ingresa nombres del representante");
+    if (!payload.id_persona) return swalError("Selecciona una persona o empresa vinculada");
+    if (!payload.nombres) return swalError("Ingresa nombres");
     if (!payload.numero_documento) return swalError("Ingresa número de documento");
 
     setRepSaving(true);
@@ -193,24 +206,15 @@ export const RepresentanteModal = ({
       let response;
       if (editingRep?.id_representante) {
         response = await representantesApi.update(editingRep.id_representante, payload);
-        swalSuccess("Representante actualizado");
+        swalSuccess(esJuridica ? "Representante actualizado" : "Apoderado actualizado");
       } else {
         const created = await representantesApi.create(payload);
-        
-        // Actualizar estados del padre si existen
-        if (setSelectedPersonaId && !selectedPersonaId) {
-          setSelectedPersonaId(payload.id_persona);
-        }
-
+        if (setSelectedPersonaId && !selectedPersonaId) setSelectedPersonaId(payload.id_persona);
         if (setReps) {
-          setReps((prev) => {
-            const map = new Map(prev.map((r) => [r.id_representante, r]));
-            map.set(created.id_representante, created);
-            return Array.from(map.values());
-          });
+          setReps((prev) => [...prev, created]);
         }
         response = created;
-        Toast.fire({ icon: "success", title: "Representante creado" });
+        Toast.fire({ icon: "success", title: esJuridica ? "Representante creado" : "Apoderado creado" });
       }
 
       if (onSuccess) onSuccess(response);
@@ -225,25 +229,35 @@ export const RepresentanteModal = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[550px] p-0 border-none overflow-hidden bg-white shadow-2xl" onInteractOutside={(e) => e.preventDefault()}>
-        <DialogHeader className="p-5 text-white bg-[#0f766e]">
+        <DialogHeader className={`p-5 text-white transition-colors duration-300 ${esJuridica ? 'bg-[#0f766e]' : 'bg-blue-700'}`}>
           <DialogTitle className="text-[13px] font-black uppercase tracking-[0.1em] flex items-center gap-2 text-white">
-            {editingRep?.id_representante ? "📝 Editar Representante" : "🤝 Nuevo Representante"}
+            {editingRep?.id_representante ? "📝 Editar" : "🤝 Nuevo"} {esJuridica ? "Representante" : "Apoderado"}
           </DialogTitle>
-          <DialogDescription className="text-teal-50/70 text-[10px] uppercase font-bold tracking-wider">
-            Datos del Representante Legal
+          <DialogDescription className="text-white/70 text-[10px] uppercase font-bold tracking-wider">
+            {esJuridica ? "Gestión de Representante Legal" : "Gestión de Apoderado (Persona Natural)"}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-12">
             
-            {/* SECTOR: EMPRESA CON BUSCADOR */}
             <div className="md:col-span-12">
-              <Label className={labelClasses}>Empresa / Persona Jurídica vinculada</Label>
-              <EmpresaSearchSelector juridicas={juridicas} value={empresaId} onChange={setEmpresaId} />
+              <Label className={labelClasses}>VINCULADO A:</Label>
+              {selectedPersonaId ? (
+                <div className="w-full h-9 flex items-center justify-between px-3 rounded-lg border border-slate-200 bg-slate-50 text-[11px] font-black">
+                  <div className="flex items-center gap-2 truncate text-slate-700">
+                    {esJuridica ? <Building2 size={14} className="text-amber-600" /> : <User size={14} className="text-blue-600" />}
+                    <span className="truncate uppercase">{personaActual?.nombre_razon_social}</span>
+                  </div>
+                  <span className={`text-[8px] px-1.5 py-0.5 rounded border font-black ${esJuridica ? 'bg-amber-100 border-amber-200 text-amber-700' : 'bg-blue-100 border-blue-200 text-blue-700'}`}>
+                    {personaActual?.tipo_persona}
+                  </span>
+                </div>
+              ) : (
+                <EmpresaSearchSelector juridicas={juridicas} value={empresaId} onChange={setEmpresaId} />
+              )}
             </div>
 
-            {/* SECTOR: DOCUMENTO */}
             <div className="md:col-span-12 lg:col-span-8 flex flex-col gap-1.5">
               <label className={labelClasses}>Buscador de Identidad</label>
               <div className="flex items-center h-9 w-full shadow-sm">
@@ -256,17 +270,12 @@ export const RepresentanteModal = ({
                   <option value="CE">C.E.</option>
                 </select>
                 <input
-                  className="flex-1 h-full border border-slate-300 bg-white px-3 text-[11px] font-black tracking-widest focus:border-[#0f766e] focus:z-10 outline-none border-r-0"
+                  className="flex-1 h-full border border-slate-300 bg-white px-3 text-[11px] font-black tracking-widest focus:border-[#0f766e] outline-none border-r-0"
                   placeholder={repDocTipo === "DNI" ? "8 DÍGITOS" : "9 DÍGITOS"}
                   maxLength={maxLength}
                   value={repDocNumero}
                   onChange={(e) => setRepDocNumero(e.target.value.replace(/\D/g, ""))}
                 />
-                <div className="h-full px-2 border border-slate-300 bg-white flex items-center border-l-0 border-r-0">
-                  <span className="text-[9px] font-black text-slate-400 tabular-nums">
-                    {repDocNumero.length}/{maxLength}
-                  </span>
-                </div>
                 <button
                   type="button"
                   onClick={onSearchSunat}
@@ -279,27 +288,24 @@ export const RepresentanteModal = ({
               </div>
             </div>
 
-            {/* SECTOR: NOMBRES */}
             <div className="md:col-span-12">
-              <Label className={labelClasses}>Nombres y Apellidos</Label>
+              <Label className={labelClasses}>Nombres y Apellidos del {esJuridica ? 'Representante' : 'Apoderado'}</Label>
               <Input name="nombres" defaultValue={editingRep?.nombres ?? ""} className={inputClasses} placeholder="EJ. JUAN PEREZ GOMEZ" required />
             </div>
 
-            {/* SECTOR: SUNARP */}
             <div className="md:col-span-12">
               <Label className={labelClasses}>Poderes SUNARP (Partida / Asiento)</Label>
               <Input name="sunarp" defaultValue={editingRep?.sunarp_partida_asiento ?? ""} className={inputClasses} placeholder="Ej. Partida 1100XXXX - Asiento B000X" />
               <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase italic">* Verifique la vigencia de poderes en SUNARP.</p>
             </div>
-            
           </div>
 
           <DialogFooter className="mt-8 gap-3 border-t border-slate-100 pt-6">
             <Button type="button" onClick={() => onOpenChange(false)} variant="outline" className="h-10 text-[10px] font-black uppercase tracking-widest text-slate-500">
               Cancelar
             </Button>
-            <Button type="submit" disabled={repSaving} className="h-10 bg-[#0f766e] text-white text-[10px] font-black uppercase tracking-widest px-8 shadow-lg active:scale-95 transition-all">
-              {repSaving ? <Loader2 size={14} className="animate-spin" /> : (editingRep ? "GUARDAR CAMBIOS" : "REGISTRAR REPRESENTANTE")}
+            <Button type="submit" disabled={repSaving} className={`h-10 text-white text-[10px] font-black uppercase tracking-widest px-8 shadow-lg active:scale-95 transition-all ${esJuridica ? 'bg-[#0f766e]' : 'bg-blue-700'}`}>
+              {repSaving ? <Loader2 size={14} className="animate-spin" /> : (editingRep ? "GUARDAR CAMBIOS" : "REGISTRAR")}
             </Button>
           </DialogFooter>
         </form>

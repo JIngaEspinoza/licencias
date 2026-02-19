@@ -1,29 +1,37 @@
-//import React from "react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef, memo } from "react";
+import { useForm } from "react-hook-form";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON} from 'react-leaflet';
+import * as turf from '@turf/turf';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import datosGeoJSON from '../../geoJson/mapa.json';
+import lineaMapa from '../../geoJson/lineaLimite.json';
 import { useNavigate } from "react-router-dom";
 import { expedientesApi } from "../../services/expedientes";
-import { ChevronLeft, ChevronDown, Upload, Building2, AlertTriangle, ShieldCheck, Plus, AlertCircle, Copy, FileText, Save, Search } from "lucide-react";
+import { ChevronLeft, ChevronDown, Upload, Building2, AlertTriangle, ShieldCheck, Plus, 
+  MapPin, LocateFixed, X, Loader2, 
+  AlertCircle, Copy, FileText, Save, Search, UploadCloud, Check, Trash2 } from "lucide-react";
 import type { NuevaDJTransaccionalRequest } from "@/types/declaracionJurada";
+
+import { Label } from "../../types/components/ui/label";
+import { Input } from "../../types/components/ui/input";
+import { Checkbox } from "../../types/components/ui/checkbox";
+import { Switch } from "../../types/components/ui/switch";
 
 import { PersonaModal } from '../persona/PersonaModal';
 import type { Personas } from "@/types/persona";
 import { RepresentanteModal } from "../persona/RepresentanteModal";
-/*const BuscarExpedienteDialog = React.lazy(() => import("../../components/BuscarExpedientesDialog"));
-type Expediente = import("../../components/BuscarExpedientesDialog").Expediente;*/
 
 import BuscarExpedienteDialog, { Expediente } from "../../components/BuscarExpedientesDialog";
 import { personasApi } from "../../services/personas";
 import { useDebounce } from "../../hooks/useDebounce";
+import { SeccionCard } from './SeccionCard';
+import { MapaZonificacion } from './MapaZonificacion';
+import { ModalSeleccionGiro } from "../gestion/GiroModal";
 
-const pretty = (obj: any) => JSON.stringify(obj, null, 2);
-
-type CardProps = { title: string; disabled?: boolean; children: React.ReactNode };
-const Card: React.FC<CardProps> = ({ title, disabled, children }) => (
-  <div className={`rounded-2xl border ${disabled ? "opacity-50" : ""} bg-white/70 shadow-sm p-5`}>
-    <h3 className="font-semibold text-lg mb-3">{title}</h3>
-    <div className="space-y-3">{children}</div>
-  </div>
-);
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
 
 // ====== MOCK: todo al TOP-LEVEL, fuera del componente ======
 const USE_MOCK = true;
@@ -32,6 +40,58 @@ const MOCK_EXPEDIENTES: Expediente[] = [
   { id_expediente: 1, numero: "EXP-2025-000123", ruc: "20123456789", razon_social: "EMPRESA S.A.C.", solicitante: "Juan Pérez", estado: "EN_EVALUACION" },
   { id_expediente: 2, numero: "EXP-2025-000456", ruc: "20654321987", razon_social: "COMERCIAL ANDES SRL", solicitante: "María López", estado: "APROBADO" },
   { id_expediente: 3, numero: "EXP-2025-000789", ruc: "10456789012", razon_social: "SERVICIOS PACÍFICO EIRL", solicitante: "Carlos Ruiz", estado: "OBSERVADO" },
+];
+
+const girosEjemplo = [
+  {
+    id_giro: 1,
+    codigo: "C10101",
+    nombre: "VENTA AL POR MENOR EN MINIMERCADOS",
+    riesgo_base: "BAJO",
+    giro_zonificacion: [
+      {
+        id_zonificacion: 1,
+        zonificacion: { codigo: "CZ" }, // Comercio Zonal
+        estado_uso: { codigo: "H", descripcion: "PERMITIDO" }
+      },
+      {
+        id_zonificacion: 2,
+        zonificacion: { codigo: "RDM" }, // Residencia Densidad Media
+        estado_uso: { codigo: "H", descripcion: "PERMITIDO" }
+      }
+    ]
+  },
+  {
+    id_giro: 2,
+    codigo: "C10205",
+    nombre: "TALLER DE MECÁNICA AUTOMOTRIZ",
+    riesgo_base: "MEDIO",
+    giro_zonificacion: [
+      {
+        id_zonificacion: 1,
+        zonificacion: { codigo: "CZ" },
+        estado_uso: { codigo: "X", descripcion: "NO PERMITIDO" }
+      },
+      {
+        id_zonificacion: 3,
+        zonificacion: { codigo: "I-1" }, // Industria Elemental
+        estado_uso: { codigo: "H", descripcion: "PERMITIDO" }
+      }
+    ]
+  },
+  {
+    id_giro: 3,
+    codigo: "C10508",
+    nombre: "BAR Y DISCOTECA",
+    riesgo_base: "ALTO",
+    giro_zonificacion: [
+      {
+        id_zonificacion: 1,
+        zonificacion: { codigo: "CZ" },
+        estado_uso: { codigo: "X", descripcion: "NO PERMITIDO" }
+      }
+    ]
+  }
 ];
 
 const norm = (s?: string | null) =>
@@ -61,29 +121,61 @@ async function fetchExpedientes(q: { numero: string; ruc: string; razon_social: 
   return res.json();
 }
 
+// Buscador de mapa
+const SlimSearchBlock = memo(({ onSearch, loading }) => {
+  const [localInput, setLocalInput] = useState("");
+
+  const handleAction = () => {
+    if (localInput.trim()) onSearch(localInput);
+  };
+
+  return (
+    <div className="w-full mb-2">
+      <div className="group relative flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm focus-within:border-[#0f766e]/40 transition-all">
+        <div className="flex-1 relative flex items-center">
+          <Search className="absolute left-2 text-slate-400" size={12} />
+          <input
+            className="w-full h-7 pl-7 pr-2 bg-transparent text-[11px] outline-none placeholder:text-slate-300 font-medium"
+            placeholder="Calle, número, distrito..."
+            value={localInput}
+            onChange={(e) => setLocalInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAction()}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleAction}
+          disabled={loading}
+          className="h-6 px-3 bg-[#0f766e] text-white rounded-md font-bold text-[9px] uppercase hover:bg-teal-800 disabled:opacity-50 transition-colors flex items-center gap-1"
+        >
+          {loading ? <Loader2 className="animate-spin" size={10}/> : "Ubicar"}
+        </button>
+      </div>
+    </div>
+  );
+});
+
+
+
 export default function ExpedienteForm() {
-  const navigate = useNavigate();
+  // ESTILOS GENERALES
+  const inputClassLine = "h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none";
+  const labelClasses = "text-[10px] font-black text-slate-800 uppercase tracking-tight mb-1.5 block ml-0.5";
+  const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 placeholder:font-normal";
+  const inputStyle = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-50 outline-none transition-all placeholder:text-slate-400";
+  const inputClasses2 = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 uppercase";
 
+  // ESTADOS
+  const [esPatrimonio, setEsPatrimonio] = useState(false);
+  const [tieneMonitoreo, setTieneMonitoreo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const itseInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const [numeroExpediente, setNumeroExpediente] = React.useState("");
-
-  // Implementa tu fetch real (API, Prisma, etc.)
-  /*const fetchExpedientes = async (q: { numero: string; ruc: string; razon_social: string; }) : Promise<Expediente[]> => {
-    const res = await fetch("/api/expedientes/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(q),
-    });
-    if (!res.ok) throw new Error("Error buscando expedientes");
-    return res.json();
-  };*/
-
-  // -------------------------
-  // Estado general
-  // -------------------------
-  const [modo, setModo] = React.useState<"NUEVA" | "MODIFICACION">("NUEVA");
+  //const [modo, setModo] = React.useState<"NUEVA" | "MODIFICACION">("NUEVA");
 
   // II Datos del solicitante
-  const [tipoPersona, setTipoPersona] = React.useState<"NATURAL" | "JURIDICA">("NATURAL");
+  //const [tipoPersona, setTipoPersona] = React.useState<"NATURAL" | "JURIDICA">("NATURAL");
   const [nombreRazon, setNombreRazon] = React.useState("");
   const [docTipo, setDocTipo] = React.useState<"DNI" | "CE">("DNI");
   const [docNumero, setDocNumero] = React.useState("47361628");
@@ -109,13 +201,14 @@ export default function ExpedienteForm() {
   const [sunarpArchivo, setSunarpArchivo] = React.useState("");
 
   // NUEVA — Modalidad y opciones
-  const [modalidad, setModalidad] = React.useState<"INDETERMINADA" | "TEMPORAL">("INDETERMINADA");
+  //const [modalidad, setModalidad] = React.useState<"INDETERMINADA" | "TEMPORAL">("INDETERMINADA");
   const [fechaIni, setFechaIni] = React.useState("");
   const [fechaFin, setFechaFin] = React.useState("");
   const [opAnuncio, setOpAnuncio] = React.useState(false);
   const [opCesionario, setOpCesionario] = React.useState(false);
   const [opMercado, setOpMercado] = React.useState(false);
   const [tipoAnuncio, setTipoAnuncio] = React.useState("");
+  const tipoAnuncioRef = useRef(null);
   const [licenciaPrincipal, setLicenciaPrincipal] = React.useState("");
 
   // MODIFICACIÓN — acción única
@@ -127,25 +220,17 @@ export default function ExpedienteForm() {
   // Seguridad / ITSE
   const [nivel, setNivel] = React.useState<"BAJO" | "MEDIO" | "ALTO" | "MUY_ALTO">("BAJO");
   const [condSeguridad, setCondSeguridad] = React.useState(true);
-  const itseRequierePrevia = React.useMemo(() => ["ALTO", "MUY_ALTO"].includes(nivel), [nivel]);
+  //const itseRequierePrevia = React.useMemo(() => ["ALTO", "MUY_ALTO"].includes(nivel), [nivel]);
   const [itseNumero, setItseNumero] = React.useState("");
-  const [itseArchivo, setItseArchivo] = React.useState("");
+  //const [itseArchivo, setItseArchivo] = React.useState("");
 
   // Anexos (simulados)
   const [anexoNombre, setAnexoNombre] = React.useState("");
   const [anexos, setAnexos] = React.useState<string[]>([]);
 
   // DJ generales
-  //const [numeroExpediente, setNumeroExpediente] = React.useState("EXP-2025-0001");
   const [fechaRecepcion, setFechaRecepcion] = React.useState(new Date().toISOString().slice(0, 10));
-  const [estado, setEstado] = React.useState("EN_EVALUACION");
-
-  const nuevaDisabled = modo !== "NUEVA";
-  const modifDisabled = modo !== "MODIFICACION";
-
-  const isModBasica =
-    modo === "MODIFICACION" &&
-    ["CAMBIO_DENOMINACION", "TRANSFERENCIA", "CESE"].includes(accion);
+  //const [estado, setEstado] = React.useState("EN_EVALUACION");
 
   // III — Representante legal o apoderado
   const [repNombre, setRepNombre] = React.useState("");
@@ -206,8 +291,400 @@ export default function ExpedienteForm() {
   const [limit] = useState(10);
   const [loading, setLoading] = useState(false);
 
+  // VI — Clasificación (simulada municipal)
+  const [califEditable, setCalifEditable] = React.useState(false);
+  const [califNivel, setCalifNivel] = React.useState<"" | "BAJO" | "MEDIO" | "ALTO" | "MUY_ALTO">("");
+  const [califNombre, setCalifNombre] = React.useState("");
+  const [califFecha, setCalifFecha] = React.useState("");
+
+  // Modal de nueva persona
+  const [nombreRep, setNombreRep] = React.useState("");
+  const [dniRep, setDniRep] = React.useState("");
+
+  const [showModal, setShowModal] = React.useState(false);
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const [showSuggestionsRep, setShowSuggestionsRep] = React.useState(false);
+
+  const [showSuggestionsSolicitante, setShowSuggestionsSolicitante] = React.useState(false);
+  const [showSuggestionsRepresentante, setShowSuggestionsRepresentante] = React.useState(false);
+
+  //const suggestionsRef = React.useRef(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const solicitanteRef = useRef<HTMLDivElement>(null);
+  const suggestionsRefRep = useRef<HTMLDivElement>(null);
+  const representanteRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = React.useState<string>("");
+
+  const [position, setPosition] = useState([-12.0922, -77.0790]); // Cerca a Municipalidad San Miguel
+  const [addressInput, setAddressInput] = useState("");
+  const markerRef = useRef(null);
+  const [zonaDetectada, setZonaDetectada] = useState("Mueve el pin para identificar");
+  const [isGiroModalOpen, setIsGiroModalOpen] = useState(false);
+  const [giros, setGiros] = useState([]);
+  const [loadingGiros, setLoadingGiros] = useState(false);
+
+  const { register, handleSubmit, setValue, watch } = useForm({
+    defaultValues: {
+      id_persona: null,
+      nombre_razon_social: '',
+      fecha: new Date().toISOString().split('T')[0],
+      numero_expediente: '',
+      estado: 'EN_EVALUACION',
+      // EXPEDIENTE LICENCIA
+      licencia: {
+        id_representante: '',
+        nombre_representante: '',
+        tiene_apoderado: false,
+        fecha_recepcion: new Date().toISOString().split('T')[0],
+        tipo_tramite: 'NUEVA', //NUEVA_LICENCIA | MODIFICACIONES
+        modalidad: 'INDETERMINADA',
+        fecha_inicio_plazo: '',
+        fecha_fin_pazo: '',
+        anuncio: false, 
+        a_descripcion: '',
+        cesionario: false,
+        ces_nrolicencia: '',
+        mercado: false,
+        tipo_accion_tramite: '',
+        numero_licencia_origen: '',
+        nueva_denominacion: '',
+        detalle_otros: '',
+        nivel_riesgo: 'BAJO',
+        numero_itse: '',
+        doc_itse: '',
+        bajo_juramento: true
+      },
+      // DECLARACION JURADA
+      declaracion: {
+        nombre_comercial: '',
+        actividad: '',
+        codigo_ciiu: '',
+        nombre_giro: '',
+        zonificacion: '',
+        chk_tolerancia: false,
+        area_total_m2: '0',
+        // UBICACION
+        via_tipo: 'Av.',
+        via_nombre: '',
+        numero: '',
+        interior: '',
+        mz: '',
+        lt: '',
+        urb_aa_hh_otros: '',
+        provincia: 'SAN MIGUEL',
+        otros: '',
+        geom_x: null,
+        geom_y: null,
+        // AUTORIZACIONES SECTORIALES (CHECKS)
+        tiene_aut_sectorial: false,
+        aut_entidad: '',
+        aut_denominacion: '',
+        aut_numero: '',
+        aut_fecha: '',
+        // Patrimonio
+        monumento: false,
+        aut_ministerio_cultura: false,
+        num_aut_ministerio_cultura: '',
+        fecha_aut_ministerio_cultura: '',
+        archivo_aut_ministerio_cultura: '',
+        // Declaraciones Juradas Finales (Checks de cumplimiento)
+        vigencia_poder: false,
+        condiciones_seguridad: true,
+        titulo_profesional: false,
+        aceptacion: true,
+        observaciones: '',
+        // --- GIROS SELECCIONADOS (Tabla Puente) ---
+        giros_seleccionados: [],
+      },
+    }
+  });
+
+  const modalidad = watch("licencia.modalidad");
+  const modo = watch("licencia.tipo_tramite");
+  const zonificacionActual = watch("declaracion.zonificacion");
+  const chk_bajoJuramento = watch("licencia.bajo_juramento");
+  const chk_aceptacion = watch("declaracion.aceptacion");
+  const watchAccion = watch("licencia.tipo_accion_tramite");
+  const isAutoridadSectorial = watch("declaracion.tiene_aut_sectorial");
+  const isPatrimonioCultural = watch("declaracion.monumento"); 
+  const fileUploaded = watch("declaracion.archivo_aut_ministerio_cultura");
+  const estado = watch("estado");
+  const nivelRiesgo = watch("licencia.nivel_riesgo");
+  const itseArchivo = watch("licencia.doc_itse");
+  const queryNameSolicitante = watch("nombre_razon_social");
+  const queryNameRepresentante = watch("licencia.nombre_representante");
+  const idSolicitante = watch("id_persona");
+  //const nombreSolicitante = watch("nombre_razon_social") || "";
+  const tieneApoderado = watch("licencia.tiene_apoderado");
+
+  const itseRequierePrevia = ["ALTO", "MUY_ALTO"].includes(nivelRiesgo);
+
+  const isModBasica =
+    modo === "MODIFICACION" &&
+    ["CAMBIO_DENOMINACION", "TRANSFERENCIA", "CESE"].includes(accion);   
+
+  const alEnviar = (data) => {
+    console.log("Datos limpios recolectados:", data);
+    // Aquí data ya trae: { modalidad: "TEMPORAL", fechaIni: "2024-01-01", ... }
+  };
+
+  const actualizarFormulario = (addr) => {
+    // Aquí pon tus funciones set del formulario:
+    if (typeof setEstViaNombre === "function") setEstViaNombre(addr.road || addr.pedestrian || "");
+    if (typeof setEstNumeroPuerta === "function") setEstNumeroPuerta(addr.house_number || "");
+    if (typeof setEstUrbAAHH === "function") setEstUrbAAHH(addr.suburb || addr.neighbourhood || "");
+  };
+
+  const procesarBusqueda = async (termino) => {
+    setLoading(true);
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(termino + ", Lima, Peru")}&limit=1`);
+      const data = await resp.json();
+      if (data.length > 0) {
+        const { lat, lon, address } = data[0];
+        setPosition([parseFloat(lat), parseFloat(lon)]);
+        actualizarFormulario(address);
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  /*const eventHandlers = useMemo(() => ({
+    dragend() {
+      const marker = markerRef.current;
+      if (marker != null) {
+        const newPos = marker.getLatLng();
+        handleReverseGeocode(newPos.lat, newPos.lng);
+      }
+    },
+  }), []);*/
+
+  
+
+  const handleReverseGeocode = async (lat, lon) => {
+    setLoading(true);
+    try {
+      const resp = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`
+      );
+      const data = await resp.json();
+      setPosition([lat, lon]);
+      updateFieldsFromAddress(data.address);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const updateFieldsFromAddress = (addr) => {
+    setFormData({
+      via: addr.road || addr.pedestrian || addr.cycleway || "",
+      numero: addr.house_number || "",
+      urbanizacion: addr.suburb || addr.neighbourhood || addr.residential || "",
+      distrito: (addr.city_district || "SAN MIGUEL").toUpperCase(),
+      provincia: (addr.city || addr.county || "LIMA").toUpperCase(),
+    });
+  };
+
+
+
+  // Función para verificar zonificación
+  const verificarZonificacion = (coords, geojsonData) => {
+  if (!coords || !geojsonData?.features) return "Error de datos";
+
+  try {
+    // 1. Crear el punto (Turf usa [lng, lat])
+    const punto = turf.point([coords.lng, coords.lat]);
+
+    // 2. Buscar el polígono que contiene el punto
+    // Filtramos para asegurarnos de procesar solo polígonos y evitar errores
+    const featureEncontrada = geojsonData.features.find((f) => {
+      const esPoligono = f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon';
+      return esPoligono && turf.booleanPointInPolygon(punto, f);
+    });
+
+    // 3. Retornar el nombre de la capa o el mensaje por defecto
+    if (featureEncontrada) {
+      // Usamos el nombre de la columna que limpiaste en QGIS ('layer')
+      return featureEncontrada.properties.layer || "Zona sin nombre";
+    }
+
+    return "Fuera de zona";
+
+  } catch (error) {
+    console.error("Error en validación espacial:", error);
+    return "Error de cálculo";
+  }
+};
+
+  // Manejador del evento al soltar el pin
+  const eventHandlers = useMemo(() => ({
+    async dragend(e) {
+      const coords = e.target.getLatLng();
+      setPosition([coords.lat, coords.lng]);
+
+      // 1. Zonificación (Lo que ya tienes)
+      const zona = verificarZonificacion(coords, datosGeoJSON);
+      setValue("declaracion.zonificacion", zona);
+
+      // 2. Dirección con Despiece
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1`
+        );
+        const data = await response.json();
+        const addr = data.address;
+
+        // --- MAPEADO A TUS CAMPOS ---
+        
+        // A. Tipo de Vía y Nombre de Vía
+        // Nominatim a veces separa el tipo en 'road'. Intentaremos extraerlo:
+        if (addr.road) {
+          const roadParts = addr.road.split(' ');
+          const posibleTipo = roadParts[0].toLowerCase();
+          
+          // Mapeo simple de tipos comunes
+          if (posibleTipo.includes('avenida')) setValue("tipo_via", "Av.");
+          else if (posibleTipo.includes('jirón') || posibleTipo.includes('jiron')) setValue("tipo_via", "Jr.");
+          else if (posibleTipo.includes('calle')) setValue("tipo_via", "Ca.");
+          else if (posibleTipo.includes('pasaje')) setValue("tipo_via", "Pje.");
+          
+          setValue("nombre_via", addr.road.replace(/^(Avenida|Jr\.|Calle|Ca\.|Jr|Pasaje|Pje)\s+/i, ''));
+        }
+
+        // B. Número
+        setValue("numero", addr.house_number || "S/N");
+
+        // C. Urbanización / AA.HH. / Sector
+        // Nominatim usa varios campos para esto dependiendo de la zona
+        const urbanizacion = addr.suburb || addr.neighbourhood || addr.residential || "";
+        setValue("urbanizacion", urbanizacion);
+
+        // D. Provincia / Distrito
+        const distrito = addr.city_district || addr.suburb || "";
+        const provincia = addr.city || addr.county || "Lima";
+        setValue("ubicacion_geografica", `${provincia} / ${distrito}`);
+
+        // Nota: Int., Mz., Lt., y Otros normalmente no vienen en GPS, 
+        // el usuario deberá completarlos manualmente si es necesario.
+
+      } catch (error) {
+        console.error("Error al geocodificar:", error);
+      }
+    },
+  }), [datosGeoJSON, setValue]);
+
+  // Base de datos de ejemplo
+  const [dbPersonas] = React.useState([
+    { id: 52, nombre: 'TALITEK E.I.R.L.', ruc: '20612127531', correo: 'talitek001@gmail.com', tipo_persona: 'JURIDICA' },
+    { id: 62, nombre: 'RIDEK LOGISTICA Y CARGA S.A.C.', ruc: '20614008041', correo: 'ridekperu@gmail.com', tipo_persona: 'JURIDICA' },
+    { id: 50, nombre: 'Estudio Legal Prado & Asociados SAC', ruc: '20100002019', correo: 'contacto@estudio-legal-prado-asociados.com', tipo_persona: 'JURIDICA' },
+    { id: 61, nombre: 'QUISPE AUCAPIÑA GABRIELA', ruc: '10726910702', correo: 'gabrielaquispea5@gmail.com', tipo_persona: 'NATURAL' },
+  ]);
+
+  const [dbRepresentantes] = React.useState([
+    { id_representante: 23, id_persona: 52, nombre: 'JONADAB INGA ESPINOZA', tipo_documento: 'DNI', numero_documento: '47361628', sunarp_partida_asiento: 'PARTIDA 13000015 - ASIENTO B1015' },
+    { id_representante: 24, id_persona: 52, nombre: 'RAQUEL ABARCA CARRILLO', tipo_documento: 'DNI', numero_documento: '44123516', sunarp_partida_asiento: 'PARTIDA 13000015 - ASIENTO B1015' }
+  ]);
+
+    // Buscamos el objeto completo del solicitante seleccionado para saber su tipo
+  const solicitanteData = dbPersonas.find(p => p.id === idSolicitante);
+  const tipoPersona = solicitanteData?.tipo_persona; // 'JURIDICA' o 'NATURAL'
+
+  // El representante es obligatorio si es Jurídica
+  // O es habilitado si es Natural y marca el checkbox de apoderado
+  const esJuridica = tipoPersona === 'JURIDICA';
+  const mostrarRepresentante = esJuridica || tieneApoderado;
+
+
+  //Base de datos ejemplo de Representantes
+
+  const sugerenciasFiltradasSolicitante = dbPersonas.filter(p => {
+    const query = queryNameSolicitante.toLowerCase();
+    return p.nombre.toLowerCase().includes(query) || p.ruc.includes(query);
+  });
+
+  const sugerenciasFiltradasRepresentante = dbRepresentantes.filter(p => {
+    // Primero: ¿Hay un texto de búsqueda? (Evitamos el error del toLowerCase)
+    const query = (queryNameRepresentante || "").toLowerCase();
+    
+    // Segundo: ¿El representante pertenece a la empresa/persona seleccionada?
+    const esDeLaMismaEmpresa = p.id_persona === idSolicitante;
+
+    // Tercero: ¿Coincide con el nombre o documento?
+    const nombreRep = (p.nombre || "").toLowerCase();
+    const docRep = p.numero_documento || "";
+    const coincideConBusqueda = nombreRep.includes(query) || docRep.includes(query);
+
+    // Solo retornamos si cumple AMBAS condiciones: es de la empresa Y coincide la búsqueda
+    return esDeLaMismaEmpresa && coincideConBusqueda;
+    //const queryRepresentante = queryNameRepresentante.toLowerCase();
+    //return p.nombre.toLowerCase().includes(queryRepresentante) || p.numero_documento.includes(queryRepresentante)
+  })
+
+  const juridicas = useMemo(
+    () => rows.filter((p) => p.tipo_persona === "JURIDICA" || p.tipo_persona === "NATURAL"),
+    [rows]
+  );
+
+  const handleSelectPersona = (persona: any) => {
+    setValue("id_persona", persona.id);
+    setValue("nombre_razon_social", persona.nombre);
+    
+    // ¡IMPORTANTE!: Limpiamos el representante anterior al cambiar de solicitante
+    setValue("licencia.id_representante", "");
+    setValue("licencia.nombre_representante", "");
+
+    setShowSuggestionsSolicitante(false);
+  };
+
+  const handleSelectRepresentante = (representante: any) => {
+    setValue("licencia.id_representante", representante.id_representante);
+    setValue("licencia.nombre_representante", representante.nombre);
+    setShowSuggestionsRepresentante(false);
+  }
+
+  /* Buscar Giros */
+  const handleGiroSelect = (giro, compatibilidad) => {
+    // 1. Guardamos los datos básicos del giro en el formulario
+    setValue("id_giro", giro.id_giro);
+    setValue("nombre_giro", giro.nombre);
+    setValue("riesgo_base", giro.riesgo_base);
+
+    // 2. Lógica de compatibilidad
+    const codigoEstado = compatibilidad?.estado_uso?.codigo || 'X'; // X = No permitido
+    
+    if (codigoEstado !== 'H') {
+      // Si no es H (Permitido), mostramos una alerta o activamos el check de excepción
+      alert(`Atención: El giro ${giro.nombre} no es compatible con la zona ${zonificacionActual}. Se registrará como excepción.`);
+      setValue("con_excepcion", true); // Marcamos el check de "Tolerancia/Excepción" automáticamente
+    } else {
+      setValue("con_excepcion", false);
+    }
+
+    // 3. Cerramos el modal
+    setIsGiroModalOpen(false);
+  };
+
   useEffect(() => {
     let cancelled = false;
+
+    const fetchGiros = async () => {
+      setLoadingGiros(true);
+      try {
+        // COMENTADO PARA DESPUÉS:
+        // const response = await fetch('/api/giros');
+        // const data = await response.json();
+        
+        // USANDO MOCK DATA PARA PRUEBA VISUAL:
+        setTimeout(() => { // Simulamos un delay de red
+          setGiros(girosEjemplo);
+          setLoadingGiros(false);
+        }, 800);
+      } catch (error) {
+        console.error("Error", error);
+        setLoadingGiros(false);
+      }
+    };
+
+   
     (async () => {
       try {
         setLoading(true);
@@ -235,460 +712,71 @@ export default function ExpedienteForm() {
       setDjFirmanteDocNumero(repDocNumero || "");
       setDjDeclaroPoder(true);
     }
+    fetchGiros();
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
+      if (solicitanteRef.current && !solicitanteRef.current.contains(target)) {
+        setShowSuggestionsSolicitante(false);
+      }
+
+      if (representanteRef.current && !representanteRef.current.contains(target)){
+        setShowSuggestionsRepresentante(false);
+      }
+
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () =>  document.removeEventListener("mousedown", handleClickOutside);
+
   }, [djFirmanteTipo, nombreRazon, docTipo, docNumero, repNombre, repDocTipo, repDocNumero, tipoPersona, dq, page, limit]);
 
-  // VI — Clasificación (simulada municipal)
-  const [califEditable, setCalifEditable] = React.useState(false);
-  const [califNivel, setCalifNivel] = React.useState<"" | "BAJO" | "MEDIO" | "ALTO" | "MUY_ALTO">("");
-  const [califNombre, setCalifNombre] = React.useState("");
-  const [califFecha, setCalifFecha] = React.useState("");
-
-
-
-  // Modal de nueva persona
-  const [nombreRep, setNombreRep] = React.useState("");
-  const [dniRep, setDniRep] = React.useState("");
-
-  const [showModal, setShowModal] = React.useState(false);
-  const [showSuggestions, setShowSuggestions] = React.useState(false);
-  const suggestionsRef = React.useRef(null);
-
-  // Base de datos de ejemplo
-  const [dbPersonas] = React.useState([
-    { id: 1, nombre: 'CORPORACIÓN ALPHA S.A.C.', ruc: '20123456789', correo: 'contacto@alpha.com', tel: '987654321' },
-    { id: 2, nombre: 'INVERSIONES TECH PERU S.A.', ruc: '20987654321', correo: 'admin@techperu.pe', tel: '912345678' },
-    { id: 3, nombre: 'JUAN ALBERTO PEREZ COTRINA', ruc: '10456789123', correo: 'jperez@gmail.com', tel: '945566778' },
-    { id: 4, nombre: 'MUNICIPALIDAD DE LIMA', ruc: '20131370998', correo: 'info@munlima.gob.pe', tel: '014110000' },
-  ]);
-
-  const sugerenciasFiltradas = dbPersonas.filter(p => {
-    const query = nombreRazon.toLowerCase();
-    return p.nombre.toLowerCase().includes(query) || p.ruc.includes(query);
-  });
-
-  const juridicas = useMemo(
-    () => rows.filter((p) => p.tipo_persona === "JURIDICA"),
-    [rows]
-  );
-
-  const handleSelectPersona = (persona) => {
-    setNombreRazon(persona.nombre);
-    setRuc(persona.ruc);
-    setCorreo(persona.correo || "");
-    setTelefono(persona.tel || "");
-    setShowSuggestions(false);
-  };
-
-  // Helpers
-  const personaBuildKey = () =>
-    [
-      tipoPersona, nombreRazon, docTipo, docNumero, ruc, telefono, correo,
-      viaTipo, viaNombre, numeroPuerta, interior, mz, lt, otrosDir, urbAAHH,
-      distrito, provincia, poderVigente, sunarpArchivo,
-    ].join("|");
-
-  const seguridadBuildKey = () =>
-    [nivel, condSeguridad, itseRequierePrevia, itseNumero, itseArchivo].join("|");
-
-  // Payload SIMULADO (para mostrar en JSON)
-  const payload = React.useMemo(() => {
-    const persona = {
-      tipo_persona: tipoPersona,
-      nombre_razon_social: nombreRazon,
-      documentos: {
-        tipo: tipoPersona === "NATURAL" ? docTipo : (ruc ? "RUC" : null),
-        numero: tipoPersona === "NATURAL" ? (docNumero || null) : null,
-        ruc: ruc || null,
-      },
-      contacto: { telefono: telefono || null, correo: correo || null },
-      direccion: {
-        via_tipo: viaTipo,
-        via_nombre: viaNombre || null,
-        numero: numeroPuerta || null,
-        interior: interior || null,
-        mz: mz || null,
-        lt: lt || null,
-        otros: otrosDir || null,
-        urb_aa_hh_otros: urbAAHH || null,
-        distrito: distrito || null,
-        provincia: provincia || null,
-      },
-      poder_vigente: tipoPersona === "JURIDICA" ? poderVigente : undefined,
-      vigencia_poder_archivo: tipoPersona === "JURIDICA" ? (sunarpArchivo || null) : null,
-    };
-
-    const seguridad = {
-      nivel,
-      condiciones_seguridad: condSeguridad,
-      itse_modalidad: itseRequierePrevia ? "PREVIA" : "POSTERIOR",
-      itse_numero: itseRequierePrevia ? (itseNumero || null) : null,
-      itse_archivo: itseRequierePrevia ? (itseArchivo || null) : null,
-    };
-
-    const representante =
-      (tipoPersona === "JURIDICA")
-        ? {
-            nombres: repNombre || null,
-            documento: { tipo: repDocTipo, numero: repDocNumero || null },
-            sunarp_partida_asiento: repSunarp || null,
-          }
-        : null;
-
-    const establecimiento = {
-      nombre_comercial: estNombreComercial || null,
-      codigo_ciiu: estCiiu || null,
-      giros: estGiros,
-      actividad: estActividad || null,
-      zonificacion: estZonificacion || null,
-      direccion: {
-        via_tipo: estViaTipo,
-        via_nombre: estViaNombre || null,
-        numero: estNumeroPuerta || null,
-        interior: estInterior || null,
-        mz: estMz || null,
-        lt: estLt || null,
-        otros: estOtrosDir || null,
-        urb_aa_hh_otros: estUrbAAHH || null,
-        provincia: estProvincia || null,
-      },
-      autorizacion_sectorial: estTieneAutSectorial
-        ? {
-            entidad: estAutEntidad || null,
-            denominacion: estAutDenominacion || null,
-            fecha: estAutFecha || null,
-            numero: estAutNumero || null,
-          }
-        : null,
-      area_total_m2: estAreaTotal ? Number(estAreaTotal) : null,
-    };
-
-    const declaracion = {
-      fecha: djFecha || null,
-      aceptacion: djAcepto,
-      observaciones: djObservaciones || null,
-      firmante: {
-        tipo: djFirmanteTipo,
-        nombres: djFirmanteNombre || null,
-        doc: { tipo: djFirmanteDocTipo, numero: djFirmanteDocNumero || null },
-      },
-      declaraciones: {
-        poder_vigente: djDeclaroPoder,
-        condiciones_seguridad: condSeguridad,
-        titulo_profesional: djDeclaroTituloProf,
-      },
-      firma_digital_hash: null,
-    };
-
-    const clasificacion_riesgo_municipal = {
-      editable: califEditable,
-      nivel_itse: califNivel || null,
-      calificador_nombre: califNombre || null,
-      fecha: califFecha || null,
-    };
-
-    if (modo === "NUEVA") {
-      const opciones: Array<{ codigo: string; valor_json?: any }> = [];
-      if (opAnuncio) opciones.push({ codigo: "ANUNCIO_PUBLICITARIO", valor_json: { tipoAnuncio } });
-      if (opCesionario) opciones.push({ codigo: "CESIONARIO", valor_json: { nroLicenciaPrincipal: licenciaPrincipal } });
-      if (opMercado) opciones.push({ codigo: "MERCADO_GALERIA_CC" });
-
-      return {
-        numero_expediente: numeroExpediente,
-        fecha_recepcion: fechaRecepcion,
-        persona,
-        representante,
-        establecimiento,
-        seguridad,
-        declaracion,
-        clasificacion_riesgo_municipal,
-        tipo_tramite: "NUEVA",
-        modalidad: modalidad,
-        fecha_inicio_plazo: modalidad === "TEMPORAL" ? (fechaIni || null) : null,
-        fecha_fin_plazo: modalidad === "TEMPORAL" ? (fechaFin || null) : null,
-        opciones,
-        anexos,
-        estado,
-      };
-    }
-
-    return {
-      numero_expediente: numeroExpediente,
-      fecha_recepcion: fechaRecepcion,
-      persona,
-      representante,
-      establecimiento,
-      seguridad,
-      declaracion,
-      clasificacion_riesgo_municipal,
-      tipo_tramite: accion || "(elige una acción)",
-      id_licencia_origen: nroLicenciaOrigen || null,
-      nueva_denominacion: accion === "CAMBIO_DENOMINACION" ? (nuevaDenominacion || null) : null,
-      detalle_otros: accion === "OTROS" ? (detalleOtros || null) : null,
-      anexos,
-      estado,
-    };
-  }, [
-    modo,
-    numeroExpediente,
-    fechaRecepcion,
-    personaBuildKey(),
-    seguridadBuildKey(),
-    modalidad,
-    fechaIni,
-    fechaFin,
-    opAnuncio,
-    opCesionario,
-    opMercado,
-    tipoAnuncio,
-    licenciaPrincipal,
-    accion,
-    nroLicenciaOrigen,
-    nuevaDenominacion,
-    detalleOtros,
-    anexos.join("|"),
-    estado,
-    repNombre, repDocTipo, repDocNumero, repSunarp,
-    estNombreComercial, estCiiu, estGiros.join("|"), estActividad, estZonificacion,
-    estViaTipo, estViaNombre, estNumeroPuerta, estInterior, estMz, estLt, estOtrosDir,
-    estUrbAAHH, estProvincia,
-    djFecha, djAcepto, djObservaciones,
-    djFirmanteTipo, djFirmanteNombre, djFirmanteDocTipo, djFirmanteDocNumero,
-    djDeclaroPoder, djDeclaroTituloProf,
-    califEditable, califNivel, califNombre, califFecha,
-  ]);
-
-  const dto: NuevaDJTransaccionalRequest = {
-    expediente: {
-      numero_expediente: payload.numero_expediente,
-      fecha: payload.fecha_recepcion,
-      estado: payload.estado ?? null,
-    },
-    persona_upsert: {
-      tipo_persona: payload.persona?.tipo_persona,
-      nombre_razon_social: payload.persona?.nombre_razon_social,
-      tipo_documento: payload.persona?.documentos?.tipo ?? null,
-      numero_documento: payload.persona?.documentos?.numero ?? null,
-      ruc: payload.persona?.documentos?.ruc ?? null,
-      telefono: payload.persona?.contacto?.telefono ?? null,
-      correo: payload.persona?.contacto?.correo ?? null,
-      via_tipo: payload.persona?.direccion?.via_tipo ?? null,
-      via_nombre: payload.persona?.direccion?.via_nombre ?? null,
-      numero: payload.persona?.direccion?.numero ?? null,
-      interior: payload.persona?.direccion?.interior ?? null,
-      mz: payload.persona?.direccion?.mz ?? null,
-      lt: payload.persona?.direccion?.lt ?? null,
-      otros: payload.persona?.direccion?.otros ?? null,
-      urb_aa_hh_otros: payload.persona?.direccion?.urb_aa_hh_otros ?? null,
-      distrito: payload.persona?.direccion?.distrito ?? null,
-      provincia: payload.persona?.direccion?.provincia ?? null,
-      // si estos campos no existen en Persona, elimínalos:
-      // vigencia_poder: payload.persona?.poder_vigente ?? null,
-      // vigencia_poder_archivo: payload.persona?.vigencia_poder_archivo ?? null,
-    },
-    representante_upsert: payload.representante
-      ? {
-          nombres: payload.representante.nombres ?? null,
-          tipo_documento: payload.representante.documento?.tipo ?? null,
-          numero_documento: payload.representante.documento?.numero ?? null,
-          sunarp_partida_asiento: payload.representante.sunarp_partida_asiento ?? null,
-        }
-      : undefined,
-    expediente_licencia: {
-      numero_licencia_origen: payload.id_licencia_origen ?? null,
-      fecha_recepcion: payload.fecha_recepcion,
-      tipo_tramite: payload.tipo_tramite ?? null,
-      modalidad: payload.modalidad ?? null,
-      fecha_inicio_plazo: payload.fecha_inicio_plazo ?? null,
-      fecha_fin_plazo: payload.fecha_fin_plazo ?? null,
-      nueva_denominacion: payload.nueva_denominacion ?? null,
-      detalle_otros: payload.detalle_otros ?? null,
-      numero_resolucion: null,
-      resolucion_fecha: null,
-      numero_certificado: null,
-      qr_certificado: null,
-    },
-    declaracion_jurada: {
-      fecha: payload.declaracion?.fecha ?? null,
-      aceptacion: !!payload.declaracion?.aceptacion,
-      nombre_comercial: payload.establecimiento?.nombre_comercial ?? null,
-      codigo_ciiu: payload.establecimiento?.codigo_ciiu ?? null,
-      actividad: payload.establecimiento?.activity ?? payload.establecimiento?.actividad ?? null,
-      zonificacion: payload.establecimiento?.zonificacion ?? null,
-      via_tipo: payload.establecimiento?.direccion?.via_tipo ?? null,
-      via_nombre: payload.establecimiento?.direccion?.via_nombre ?? null,
-      numero: payload.establecimiento?.direccion?.numero ?? null,
-      interior: payload.establecimiento?.direccion?.interior ?? null,
-      mz: payload.establecimiento?.direccion?.mz ?? null,
-      lt: payload.establecimiento?.direccion?.lt ?? null,
-      otros: payload.establecimiento?.direccion?.otros ?? null,
-      urb_aa_hh_otros: payload.establecimiento?.direccion?.urb_aa_hh_otros ?? null,
-      provincia: payload.establecimiento?.direccion?.provincia ?? null,
-      tiene_aut_sectorial: !!payload.establecimiento?.autorizacion_sectorial,
-      aut_entidad: payload.establecimiento?.autorizacion_sectorial?.entidad ?? null,
-      aut_denominacion: payload.establecimiento?.autorizacion_sectorial?.denominacion ?? null,
-      aut_fecha: payload.establecimiento?.autorizacion_sectorial?.fecha ?? null,
-      aut_numero: payload.establecimiento?.autorizacion_sectorial?.numero ?? null,
-      monumento: false,
-      aut_ministerio_cultura: false,
-      num_aut_ministerio_cultura: null,
-      fecha_aut_ministerio_cultura: null,
-      area_total_m2:
-        typeof payload.establecimiento?.area_total_m2 === "number"
-          ? payload.establecimiento.area_total_m2
-          : payload.establecimiento?.area_total_m2 ?? null,
-      firmante_tipo: payload.declaracion?.firmante?.tipo ?? null,
-      firmante_nombre: payload.declaracion?.firmante?.nombres ?? null,
-      firmante_doc_tipo: payload.declaracion?.firmante?.doc?.tipo ?? null,
-      firmante_doc_numero: payload.declaracion?.firmante?.doc?.numero ?? null,
-      vigencia_poder: !!payload.declaracion?.declaraciones?.poder_vigente,
-      condiciones_seguridad: !!payload.declaracion?.declaraciones?.condiciones_seguridad,
-      titulo_profesional: !!payload.declaracion?.declaraciones?.titulo_profesional,
-      observaciones: payload.declaracion?.observaciones ?? null,
-    },
-    seguridad_itse: {
-      nivel: payload.seguridad?.nivel ?? null,
-      condiciones_seguridad: !!payload.seguridad?.condiciones_seguridad,
-      modal_itse: payload.seguridad?.itse_modalidad ?? null,
-      numero_itse: payload.seguridad?.itse_numero ?? null,
-      archivo_itse: payload.seguridad?.itse_archivo ?? null,
-      editable: !!payload.clasificacion_riesgo_municipal?.editable,
-      calificador_nombre: payload.clasificacion_riesgo_municipal?.calificador_nombre ?? null,
-      fecha: payload.clasificacion_riesgo_municipal?.fecha ?? null,
-    },
-    opciones: Array.isArray(payload.opciones) ? payload.opciones : [],
-    giros_nombres: Array.isArray(payload.establecimiento?.giros) ? payload.establecimiento.giros : [],
-    anexos: Array.isArray(payload.anexos)
-      ? payload.anexos.map((n: string) => ({
-          nombre: n,
-          ruta: `/uploads/${n}`,
-          extension: n.split(".").pop() || null,
-        }))
-      : [],
-  };
-
-
-
-  // Validaciones mínimas (mismas que tu demo)
-  const errores: string[] = [];
-  if (!nombreRazon.trim()) errores.push("Ingresa apellidos y nombres / razón social.");
-  if (tipoPersona === "NATURAL" && !docNumero.trim()) errores.push(`Ingresa N° ${docTipo} del solicitante.`);
-  if (tipoPersona === "JURIDICA") {
-    if (!ruc.trim()) errores.push("Ingresa RUC para persona jurídica.");
-    if (!poderVigente) errores.push("Marca 'Poder vigente' para persona jurídica.");
-    if (!sunarpArchivo.trim()) errores.push("Adjunta archivo de vigencia de poder (SUNARP).");
-    if (!repNombre.trim()) errores.push("Indica Apellidos y Nombres del representante.");
-    if (!repDocNumero.trim()) errores.push(`Indica N.º de ${repDocTipo} del representante.`);
-  }
-  if (correo && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo)) errores.push("Correo electrónico no válido.");
-  if (!viaNombre.trim()) errores.push("Completa Av./Jr./Ca./Pje. (nombre de vía).");
-  if (!distrito.trim() || !provincia.trim()) errores.push("Completa Distrito y Provincia.");
-  if (!condSeguridad) errores.push("Debes declarar que cumples condiciones de seguridad.");
-  if (itseRequierePrevia) {
-    if (!itseNumero.trim()) errores.push("Para nivel ALTO/MUY_ALTO se requiere N.º de ITSE (previa).");
-    if (!itseArchivo.trim()) errores.push("Adjunta certificado/acta de ITSE (previa).");
-  }
-  if (!estNombreComercial.trim()) errores.push("Ingresa el Nombre Comercial del establecimiento.");
-  if (!estCiiu.trim()) errores.push("Ingresa el Código CIIU.");
-  if (estGiros.length === 0) errores.push("Agrega al menos un Giro del establecimiento.");
-  if (!estViaNombre.trim()) errores.push("Completa el nombre de vía del establecimiento.");
-  if (!estProvincia.trim()) errores.push("Completa la Provincia del establecimiento.");
-  if (estTieneAutSectorial) {
-    if (!estAutEntidad.trim()) errores.push("Indica la entidad que otorga la autorización sectorial.");
-    if (!estAutDenominacion.trim()) errores.push("Indica la denominación de la autorización sectorial.");
-    if (!estAutFecha) errores.push("Indica la fecha de la autorización sectorial.");
-    if (!estAutNumero.trim()) errores.push("Indica el número de la autorización sectorial.");
-  }
-  if (!estAreaTotal || isNaN(Number(estAreaTotal)) || Number(estAreaTotal) <= 0) {
-    errores.push("Ingresa el área total solicitada (m²) mayor a 0.");
-  }
-  if (!djAcepto) errores.push("Debes aceptar la declaración bajo juramento.");
-  if (!djFecha) errores.push("Indica la fecha de declaración.");
-  if (!djFirmanteNombre.trim()) errores.push("Indica nombres y apellidos del firmante.");
-  if (!djFirmanteDocNumero.trim()) errores.push(`Indica N.º de ${djFirmanteDocTipo} del firmante.`);
-  if (djFirmanteTipo === "REPRESENTANTE" && !djDeclaroPoder) {
-    errores.push("El representante debe declarar que cuenta con poder vigente.");
-  }
-  if (califEditable) {
-    if (!califNivel) errores.push("Selecciona el nivel de riesgo ITSE (municipal).");
-    if (!califNombre.trim()) errores.push("Indica nombres y apellidos del calificador municipal.");
-    if (!califFecha) errores.push("Indica la fecha de clasificación del calificador.");
-  }
-  if (modo === "NUEVA") {
-    if (modalidad === "TEMPORAL" && (!fechaIni || !fechaFin))
-      errores.push("Para modalidad TEMPORAL, indica fecha inicio y fin.");
-    if (opAnuncio && !tipoAnuncio.trim()) errores.push("Especifica el tipo de anuncio.");
-    if (opCesionario && !licenciaPrincipal.trim()) errores.push("Ingresa N.º de licencia principal (cesionario).");
-  } else {
-    if (!accion) errores.push("Elige una acción de modificación.");
-    if (["CAMBIO_DENOMINACION","TRANSFERENCIA","CESE"].includes(accion || "") && !nroLicenciaOrigen.trim())
-      errores.push("Indica el N.º de licencia (origen) para la modificación.");
-    if (accion === "CAMBIO_DENOMINACION" && !nuevaDenominacion.trim())
-      errores.push("Indica la nueva denominación.");
-    if (accion === "OTROS" && !detalleOtros.trim())
-      errores.push("Describe el motivo en 'Otros'.");
-  }
-
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState<string>("");
-
-  const onGuardar = async () => {
-    setError("");
-    if (errores.length > 0) {
-      setError("Corrige los errores antes de guardar.");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-    setSaving(true);
-    try {
-      // Transforma y envía al backend (DTO transaccional)
-      //const dto: NuevaDJTransaccionalRequest = expedientesApi.mapDemoPayloadToDTO(payload);
-      console.log('> DTO que envío:', dto);
-      const res = await expedientesApi.crearDesdeDemo(dto);
-      if (!res.ok) throw new Error("No se pudo crear la DJ.");
-      // Regresa al listado (o navega al detalle del expediente)
-      navigate("/expedientes");
-    } catch (e: any) {
-      setError(e?.message || "Error al guardar.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const inputStyle = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-50 outline-none transition-all placeholder:text-slate-400";
-  const labelStyle = "text-[10px] font-bold text-slate-500 uppercase tracking-tight mb-1.5 block ml-0.5";
-
-  const onSubmitPersona = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      setPersonaSaving(true);
-      
-      const formData = new FormData(e.currentTarget);
-      const data = Object.fromEntries(formData.entries());
-  
-      try {
-        // 1. Aquí harías tu await fetch('/api/personas', ...)
-        console.log("Guardando persona:", data);
-  
-        // 2. Éxito: Seteamos los valores en el formulario de licencia
-        setNombreRazon(data.nombre.toString());
-        setRuc(data.ruc.toString());
-  
-        // 3. Cerramos modal
-        setOpenPersona(false);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setPersonaSaving(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tamaño (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("El archivo es muy pesado");
+        return;
       }
-    };
+      setValue("declaracion.archivo_aut_ministerio_cultura", file);
+      console.log("Archivo seleccionado:", file);
+    }
+  };
 
+  const handleItseFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) return alert("Máximo 5MB");
+      setValue("licencia.doc_itse", file);
+    }
+  };
 
   return (  
-  
-  <div className="min-h-screen w-full bg-[#f8fafc] text-slate-800 px-4 md:px-10">
-    
-    {/* TIPO DE LICENCIA */}
-    <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center">
-      <div>
+   <>
+   <style>
+        {`
+          .etiqueta-zonificacion {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-weight: 800;
+            color: #000;
+            text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff;
+            font-size: 11px;
+          }
+          .leaflet-tooltip-pane .leaflet-tooltip-top:before,
+          .leaflet-tooltip-pane .leaflet-tooltip-bottom:before {
+            display: none !important;
+          }
+        `}
+      </style>
+  <form onSubmit={handleSubmit(alEnviar)}>
+    <div className="min-h-screen w-full bg-[#f8fafc] text-slate-800 px-4 md:px-10">
+      
+      {/* TIPO DE LICENCIA */}
+      <div className="w-full flex flex-col md:flex-row justify-between items-start md:items-center">
         {/* Selector de Modo Compacto */}
         <div className="flex items-center gap-6 bg-slate-50 p-2 rounded-xl border border-slate-200 w-fit shadow-sm">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Tipo:</span>
@@ -696,10 +784,10 @@ export default function ExpedienteForm() {
             <label className="flex items-center gap-2 text-xs font-bold cursor-pointer group">
               <input 
                 type="radio" 
-                name="modo" 
-                checked={modo === 'NUEVA'} 
-                onChange={() => setModo('NUEVA')} 
+                value="NUEVA"
                 className="w-4 h-4 text-[#0f766e] focus:ring-[#0f766e] border-slate-300" 
+                {...register("licencia.tipo_tramite")}
+                
               />
               <span className={`${modo === 'NUEVA' ? 'text-[#0f766e]' : 'text-slate-600'} group-hover:text-[#0f766e] transition-colors uppercase tracking-tighter`}>
                 Nueva licencia
@@ -708,10 +796,9 @@ export default function ExpedienteForm() {
             <label className="flex items-center gap-2 text-xs font-bold cursor-pointer group">
               <input 
                 type="radio" 
-                name="modo" 
-                checked={modo === 'MODIFICACION'} 
-                onChange={() => setModo('MODIFICACION')} 
+                value="MODIFICACION"
                 className="w-4 h-4 text-[#0f766e] focus:ring-[#0f766e] border-slate-300" 
+                {...register("licencia.tipo_tramite")}
               />
               <span className={`${modo === 'MODIFICACION' ? 'text-[#0f766e]' : 'text-slate-600'} group-hover:text-[#0f766e] transition-colors uppercase tracking-tighter`}>
                 Modificaciones
@@ -721,1096 +808,1165 @@ export default function ExpedienteForm() {
         </div>
       </div>
 
-      {/* Acciones Finales */}
-      <div className="flex items-center gap-3 w-full md:w-auto">
-        <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 h-11 bg-white border border-slate-300 text-slate-600 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95">
-          <ChevronLeft size={16} /> Cancelar
-        </button>
+      {/* CONTENEDOR PRINCIPAL: Distribución en 2 columnas reales */}
+      <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-8 mt-6 items-start">
         
-        <button 
-          onClick={onGuardar} 
-          className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 h-11 bg-[#0f766e] text-white rounded-lg text-xs font-black uppercase tracking-widest hover:bg-[#0a5a54] transition-all shadow-lg shadow-[#0f766e]/20 active:scale-95"
-        >
-          <Save size={16} /> Guardar
-        </button>
-      </div>
-    </div>
-
-    {/* CONTENEDOR PRINCIPAL: Distribución en 2 columnas reales */}
-    <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-8 mt-6 items-start">
-      
-      {/* COLUMNA IZQUIERDA: Agrupa Nueva Licencia + Modificaciones */}
-      <div className="flex flex-col gap-6">
-        
-        {/* 1. SECCIÓN: NUEVA LICENCIA */}
-        <div className={`transition-all duration-300 ${modo !== 'NUEVA' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
-          <Card>
-            <fieldset disabled={modo !== 'NUEVA'} className={`space-y-6 ${modo !== 'NUEVA' ? 'opacity-40' : ''}`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                {/* Columna Izquierda: Modalidad */}
-                <div className="flex flex-col">
-                  {/* Label ajustado: Slate-800 y fuente más marcada */}
-                  <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-[#0f766e] rounded-full"></span>
-                    Vigencia de Licencia
-                  </label>
-                  
-                  <div className="flex gap-3">
-                    {[
-                      { id: 'INDETERMINADA', label: 'Indeterminada' },
-                      { id: 'TEMPORAL', label: 'Temporal' }
-                    ].map((m) => (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setModalidad(m.id)}
-                        className={`flex-1 py-2 px-3 rounded-lg border-2 font-bold text-[11px] transition-all
-                          ${modalidad === m.id 
-                            ? 'border-[#0f766e] bg-[#0f766e]/5 text-[#0f766e]' 
-                            : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}
-                        `}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {modalidad === "TEMPORAL" && (
-                    <div className="grid grid-cols-2 gap-3 mt-4 animate-in fade-in zoom-in-95 duration-200">
-                      <div className="flex flex-col gap-1.5">
-                        {/* Label secundario en Slate-700 para legibilidad */}
-                        <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Desde</label>
-                        <input 
-                          type="date" 
-                          className="w-full h-9 rounded-lg border border-slate-300 bg-white px-2 text-[11px] font-bold focus:border-[#0f766e] outline-none transition-all" 
-                          value={fechaIni} 
-                          onChange={(e) => setFechaIni(e.target.value)} 
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Hasta</label>
-                        <input 
-                          type="date" 
-                          className="w-full h-9 rounded-lg border border-slate-300 bg-white px-2 text-[11px] font-bold focus:border-[#0f766e] outline-none transition-all" 
-                          value={fechaFin} 
-                          onChange={(e) => setFechaFin(e.target.value)} 
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Columna Derecha: Opciones Adicionales */}
-                <div className="flex flex-col">
-                  {/* Label ajustado: Slate-800 */}
-                  <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-[#0f766e] rounded-full"></span>
-                    Servicios Adicionales
-                  </label>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: 'anuncio', label: 'Anuncio', state: opAnuncio, setter: setOpAnuncio },
-                      { id: 'cese', label: 'Cesionario', state: opCesionario, setter: setOpCesionario },
-                      { id: 'mercado', label: 'Mercado', state: opMercado, setter: setOpMercado }
-                    ].map(op => (
-                      <button
-                        key={op.id}
-                        type="button"
-                        onClick={() => op.setter(!op.state)}
-                        className={`px-3 py-2 rounded-lg border-2 text-[10px] font-black uppercase transition-all
-                          ${op.state 
-                            ? 'border-[#0f766e] bg-[#0f766e] text-white' 
-                            : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}
-                        `}
-                      >
-                        {op.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {opAnuncio && (
-                      <div className="animate-in slide-in-from-right-2 duration-200 flex flex-col gap-1.5">
-                        <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Descripción del Anuncio</label>
-                        <input 
-                          className="w-full h-9 rounded-lg border border-slate-300 px-3 text-[11px] font-bold focus:border-[#0f766e] outline-none bg-white transition-all placeholder:font-normal" 
-                          placeholder="Ej: Letrero luminoso" 
-                          value={tipoAnuncio} 
-                          onChange={(e) => setTipoAnuncio(e.target.value)} 
-                        />
-                      </div>
-                    )}
-                    {opCesionario && (
-                      <div className="animate-in slide-in-from-right-2 duration-200 flex flex-col gap-1.5">
-                        <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Referencia Principal</label>
-                        <input 
-                          className="w-full h-9 rounded-lg border border-slate-300 px-3 text-[11px] font-bold focus:border-[#0f766e] outline-none bg-white font-mono transition-all placeholder:font-sans" 
-                          placeholder="Nº Licencia Titular Principal" 
-                          value={licenciaPrincipal} 
-                          onChange={(e) => setLicenciaPrincipal(e.target.value)} 
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-          </Card>
-        </div>
-
-        {/* 2. SECCIÓN: MODIFICACIONES (Ahora subirá porque está en la misma columna) */}
-        <div className={`transition-all duration-300 ${modo !== 'MODIFICACION' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
-          <Card>
-            <fieldset disabled={modo !== 'MODIFICACION'} className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                  Tipo de Acción Solicitada
-                </label>
-                <div className="relative group">
-                  <select 
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-black focus:border-[#0f766e] outline-none transition-all appearance-none cursor-pointer tracking-tight"
-                    value={accion} 
-                    onChange={(e) => setAccion(e.target.value)}
-                  >
-                    <option value="">— SELECCIONE ACCIÓN —</option>
-                    <option value="CAMBIO_DENOMINACION">🔄 CAMBIO DE DENOMINACIÓN</option>
-                    <option value="TRANSFERENCIA">🤝 TRANSFERENCIA</option>
-                    <option value="CESE">🛑 CESE DE ACTIVIDADES</option>
-                    <option value="OTROS">📝 OTROS CAMBIOS</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-slate-600">
-                    <ChevronDown size={14} />
-                  </div>
-                </div>
-              </div>
-
-              {accion && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-right-1 duration-200">
-                  {(["CAMBIO_DENOMINACION","TRANSFERENCIA","CESE"].includes(accion)) && (
-                    <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-200">
-                      <label className="text-[9px] font-bold text-amber-700 uppercase ml-1">N.º Licencia de Origen</label>
-                      <input 
-                        className="mt-1 w-full h-9 rounded-md border border-amber-200 bg-white px-3 text-xs font-bold text-amber-900 focus:border-amber-500 outline-none transition-all" 
-                        placeholder="Ej. LIC-2020-XXXX" 
-                        value={nroLicenciaOrigen} 
-                        onChange={(e) => setnroLicenciaOrigen(e.target.value)} 
-                      />
-                    </div>
-                  )}
-                  {accion === "CAMBIO_DENOMINACION" && (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nueva denominación</label>
-                      <input 
-                        className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all" 
-                        placeholder="Ingrese nuevo nombre..."
-                        value={nuevaDenominacion} 
-                        onChange={(e) => setnuevaDenominacion(e.target.value)} 
-                      />
-                    </div>
-                  )}
-                  {accion === "OTROS" && (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Detalle del cambio</label>
-                      <textarea 
-                        className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-[#0f766e] outline-none transition-all resize-none" 
-                        rows={3} 
-                        value={detalleOtros} 
-                        onChange={(e) => setdetalleOtros(e.target.value)} 
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {!accion && modo === 'MODIFICACION' && (
-                <div className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-slate-100 rounded-xl">
-                  <FileText size={32} className="text-slate-200 mb-2" />
-                  <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tighter">Seleccione una acción para continuar</p>
-                </div>
-              )}
-            </fieldset>
-          </Card>
-        </div>
-
-        <Card>
-          <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-[#0f766e] opacity-20">04</span>
-              <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
-                Datos del Establecimiento
-              </h2>
-            </div>
-          </div>
+        {/* COLUMNA IZQUIERDA: Agrupa Nueva Licencia + Modificaciones */}
+        <div className="flex flex-col gap-6">
           
-          <fieldset disabled={isModBasica} className={`space-y-4 ${isModBasica ? 'opacity-50' : ''}`}>
-            
-            {/* 1. Identificación y Actividad */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
-              <div className="md:col-span-4 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Nombre Comercial</label>
-                <input
-                  className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all font-bold"
-                  placeholder="Ej. Restaurante Sazón Peruana"
-                  value={estNombreComercial}
-                  onChange={(e) => setEstNombreComercial(e.target.value)}
-                />
-              </div>
+          {/* 1. SECCIÓN: NUEVA LICENCIA */}
+          <div className={`transition-all duration-300 ${modo !== 'NUEVA' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
+            <SeccionCard title="">
+              <fieldset disabled={modo !== 'NUEVA'} className={`space-y-6 ${modo !== 'NUEVA' ? 'opacity-40' : ''}`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  
+                  {/* Columna Izquierda: Modalidad */}
+                  <div className="flex flex-col">
+                    {/* Label ajustado: Slate-800 y fuente más marcada */}
+                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#0f766e] rounded-full"></span>
+                      Vigencia de Licencia
+                    </label>
+                    
+                    <div className="flex gap-3">
+                      {[
+                        { id: 'INDETERMINADA', label: 'Indeterminada' },
+                        { id: 'TEMPORAL', label: 'Temporal' }
+                      ].map((m) => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => {
+                            setValue('licencia.modalidad', m.id);
+                            if (m.id === 'INDETERMINADA') {
+                              setValue('licencia.fecha_inicio_plazo', '');
+                              setValue('licencia.fecha_fin_pazo', '');
+                            }
+                          }}
+                          className={`flex-1 py-2 px-3 rounded-lg border-2 font-bold text-[11px] transition-all
+                            ${modalidad === m.id 
+                              ? 'border-[#0f766e] bg-[#0f766e]/5 text-[#0f766e]' 
+                              : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}
+                          `}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
 
-              <div className="md:col-span-2 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Código CIIU</label>
-                <input
-                  className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all text-center font-mono"
-                  placeholder="5610"
-                  value={estCiiu}
-                  onChange={(e) => setEstCiiu(e.target.value)}
-                />
-              </div>
+                    {modalidad === "TEMPORAL" && (
+                      <div className="grid grid-cols-2 gap-3 mt-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex flex-col gap-1.5">
+                          {/* Label secundario en Slate-700 para legibilidad */}
+                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Desde</label>
+                          <input 
+                            type="date" 
+                            className={inputClasses}
+                            {...register("licencia.fecha_inicio_plazo")}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Hasta</label>
+                          <input 
+                            type="date" 
+                            className={inputClasses}
+                            {...register("licencia.fecha_fin_pazo")}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              <div className="md:col-span-6 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Giro(s) del Negocio*</label>
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none"
-                    placeholder="Ej. Venta de abarrotes..."
-                    value={estGiroInput}
-                    onChange={(e) => setEstGiroInput(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20"
-                    onClick={() => {
-                      const v = estGiroInput.trim();
-                      if (v) { setEstGiros((prev) => [...prev, v]); setEstGiroInput(""); }
-                    }}
-                  >
-                    <Plus size={14} /> Agregar
-                  </button>
-                </div>
-              </div>
+                  {/* Columna Derecha: Opciones Adicionales */}
+                  <div className="flex flex-col">
+                    {/* Label ajustado: Slate-800 */}
+                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-[#0f766e] rounded-full"></span>
+                      Servicios Adicionales
+                    </label>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { id: 'anuncio', label: 'Anuncio' },
+                        { id: 'cesionario', label: 'Cesionario' },
+                        { id: 'mercado', label: 'Mercado' }
+                      ].map(op => {
+                        const fieldPath = `licencia.${op.id}`; 
+                        const isActive = watch(fieldPath as any);
+                        return (
+                          <button
+                            key={op.id}
+                            type="button"
+                            onClick={() => {
+                              const nextValue = !isActive;
+                              setValue(fieldPath as any, nextValue);
 
-              {/* Chips de giros */}
-              {estGiros.length > 0 && (
-                <div className="md:col-span-12 flex flex-wrap gap-2 pt-1">
-                  {estGiros.map((g, i) => (
-                    <span key={i} className="inline-flex items-center gap-2 bg-[#0f766e]/5 text-[#0f766e] border border-[#0f766e]/20 px-2.5 py-1 rounded-md text-[10px] font-black uppercase animate-in zoom-in-95">
-                      {g}
-                      <button type="button" onClick={() => setEstGiros(estGiros.filter((_, idx) => idx !== i))} className="hover:text-rose-600 transition-colors">
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+                              if (!nextValue) {
+                                if (op.id === 'anuncio') setValue('licencia.a_descripcion', '');
+                                if (op.id === 'cesionario') setValue('licencia.ces_nrolicencia', '');
+                              }
+                            }}
+                            className={`px-3 py-2 rounded-lg border-2 text-[10px] font-black uppercase transition-all
+                              ${isActive 
+                                ? 'border-[#0f766e] bg-[#0f766e] text-white' 
+                                : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}
+                            `}
+                          >
+                            {op.label}
+                          </button>
+                        );                        
+                      })}
+                    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4">
-              <div className="md:col-span-8 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Actividad Específica</label>
-                <input
-                  className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e] transition-all"
-                  placeholder="Detalle la actividad principal..."
-                  value={estActividad}
-                  onChange={(e) => setEstActividad(e.target.value)}
-                />
-              </div>
-              <div className="md:col-span-4 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Zonificación</label>
-                <input
-                  className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e] transition-all"
-                  placeholder="Ej. CZ (Comercio Zonal)"
-                  value={estZonificacion}
-                  onChange={(e) => setEstZonificacion(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* 2. Ubicación Física */}
-            <div className="p-4 bg-slate-50/80 rounded-lg border border-slate-200">
-              <span className="text-[10px] font-bold text-[#0f766e] uppercase tracking-widest mb-3 block ml-1">Ubicación del Establecimiento</span>
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                <div className="md:col-span-5 flex gap-2">
-                  <select className="w-20 h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] font-bold outline-none" value={estViaTipo} onChange={(e) => setEstViaTipo(e.target.value)}>
-                    <option>Av.</option><option>Jr.</option><option>Ca.</option><option>Pje.</option>
-                  </select>
-                  <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" placeholder="Nombre de vía" value={estViaNombre} onChange={(e) => setEstViaNombre(e.target.value)} />
-                </div>
-                
-                <div className="md:col-span-7 grid grid-cols-5 gap-2">
-                  <input className="h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none" placeholder="N°" value={estNumeroPuerta} onChange={(e) => setEstNumeroPuerta(e.target.value)} />
-                  <input className="h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none" placeholder="Int." value={estInterior} onChange={(e) => setEstInterior(e.target.value)} />
-                  <input className="h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none" placeholder="Mz" value={estMz} onChange={(e) => setEstMz(e.target.value)} />
-                  <input className="h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none" placeholder="Lt" value={estLt} onChange={(e) => setEstLt(e.target.value)} />
-                  <input className="h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none" placeholder="Otros" value={estOtrosDir} onChange={(e) => setEstOtrosDir(e.target.value)} />
-                </div>
-
-                <div className="md:col-span-4">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Urb. / AA.HH. / Sector</label>
-                  <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" value={estUrbAAHH} onChange={(e) => setEstUrbAAHH(e.target.value)} />
-                </div>
-                <div className="md:col-span-4">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Provincia / Distrito</label>
-                  <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" value={estProvincia} onChange={(e) => setEstProvincia(e.target.value)} />
-                </div>
-                <div className="md:col-span-4">
-                  <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Área Total (m²)</label>
-                  <div className="relative">
-                    <input type="number" className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 pr-8 text-xs font-bold text-[#0f766e] outline-none" value={estAreaTotal} onChange={(e) => setEstAreaTotal(e.target.value)} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">m²</span>
+                    <div className="mt-4 space-y-3">
+                      {watch("licencia.anuncio") && (
+                        <div className="animate-in slide-in-from-right-2 duration-200 flex flex-col gap-1.5">
+                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Descripción del Anuncio</label>
+                          <input 
+                            className={inputClasses}
+                            placeholder="Ej: Letrero luminoso" 
+                            {...register("licencia.a_descripcion")}
+                          />
+                        </div>
+                      )}
+                      {watch("licencia.cesionario") && (
+                        <div className="animate-in slide-in-from-right-2 duration-200 flex flex-col gap-1.5">
+                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Nro de licencia de funcionamiento principal</label>
+                          <input 
+                            className={inputClasses}
+                            placeholder="Nº Licencia Titular Principal" 
+                            {...register("licencia.ces_nrolicencia")}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
+              </fieldset>
+            </SeccionCard>
+          </div>
+
+          {/* 2. SECCIÓN: MODIFICACIONES */}
+          <div className={`transition-all duration-300 ${modo !== 'MODIFICACION' ? 'opacity-40 grayscale-[0.5]' : 'opacity-100'}`}>
+            <SeccionCard title="">
+              <fieldset disabled={modo !== 'MODIFICACION'} className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                    Tipo de Acción Solicitada
+                  </label>
+                  <div className="relative group">
+                    <select 
+                      className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-black focus:border-[#0f766e] outline-none transition-all appearance-none cursor-pointer tracking-tight"
+                      {...register("licencia.tipo_accion_tramite")}
+                    >
+                      <option value="">— SELECCIONE ACCIÓN —</option>
+                      <option value="CAMBIO_DENOMINACION">🔄 CAMBIO DE DENOMINACIÓN</option>
+                      <option value="TRANSFERENCIA">🤝 TRANSFERENCIA</option>
+                      <option value="CESE">🛑 CESE DE ACTIVIDADES</option>
+                      <option value="OTROS">📝 OTROS CAMBIOS</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-slate-600">
+                      <ChevronDown size={14} />
+                    </div>
+                  </div>
+                </div>
+
+                {watchAccion && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-right-1 duration-200">
+                    {(["CAMBIO_DENOMINACION","TRANSFERENCIA","CESE"].includes(watchAccion)) && (
+                      <div className="p-3 bg-amber-50/50 rounded-lg border border-amber-200">
+                        <label className="text-[9px] font-bold text-amber-700 uppercase ml-1">N.º Licencia de Origen</label>
+                        <input 
+                          className="mt-1 w-full h-9 rounded-md border border-amber-200 bg-white px-3 text-xs font-bold text-amber-900 focus:border-amber-500 outline-none transition-all" 
+                          placeholder="Ej. LIC-2020-XXXX" 
+                          {...register("licencia.numero_licencia_origen")}
+                        />
+                      </div>
+                    )}
+                    {watchAccion === "CAMBIO_DENOMINACION" && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nueva denominación</label>
+                        <input 
+                          className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all" 
+                          placeholder="Ingrese nuevo nombre..."
+                          {...register("licencia.nueva_denominacion")}
+                        />
+                      </div>
+                    )}
+                    {watchAccion === "OTROS" && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Detalle del cambio</label>
+                        <textarea 
+                          className="w-full rounded-lg border border-slate-300 bg-white p-3 text-xs focus:border-[#0f766e] outline-none transition-all resize-none" 
+                          rows={3} 
+                          value={detalleOtros} 
+                          {...register("licencia.detalle_otros")}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!watchAccion && modo === 'MODIFICACION' && (
+                  <div className="flex flex-col items-center justify-center py-8 border-2 border-dashed border-slate-100 rounded-xl">
+                    <FileText size={32} className="text-slate-200 mb-2" />
+                    <p className="text-[11px] text-slate-400 font-medium uppercase tracking-tighter">Seleccione una acción para continuar</p>
+                  </div>
+                )}
+              </fieldset>
+            </SeccionCard>
+          </div>
+
+          {/* SECCION: DATOS DEL ESTABLECIMIENTO */}
+          <SeccionCard title="">
+            <div className="w-full mb-5 border-b border-slate-300/60">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-[#0f766e] opacity-20">04</span>
+                <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
+                  Datos del Establecimiento
+                </h2>
               </div>
             </div>
 
-            {/* 3. Autorización Sectorial */}
-            <div className="pt-2">
-              <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
-                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-[#0f766e] focus:ring-[#0f766e]" checked={estTieneAutSectorial} onChange={(e) => setEstTieneAutSectorial(e.target.checked)} />
-                <span className="text-[11px] font-bold text-slate-600 group-hover:text-[#0f766e] transition-colors">
-                  Requiere Autorización Sectorial <span className="text-slate-400 font-medium">(Salud, Educación, MTC, etc.)</span>
-                </span>
-              </label>
+            <fieldset disabled={isModBasica} className={`space-y-4 ${isModBasica ? 'opacity-50' : ''}`}>
 
-              {estTieneAutSectorial && (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-amber-50/50 rounded-lg border border-amber-200 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="md:col-span-3">
-                    <label className="text-[9px] font-bold text-amber-700 uppercase mb-1 block ml-1">Entidad</label>
-                    <input className="w-full h-9 rounded-md border border-amber-200 bg-white px-3 text-xs focus:border-amber-500 outline-none transition-all" placeholder="MINSA, MTC..." value={estAutEntidad} onChange={(e) => setEstAutEntidad(e.target.value)} />
+              {/* 1. Identificación y Actividad */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
+                <div className="md:col-span-6 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Nombre Comercial</label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all font-bold"
+                    placeholder="Ej. Restaurante Sazón Peruana"
+                    {...register("declaracion.nombre_comercial")}
+                  />
+                </div>
+
+                <div className="md:col-span-6 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Actividad Específica</label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e] transition-all"
+                    placeholder="Detalle la actividad principal..."
+                    {...register("declaracion.actividad")}
+                  />
+                </div>
+
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
+                <div className="md:col-span-2 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Código CIIU</label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all text-center font-mono"
+                    placeholder="5610"
+                    {...register("declaracion.codigo_ciiu")}
+                  />
+                </div>
+
+                <div className="md:col-span-10 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Giro(s) del Negocio*</label>
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none"
+                      placeholder="Ej. Venta de abarrotes..."
+                      {...register("declaracion.nombre_giro")}
+                    />
+                    <button
+                      type="button"
+                      className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20"
+                      onClick={() => setIsGiroModalOpen(true)}
+                    >
+                      <Plus size={14} /> Agregar
+                    </button>
+
+                    {/* Al final de tu return, antes de cerrar el div principal */}
+                    <ModalSeleccionGiro 
+                      isOpen={isGiroModalOpen}
+                      onClose={() => setIsGiroModalOpen(false)}
+                      zonificacionDetectada={watch("declaracion.zonificacion")} // Escucha en tiempo real lo que detectó el mapa
+                      girosDisponibles={girosEjemplo} // Tu array de prueba
+                      onSelect={handleGiroSelect}
+                      loading={false} 
+                    />
+                  </div>
+                </div>
+
+                {/* Chips de giros */}
+                {estGiros.length > 0 && (
+                  <div className="md:col-span-12 flex flex-wrap gap-2 pt-1">
+                    {estGiros.map((g, i) => (
+                      <span key={i} className="inline-flex items-center gap-2 bg-[#0f766e]/5 text-[#0f766e] border border-[#0f766e]/20 px-2.5 py-1 rounded-md text-[10px] font-black uppercase animate-in zoom-in-95">
+                        {g}
+                        <button type="button" onClick={() => setEstGiros(estGiros.filter((_, idx) => idx !== i))} className="hover:text-rose-600 transition-colors">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
+                {/* COLUMNA ZONIFICACIÓN */}
+                <div className="md:col-span-3 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">
+                    Zonificación
+                  </label>
+                  <input
+                    readOnly
+                    className={cx(inputClasses, "bg-slate-50 font-mono text-center")} 
+                    placeholder="Detectando..."
+                    {...register("declaracion.zonificacion")}
+                  />
+                </div>
+                {/* COLUMNA TOLERANCIA - Arreglado para alineación uniforme */}
+                <div className="md:col-span-3 flex flex-col gap-1.5">
+                  {/* Este label invisible (o vacío) empuja el switch hacia abajo lo mismo que el label de Zonificación */}
+                  <label className="text-[10px] uppercase select-none opacity-0">spacer</label>
+                  
+                  <div className="flex items-center justify-between h-9 bg-slate-50 px-4 rounded-lg border border-slate-200 transition-all hover:border-slate-300">
+                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-tight cursor-pointer">
+                      Tolerancia
+                    </label>
+                    <Switch 
+                      className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-300 scale-90"
+                      {...register("declaracion.chk_tolerancia")}
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* MAPA */}
+              <div className="flex flex-col gap-2 pt-2">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Geolocalización del Establecimiento</label>
+                  <span className="text-[9px] font-bold text-[#0f766e] italic">Haga clic en el mapa para ubicar el local</span>
+                </div>
+
+                {/* BLOQUE BUSCADOR */}
+                <SlimSearchBlock onSearch={procesarBusqueda} loading={loading} />
+
+                {/* Nuevo componente de Mapa Optimizado */}
+                <MapaZonificacion 
+                  position={position}
+                  setPosition={setPosition}
+                  datosGeoJSON={datosGeoJSON}
+                  lineaMapa={lineaMapa}
+                  eventHandlers={eventHandlers}
+                  
+                  markerRef={markerRef}
+                />
+                
+              </div>
+
+              {/* 2. Ubicación Física */}
+              <div className="p-4 bg-slate-50/80 rounded-lg border border-slate-200">
+                <span className="text-[10px] font-bold text-[#0f766e] uppercase tracking-widest mb-3 block ml-1">Ubicación del Establecimiento</span>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <div className="md:col-span-5 flex gap-2">
+                    <select className="w-20 h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] font-bold outline-none" 
+                      value={estViaTipo} 
+                      {...register("declaracion.via_tipo")}>
+                      <option>Av.</option><option>Jr.</option><option>Ca.</option><option>Pje.</option>
+                    </select>
+                    <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" 
+                      placeholder="Nombre de vía"
+                      {...register("declaracion.via_nombre")}
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-7 grid grid-cols-5 gap-2">
+                    <input className={inputClassLine} placeholder="N°" {...register("declaracion.numero")} />
+                    <input className={inputClassLine} placeholder="Int." {...register("declaracion.interior")} />
+                    <input className={inputClassLine} placeholder="Mz" {...register("declaracion.mz")} />
+                    <input className={inputClassLine} placeholder="Lt" {...register("declaracion.lt")} />
+                    <input className={inputClassLine} placeholder="Otros" {...register("declaracion.otros")} />
+                  </div>
+
+                  <div className="md:col-span-6">
+                    <label className={labelClasses}>Urb. / AA.HH. / Sector</label>
+                    <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]"
+                      {...register("declaracion.urb_aa_hh_otros")} />
                   </div>
                   <div className="md:col-span-4">
-                    <label className="text-[9px] font-bold text-amber-700 uppercase mb-1 block ml-1">Denominación del Permiso</label>
-                    <input className="w-full h-9 rounded-md border border-amber-200 bg-white px-3 text-xs focus:border-amber-500 outline-none transition-all" placeholder="Nombre del permiso..." value={estAutDenominacion} onChange={(e) => setEstAutDenominacion(e.target.value)} />
+                    <label className={labelClasses}>Provincia / Distrito</label>
+                    <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" 
+                      {...register("declaracion.provincia")}/>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="text-[9px] font-bold text-amber-700 uppercase mb-1 block ml-1">Fecha</label>
-                    <input type="date" className="w-full h-9 rounded-md border border-amber-200 bg-white px-2 text-xs focus:border-amber-500 outline-none transition-all" value={estAutFecha} onChange={(e) => setEstAutFecha(e.target.value)} />
-                  </div>
-                  <div className="md:col-span-3">
-                    <label className="text-[9px] font-bold text-amber-700 uppercase mb-1 block ml-1">N° Resolución / Código</label>
-                    <input className="w-full h-9 rounded-md border border-amber-200 bg-white px-3 text-xs focus:border-amber-500 outline-none transition-all" value={estAutNumero} onChange={(e) => setEstAutNumero(e.target.value)} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </fieldset>
-        </Card>
-
-
-        
-      </div>
-
-
-
-      <div className="w-full">
-        <Card >
-          {/* SECCIÓN: DATOS DEL EXPEDIENTE */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end mb-8">
-            {/* N.º Expediente */}
-            <div className="md:col-span-5 flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                N.º de Expediente
-              </label>
-              <div className="flex gap-2">
-                <input 
-                  className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
-                            focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-400" 
-                  placeholder="Ingrese número..."
-                  value={numeroExpediente} 
-                  onChange={(e) => setNumeroExpediente(e.target.value)} 
-                />
-                <BuscarExpedienteDialog
-                  fetchExpedientes={fetchExpedientes}
-                  onPick={(exp) => setNumeroExpediente(exp.numero)}
-                  trigger={
-                    <button
-                      type="button"
-                      className="h-9 px-4 inline-flex items-center whitespace-nowrap rounded-lg
-                                bg-[#0f766e] text-white font-bold text-[10px] uppercase tracking-tighter
-                                hover:bg-[#0a5a54] transition-all focus:outline-none shadow-sm shadow-[#0f766e]/20 active:scale-95"
-                    >
-                      <Search className="mr-2 h-3.5 w-3.5" />
-                      Buscar Expediente
-                    </button>
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Fecha Recepción */}
-            <div className="md:col-span-3 flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                Fecha de Recepción
-              </label>
-              <input 
-                type="date" 
-                className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
-                          focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all text-slate-700" 
-                value={fechaRecepcion} 
-                onChange={(e) => setFechaRecepcion(e.target.value)} 
-              />
-            </div>
-
-            {/* Estado */}
-            <div className="md:col-span-4 flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                Estado del Trámite
-              </label>
-              <div className="relative group">
-                <select 
-                  className={`w-full h-9 rounded-lg border px-3 text-[10px] font-black outline-none transition-all appearance-none cursor-pointer tracking-tight
-                    ${estado === 'APROBADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
-                      estado === 'RECHAZADO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
-                      estado === 'OBSERVADO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                      'bg-white text-slate-700 border-slate-300 focus:border-[#0f766e]'}
-                  `}
-                  value={estado} 
-                  onChange={(e) => setEstado(e.target.value)}
-                >
-                  <option value="EN_EVALUACION">🟡 EN EVALUACIÓN</option>
-                  <option value="OBSERVADO">🟠 OBSERVADO</option>
-                  <option value="APROBADO">🟢 APROBADO</option>
-                  <option value="RECHAZADO">🔴 RECHAZADO</option>
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-slate-600 transition-colors">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* SUBTÍTULO SECCIONADOR 06 */}
-          <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-[#0f766e] opacity-20"></span>
-              <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
-                Seguridad e inspección técnica
-              </h2>
-            </div>
-          </div>
-
-          {/* SECCIÓN: RIESGO E ITSE */}
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-              
-              {/* Nivel de Riesgo - Selección Visual */}
-              <div className="md:col-span-7 flex flex-col gap-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <span className="w-1 h-1 bg-[#0f766e] rounded-full"></span>
-                  Nivel de Riesgo
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { id: 'BAJO', label: 'Bajo', color: 'bg-emerald-500' },
-                    { id: 'MEDIO', label: 'Medio', color: 'bg-amber-500' },
-                    { id: 'ALTO', label: 'Alto', color: 'bg-orange-500' },
-                    { id: 'MUY_ALTO', label: 'Muy Alto', color: 'bg-rose-500' },
-                  ].map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setNivel(r.id)}
-                      className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1
-                        ${nivel === r.id 
-                          ? 'border-slate-800 bg-slate-800 text-white shadow-md scale-[1.02]' 
-                          : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}
-                      `}
-                    >
-                      <div className={`w-2 h-2 rounded-full ${r.color}`} />
-                      <span className="text-[10px] font-black uppercase tracking-tighter">{r.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Indicador de Tipo de Inspección (Informativo) */}
-              <div className="md:col-span-5 flex flex-col gap-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Procedimiento ITSE</label>
-                <div className={`flex items-center gap-4 p-3 rounded-xl border-2 h-[58px] transition-all duration-500
-                  ${itseRequierePrevia 
-                    ? 'bg-rose-50 border-rose-100 text-rose-700' 
-                    : 'bg-emerald-50 border-emerald-100 text-emerald-700'}
-                `}>
-                  {itseRequierePrevia ? <AlertTriangle size={20} /> : <ShieldCheck size={20} />}
-                  <div className="flex flex-col">
-                    <span className="text-[11px] font-black uppercase leading-none">
-                      {itseRequierePrevia ? "Inspección Previa" : "Inspección Posterior"}
-                    </span>
-                    <span className="text-[9px] font-medium opacity-80 leading-tight">
-                      {itseRequierePrevia 
-                        ? "Requiere aprobación antes de la licencia." 
-                        : "Licencia automática sujeta a verificación."}
-                    </span>
+                    <label className={labelClasses}>Área Total (m²)</label>
+                    <div className="relative">
+                      <input type="number" className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 pr-8 text-xs font-bold text-[#0f766e] outline-none" 
+                        {...register("declaracion.area_total_m2")} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">m²</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Checkbox de compromiso */}
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 border-dashed">
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  className="w-5 h-5 rounded border-slate-300 text-[#0f766e] focus:ring-[#0f766e] transition-all"
-                  checked={condSeguridad} 
-                  onChange={(e) => setCondSeguridad(e.target.checked)} 
-                />
-                <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-slate-700 group-hover:text-[#0f766e] transition-colors">
-                    Declaro bajo juramento que el local cumple con las condiciones de seguridad vigentes.
-                  </span>
-                  <span className="text-[9px] text-slate-400 uppercase font-medium">Obligatorio para procesar el trámite</span>
-                </div>
-              </label>
-            </div>
-
-            {/* SECCIÓN CONDICIONAL: Datos ITSE Previa */}
-            {itseRequierePrevia && (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
-                <div className="md:col-span-5 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">N.º ITSE Vigente</label>
-                  <input 
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold focus:border-rose-500 outline-none transition-all" 
-                    placeholder="Ej: CERT-2026-001"
-                    value={itseNumero} 
-                    onChange={(e) => setItseNumero(e.target.value)} 
+              {/* 3. Autorización Sectorial */}
+              <div className={`pt-2 px-1 rounded-xl transition-all duration-300 ${isAutoridadSectorial ? 'bg-teal-50/30 p-4 border border-[#0f766e]/10' : ''}`}>
+                <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
+                  <Switch 
+                    checked={watch("declaracion.tiene_aut_sectorial")}
+                    onCheckedChange={(val) => {
+                      setValue("declaracion.tiene_aut_sectorial", val);
+                      if (!val) {
+                        setValue("declaracion.aut_entidad", "");
+                        setValue("declaracion.aut_denominacion", "");
+                        setValue("declaracion.aut_fecha", "");
+                        setValue("declaracion.aut_numero", "");
+                      }
+                    }}
+                    className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
                   />
-                </div>
-                
-                <div className="md:col-span-7 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Documento Sustentatorio (PDF)</label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
+                  <span className="text-[11px] font-black text-slate-600 group-hover:text-[#0f766e] transition-colors uppercase tracking-tight">
+                    Requiere Autorización Sectorial 
+                    <span className="block text-[9px] text-slate-400 font-bold italic normal-case">
+                      (Entidades reguladoras: Salud, Educación, MTC, etc.)
+                    </span>
+                  </span>
+                </label>
+
+                {/* SECCIÓN CONDICIONAL */}
+                {isAutoridadSectorial && (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-4 border-t border-[#0f766e]/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                    
+                    <div className="md:col-span-3">
+                      <label className={labelClasses}>Entidad</label>
                       <input 
-                        className="w-full h-9 rounded-lg border border-slate-200 bg-slate-100 px-3 text-[10px] outline-none text-slate-500 font-medium italic" 
-                        value={itseArchivo || "No se ha cargado archivo..."} 
-                        readOnly 
+                        className={inputClasses2}
+                        placeholder="EJ. MINSA, MTC" 
+                        {...register("declaracion.aut_entidad")}
                       />
                     </div>
-                    <button className="h-9 px-4 bg-slate-800 text-white rounded-lg font-black text-[10px] uppercase hover:bg-rose-600 transition-all flex items-center gap-2 active:scale-95 shadow-sm">
-                      <Upload size={14} /> Cargar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* SUBTÍTULO SECCIONADOR  */}
-            <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-[#0f766e] opacity-20">02-03</span>
-                <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
-                  Solicitante, Representante
-                </h2>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              {/* 1. LADO IZQUIERDO: SOLICITANTE */}
-              <div className="relative" ref={suggestionsRef}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-0.5">
-                    Solicitante
-                  </label>
-                  <button 
-                    type="button"
-                    onClick={() => { setEditingPersona(null); setOpenPersona(true); }}
-                    className="text-[9px] text-blue-600 hover:text-blue-700 font-black"
-                  >
-                    [+ NUEVO]
-                  </button>
-
-                  {/* El Modal Reutilizable (Se mantiene aquí o fuera del grid) */}
-                  <PersonaModal 
-                    open={openPersona}
-                    onOpenChange={setOpenPersona}
-                    editingPersona={editingPersona}
-                    onSuccess={(personaCreada) => {
-                      setNombreRazon(personaCreada.nombre_razon_social);
-                      setIdPersona(personaCreada.id_persona);
-                    }}
-                  />
-                </div>
-                
-                <div className="relative">
-                  <input 
-                    className={inputStyle}
-                    placeholder="Escriba el nombre o RUC del solicitante"
-                    value={nombreRazon} 
-                    onFocus={() => setShowSuggestions(true)}
-                    onChange={(e) => {
-                      setNombreRazon(e.target.value);
-                      setShowSuggestions(true);
-                    }} 
-                  />
-
-                  {/* Lista Desplegable Dinámica */}
-                  {showSuggestions && sugerenciasFiltradas.length > 0 && (
-                    <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                      <div className="max-h-52 overflow-y-auto bg-white">
-                        {sugerenciasFiltradas.map((persona) => (
-                          <div 
-                            key={persona.id}
-                            onClick={() => handleSelectPersona(persona)}
-                            className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center group border-b border-slate-50 last:border-none"
-                          >
-                            <div>
-                              <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors uppercase">{persona.nombre}</div>
-                              <div className="text-[9px] text-slate-500 font-medium">RUC: <span className="text-blue-600">{persona.ruc}</span></div>
-                            </div>
-                            <span className="text-[8px] font-black text-blue-500 opacity-0 group-hover:opacity-100 uppercase tracking-tighter">Seleccionar</span>
-                          </div>
-                        ))}
-                      </div>
+                    <div className="md:col-span-4">
+                      <label className={labelClasses}>Denominación del Permiso</label>
+                      <input 
+                        className={inputClasses2}
+                        placeholder="NOMBRE DEL DOCUMENTO..." 
+                        {...register("declaracion.aut_denominacion")}
+                      />
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* 2. LADO DERECHO: REPRESENTANTE */}
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-0.5">
-                    Representante
-                  </label>
-                  <button 
-                    onClick={() => setOpenRep(true)}
-                    type="button"
-                    className="text-[9px] text-blue-600 hover:text-blue-700 font-black"
-                  >
-                    [+ NUEVO]
-                  </button>               
+                    <div className="md:col-span-2">
+                      <label className={labelClasses}>Fecha Emisión</label>
+                      <input 
+                        type="date" 
+                        className={inputClasses2}
+                        {...register("declaracion.aut_fecha")}
+                      />
+                    </div>
 
-                  <RepresentanteModal 
-                    open={openRep}
-                    onOpenChange={setOpenRep}
-                    editingRep={null}
-                    juridicas={juridicas} 
-                    onSuccess={(repCreado) => {
-                      console.log("Representante recibido:", repCreado);
+                    <div className="md:col-span-3">
+                      <label className={labelClasses}>N° Resolución / Código</label>
+                      <input 
+                        className={inputClasses2} 
+                        placeholder="EJ. 123-2024/MINSA"
+                        {...register("declaracion.aut_numero")}
+                      />
+                    </div>
 
-                      setNombreRep(repCreado.nombres);
-                      setIdRepresentante(repCreado.id_representante);
-                    }}
-                  />
-
-                </div>
-                <div className="relative">
-                  <input
-                    className={inputStyle}
-                    placeholder="Nombre del representante"
-                    value={nombreRep}
-                    onChange={(e) => {
-                      setNombreRep(e.target.value);
-                    }}
-                  />
-                </div>
-              </div>
-
-            </div>
-            
-            <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-[#0f766e] opacity-20">05</span>
-                <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
-                  Declaración jurada
-                </h2>
-              </div>
-            </div>
-
-            {/* 1. Bloque de Compromisos Legales */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {[
-                {
-                  id: 'poder',
-                  state: djDeclaroPoder,
-                  setter: setDjDeclaroPoder,
-                  text: "Cuento con poder suficiente vigente como representante legal de la entidad.",
-                  sub: "(Si aplica)"
-                },
-                {
-                  id: 'itse',
-                  state: condSeguridad,
-                  setter: setCondSeguridad,
-                  text: "El local cumple condiciones de seguridad y acepto la inspección ITSE.",
-                  sub: "Obligatorio"
-                },
-                {
-                  id: 'titulo',
-                  state: djDeclaroTituloProf,
-                  setter: setDjDeclaroTituloProf,
-                  text: "Cuento con título y habilitación vigente para servicios de salud/educación.",
-                  sub: "(Si corresponde)"
-                }
-              ].map((item) => (
-                <label 
-                  key={item.id} 
-                  className={`flex flex-col gap-3 p-4 rounded-xl border transition-all cursor-pointer hover:shadow-sm
-                    ${item.state ? 'border-[#0f766e] bg-[#0f766e]/5' : 'border-slate-200 bg-white hover:border-slate-300'}
-                  `}
-                >
-                  <div className="flex justify-between items-center">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 rounded border-slate-300 text-[#0f766e] focus:ring-[#0f766e]"
-                      checked={item.state} 
-                      onChange={(e) => item.setter(e.target.checked)} 
-                    />
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter
-                      ${item.state ? 'bg-[#0f766e] text-white' : 'bg-slate-100 text-slate-400'}`}>
-                      {item.state ? 'Aceptado' : 'Pendiente'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] leading-snug font-bold text-slate-700">
-                    {item.text} <br/>
-                    <span className="text-[9px] text-slate-400 font-medium italic">{item.sub}</span>
-                  </p>
-                </label>
-              ))}
-            </div>
-
-            {/* 2. Advertencia de Fiscalización (Banner Compacto) */}
-            <div className="relative overflow-hidden bg-slate-900 text-white p-5 rounded-xl">
-              <div className="relative z-10 flex flex-col md:flex-row items-center gap-5">
-                <div className="bg-amber-400/20 p-2.5 rounded-full text-amber-400">
-                  <AlertTriangle size={20} />
-                </div>
-                <div className="flex-1 text-center md:text-left">
-                  <h4 className="font-black text-[10px] uppercase tracking-[0.15em] mb-1 text-amber-400">Aviso de Fiscalización Posterior</h4>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    De comprobarse falsedad o inexactitud en esta declaración, se aplicarán las sanciones administrativas y penales correspondientes (Ley N° 27444).
-                  </p>
-                </div>
-                <label className="flex items-center gap-3 bg-white/5 px-4 py-2.5 rounded-lg border border-white/10 hover:bg-white/10 transition-all cursor-pointer group">
-                  <input 
-                    type="checkbox" 
-                    className="w-4 h-4 rounded border-none text-amber-500 focus:ring-amber-500 bg-white/20"
-                    checked={djAcepto} 
-                    onChange={(e) => setDjAcepto(e.target.checked)} 
-                  />
-                  <span className="text-[10px] font-black uppercase tracking-tight group-hover:text-amber-400 transition-colors">Acepto bajo juramento</span>
-                </label>
-              </div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-[#0f766e]/20 -mr-8 -mt-8 rounded-full blur-2xl"></div>
-            </div>
-
-            {/* 3. Observaciones */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                Observaciones o comentarios adicionales
-              </label>
-              <textarea 
-                rows={2} 
-                className="w-full rounded-lg border border-slate-300 bg-slate-50/50 p-3 text-xs focus:bg-white focus:border-[#0f766e] outline-none transition-all resize-none"
-                placeholder="Opcional: Detalles relevantes para la evaluación..." 
-                value={djObservaciones}
-                onChange={(e) => setDjObservaciones(e.target.value)} 
-              />
-            </div>
-
-
-          </div>
-        </Card>
-      </div>
-    </div>
-
-    <div className="w-full grid grid-cols-1 xl:grid-cols-2 gap-8 mt-6">
-      {/* SECCIÓN II: DATOS DEL TITULAR (FULL WIDTH) */}
-      <div className="w-full">
-        <Card title="II. Datos del Titular (Persona Natural o Jurídica)">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4">
-            
-            {/* Selector de Tipo Persona */}
-            <div className="md:col-span-3">
-              <label className={labelStyle}>Tipo de Persona</label>
-              <select 
-                className={inputStyle}
-                value={tipoPersona} 
-                onChange={(e) => setTipoPersona(e.target.value)}
-              >                
-                <option value="NATURAL">👤 Persona Natural</option>
-                <option value="JURIDICA">🏢 Persona Jurídica</option>
-              </select>
-            </div>
-
-            {/* Nombre o Razón Social - Búsqueda por Nombre o RUC */}
-            <div className="md:col-span-9 relative" ref={suggestionsRef}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-0.5">
-                  Nombres y Apellidos / Razón Social
-                </label>
-                <button 
-                  type="button"
-                  onClick={() => { setEditingPersona(null); setOpenPersona(true); }}
-                  className="text-[9px] text-blue-600 hover:text-blue-700 font-black"
-                >
-                  [+ NUEVO]
-                </button>
-
-                {/* El Modal Reutilizable */}
-                
-              </div>
-              
-              <div className="relative">
-                <input 
-                  className={inputStyle}
-                  placeholder="Ingrese nombre o RUC para buscar..."
-                  value={nombreRazon} 
-                  onFocus={() => setShowSuggestions(true)}
-                  onChange={(e) => {
-                    setNombreRazon(e.target.value);
-                    setShowSuggestions(true);
-                  }} 
-                />
-
-                {/* Lista Desplegable Dinámica corregida */}
-                {showSuggestions && sugerenciasFiltradas.length > 0 && (
-                  <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                    <div className="max-h-52 overflow-y-auto bg-white">
-                      {sugerenciasFiltradas.map((persona) => (
-                        <div 
-                          key={persona.id}
-                          onClick={() => handleSelectPersona(persona)}
-                          className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center group border-b border-slate-50 last:border-none"
-                        >
-                          <div>
-                            <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors uppercase">{persona.nombre}</div>
-                            <div className="text-[9px] text-slate-500 font-medium">RUC: <span className="text-blue-600">{persona.ruc}</span></div>
-                          </div>
-                          <span className="text-[8px] font-black text-blue-500 opacity-0 group-hover:opacity-100 uppercase tracking-tighter">Seleccionar</span>
-                        </div>
-                      ))}
+                    <div className="md:col-span-12">
+                      <p className="text-[9px] text-[#0f766e] font-bold bg-teal-50 p-2 rounded-md border border-[#0f766e]/10 uppercase italic text-center">
+                        * Verifique que el documento sectorial se encuentre vigente al momento de la solicitud.
+                      </p>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Fila de Documentos */}
-            <div className="md:col-span-3">
-              <label className={labelStyle}>Documento</label>
-              <div className="flex gap-1.5">
-                <select className="w-16 h-9 rounded-lg border border-slate-300 bg-white px-1 text-[10px] font-bold outline-none" value={docTipo} onChange={e => setDocTipo(e.target.value)}>
-                  <option value="">TIPO</option>
-                  <option>DNI</option>
-                  <option>C.E.</option>
-                </select>
+              {/* Inmueble patrimonio cultural */}
+              <div className={`pt-2 px-1 rounded-xl transition-all duration-300 ${isPatrimonioCultural ? 'bg-teal-50/30 p-4 border border-[#0f766e]/10' : ''}`}>
+                <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
+                  <Switch 
+                    checked={watch("declaracion.monumento")}
+                    onCheckedChange={(val) => {
+                      setValue("declaracion.monumento", val);
+                      if (!val) {
+                        setValue("declaracion.aut_entidad", "");
+                        setValue("declaracion.aut_denominacion", "");
+                        setValue("declaracion.aut_fecha", "");
+                        setValue("declaracion.aut_numero", "");
+                      }
+                    }}
+                    className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
+                  />
+                  <span className="text-[11px] font-black text-slate-600 group-hover:text-[#0f766e] transition-colors uppercase tracking-tight">
+                    ¿El inmueble es Patrimonio Cultural de la Nación? 
+                    <span className="block text-[9px] text-slate-400 font-bold italic normal-case">
+                      (Verifique la condición del inmueble en el Ministerio de Cultura)
+                    </span>
+                  </span>
+                </label>
+
+                {/* SECCIÓN CONDICIONAL */}
+                {isPatrimonioCultural && (
+                  <div className="grid grid-cols-12 gap-4 pt-4 border-t border-[#0f766e]/10 animate-in fade-in slide-in-from-top-2 duration-300">
+                    
+                    <div className="col-span-12 flex items-start gap-2 bg-white p-3 rounded-lg border border-[#0f766e]/20 shadow-sm">
+                      <Checkbox 
+                        checked={watch('declaracion.aut_ministerio_cultura')}
+                        onCheckedChange={(val) => {
+                          setValue("declaracion.aut_ministerio_cultura", val);
+                          if (!val) {
+                            setValue("declaracion.num_aut_ministerio_cultura", "");
+                            setValue("declaracion.fecha_aut_ministerio_cultura", "");
+                            setValue("declaracion.archivo_aut_ministerio_cultura", "");
+                          }
+                        }}
+                        className="data-[state=checked]:bg-[#0f766e] data-[state=checked]:border-[#0f766e]"
+                      />
+                      <label htmlFor="monitoreo" className="text-[10px] leading-tight text-[#0f766e] font-black uppercase cursor-pointer">
+                        El Ministerio de Cultura participó en la remodelación/monitoreo previo 
+                        <span className="block text-[9px] text-slate-400 font-bold">(Exonerado de adjuntar copia conforme a Ley N° 28296)</span>
+                      </label>
+                    </div>
+
+                    {!watch('declaracion.aut_ministerio_cultura') && (
+                      <>
+                        <div className="col-span-12 md:col-span-7">
+                          <Label className={labelClasses}>N° de Autorización del Ministerio de Cultura</Label>
+                          <input 
+                            placeholder="Ej. AUT-2026-MC-001" 
+                            className={inputClasses} 
+                            {...register("declaracion.num_aut_ministerio_cultura")}
+                          />
+                        </div>
+                        
+                        <div className="col-span-12 md:col-span-5">
+                          <Label className={labelClasses}>Fecha de Expeditación</Label>
+                          <input 
+                            type="date" 
+                            className={`${inputClasses} uppercase`} 
+                            {...register("declaracion.fecha_aut_ministerio_cultura")}
+                          />
+                        </div>
+
+                        <div className="col-span-12">
+                          <Label className={labelClasses}>Adjuntar Copia Simple (PDF/JPG)</Label>
+                          
+                          <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileChange} 
+                            className="hidden" 
+                            accept=".pdf,.jpg,.jpeg,.png"
+                          />
+
+                          <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`mt-1 flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-xl transition-all cursor-pointer group
+                              ${fileUploaded 
+                                ? 'border-[#0f766e] bg-teal-50/50' 
+                                : 'border-slate-300 bg-white hover:border-[#0f766e] hover:bg-teal-50/20'
+                              }`}
+                          >
+                            {fileUploaded ? (
+                              <div className="flex flex-col items-center p-4">
+                                <div className="bg-[#0f766e] p-2 rounded-full mb-2">
+                                  <Check size={18} className="text-white" />
+                                </div>
+                                <span className="text-[10px] font-black text-[#0f766e] uppercase">Documento Seleccionado</span>
+                                <span className="text-[9px] text-slate-500 font-bold truncate max-w-[250px] mt-1">
+                                  {fileUploaded instanceof File ? fileUploaded.name : 'Archivo cargado'}
+                                </span>
+                                <button 
+                                  type="button"
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setValue("declaracion.archivo_aut_ministerio_cultura", null); 
+                                    if (fileInputRef.current) fileInputRef.current.value = "";
+                                  }}
+                                  className="mt-2 text-[9px] text-red-500 font-black uppercase hover:text-red-700 transition-colors"
+                                >
+                                  [ Eliminar y cambiar ]
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 text-center">
+                                <UploadCloud className="mx-auto h-8 w-8 text-slate-400 group-hover:text-[#0f766e] transition-colors" />
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] text-slate-600 font-black uppercase">Haga clic para subir archivo</span>
+                                  <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter mt-1">PDF, JPG o PNG (Máx. 5MB)</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            </fieldset>
+          </SeccionCard>
+        
+        </div>
+
+        <div className="w-full">
+          <SeccionCard title="" >
+            {/* SECCIÓN: DATOS DEL EXPEDIENTE */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end mb-8">
+              {/* N.º Expediente */}
+              <div className="md:col-span-5 flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                  N.º de Expediente
+                </label>
+                <div className="flex gap-2">
+                  <input 
+                    className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
+                              focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-400" 
+                    placeholder="Ingrese número..."
+                    {...register("numero_expediente")}
+                  />
+                  <BuscarExpedienteDialog
+                    fetchExpedientes={fetchExpedientes}
+                    onPick={(exp) => setNumeroExpediente(exp.numero)}
+                    trigger={
+                      <button
+                        type="button"
+                        className="h-9 px-4 inline-flex items-center whitespace-nowrap rounded-lg
+                                  bg-[#0f766e] text-white font-bold text-[10px] uppercase tracking-tighter
+                                  hover:bg-[#0a5a54] transition-all focus:outline-none shadow-sm shadow-[#0f766e]/20 active:scale-95"
+                      >
+                        <Search className="mr-2 h-3.5 w-3.5" />
+                        Buscar
+                      </button>
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Fecha Recepción */}
+              <div className="md:col-span-3 flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                  Fecha de Recepción
+                </label>
                 <input 
-                  className={inputStyle} 
-                  value={docNumero} 
-                  placeholder="Número"
-                  onChange={e => setDocNumero(e.target.value)} 
+                  type="date" 
+                  className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
+                            focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all text-slate-700" 
+                  {...register("licencia.fecha_recepcion")}
                 />
               </div>
-            </div>
 
-            <div className="md:col-span-3">
-              <label className={labelStyle}>RUC</label>
-              <input 
-                className={inputStyle} 
-                placeholder="10XXXXXXXXX" 
-                value={ruc} 
-                onChange={e => setRuc(e.target.value)} 
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <label className={labelStyle}>Teléfono</label>
-              <input 
-                className={inputStyle} 
-                placeholder="999 999 999" 
-                value={telefono} 
-                onChange={e => setTelefono(e.target.value)} 
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <label className={labelStyle}>Correo Electrónico</label>
-              <input 
-                className={inputStyle} 
-                placeholder="correo@ejemplo.com" 
-                value={correo} 
-                onChange={e => setCorreo(e.target.value)} 
-              />
-            </div>
-
-          </div>
-        </Card>
-      </div>
-
-      {/* SECCIÓN III: DATOS DEL REPRESENTANTE LEGAL (FULL WIDTH) */}
-      <div className="w-full">
-        <Card title="III. Datos del Representante Legal o Apoderado">
-          <div className="flex flex-col gap-4">
-            
-            {/* FILA 1: Documentos y SUNARP */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
-              
-              {/* Documento de Identidad con Bloque Compacto [Input | Contador | Botón] */}
-              <div className="md:col-span-6 flex flex-col gap-1.5">
+              {/* Estado */}
+              <div className="md:col-span-4 flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                  Tipo y N° Documento (DNI / C.E.)
+                  Estado del Trámite
                 </label>
-                
-                <div className="flex items-center h-9 w-full group">
-                  {/* Selector de Tipo */}
-                  <select
-                    className="w-20 h-full rounded-l-lg border border-slate-300 bg-slate-50 px-2 text-[11px] font-bold 
-                              focus:border-[#0f766e] outline-none transition-all cursor-pointer text-slate-700 border-r-0"
-                    value={repDocTipo}
-                    onChange={(e) => {
-                      setRepDocTipo(e.target.value);
-                      setRepDocNumero(""); 
-                    }}
+                <div className="relative group">
+                  <select 
+                    className={`w-full h-9 rounded-lg border px-3 text-[10px] font-black outline-none transition-all appearance-none cursor-pointer tracking-tight
+                      ${estado === 'APROBADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                        estado === 'RECHAZADO' ? 'bg-rose-50 text-rose-700 border-rose-200' : 
+                        estado === 'OBSERVADO' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        'bg-white text-slate-700 border-slate-300 focus:border-[#0f766e]'}
+                    `}
+                    {...register("estado")}
                   >
-                    <option value="DNI">DNI</option>
-                    <option value="CE">C.E.</option>
+                    <option value="EN_EVALUACION">🟡 EN EVALUACIÓN</option>
+                    <option value="OBSERVADO">🟠 OBSERVADO</option>
+                    <option value="APROBADO">🟢 APROBADO</option>
+                    <option value="RECHAZADO">🔴 RECHAZADO</option>
                   </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-slate-600 transition-colors">
+                    <ChevronDown size={14} />
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                  {/* Input Número - Sin redondeados laterales */}
-                  <input
-                    className="flex-1 h-full border border-slate-300 bg-white px-3 text-xs 
-                              focus:border-[#0f766e] focus:z-10 outline-none transition-all placeholder:text-slate-300 border-r-0"
-                    placeholder={repDocTipo === "DNI" ? "8 dígitos" : "9 dígitos"}
-                    maxLength={repDocTipo === "DNI" ? 8 : 9}
-                    value={repDocNumero}
-                    onChange={(e) => setRepDocNumero(e.target.value.replace(/\D/g, ""))}
+            {/* SUBTÍTULO SECCIONADOR 06 */}
+            <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black text-[#0f766e] opacity-20"></span>
+                <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
+                  Seguridad e inspección técnica
+                </h2>
+              </div>
+            </div>
+
+            {/* SECCIÓN: RIESGO E ITSE */}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                
+                {/* Nivel de Riesgo - Selección Visual */}
+                <div className="md:col-span-7 flex flex-col gap-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <span className="w-1 h-1 bg-[#0f766e] rounded-full"></span>
+                    Nivel de Riesgo
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { id: 'BAJO', label: 'Bajo', color: 'bg-emerald-500' },
+                      { id: 'MEDIO', label: 'Medio', color: 'bg-amber-500' },
+                      { id: 'ALTO', label: 'Alto', color: 'bg-orange-500' },
+                      { id: 'MUY_ALTO', label: 'Muy Alto', color: 'bg-rose-500' },
+                    ].map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setValue("licencia.nivel_riesgo", r.id as any)}
+                        className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1
+                          ${nivelRiesgo === r.id 
+                            ? 'border-slate-800 bg-slate-800 text-white shadow-md scale-[1.02]' 
+                            : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}
+                        `}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${r.color}`} />
+                        <span className="text-[10px] font-black uppercase tracking-tighter">{r.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Indicador de Tipo de Inspección (Informativo) */}
+                <div className="md:col-span-5 flex flex-col gap-3">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Procedimiento ITSE</label>
+                  <div className={`flex items-center gap-4 p-3 rounded-xl border-2 h-[58px] transition-all duration-500
+                    ${itseRequierePrevia 
+                      ? 'bg-rose-50 border-rose-100 text-rose-700' 
+                      : 'bg-emerald-50 border-emerald-100 text-emerald-700'}
+                  `}>
+                    {itseRequierePrevia ? <AlertTriangle size={20} /> : <ShieldCheck size={20} />}
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black uppercase leading-none">
+                        {itseRequierePrevia ? "Inspección Previa" : "Inspección Posterior"}
+                      </span>
+                      <span className="text-[9px] font-medium opacity-80 leading-tight">
+                        {itseRequierePrevia 
+                          ? "Requiere aprobación antes de la licencia." 
+                          : "Licencia automática sujeta a verificación."}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Checkbox de declaro bajo juramento */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 border-dashed">
+                <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
+                  <Switch 
+                    checked={chk_bajoJuramento}
+                    onCheckedChange={(val) => setValue("licencia.bajo_juramento", val)}
+                    className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
                   />
-
-                  {/* CONTADOR INTERMEDIO - Estilo pegado al input */}
-                  <div className="h-full px-2 border border-slate-300 bg-white flex items-center border-l-0 border-r-0">
-                    <span className="text-[9px] font-bold text-slate-400 tabular-nums">
-                      {repDocNumero.length}/{repDocTipo === "DNI" ? "8" : "9"}
+                  <span className="text-[11px] font-black text-slate-600 group-hover:text-[#0f766e] transition-colors tracking-tight">
+                    Declaro bajo juramento que el local cumple con las condiciones de seguridad vigente.
+                    <span className="block text-[9px] text-slate-400 font-bold italic normal-case">
+                      Obligatorio para procesar el trámite
                     </span>
+                  </span>
+                </label>
+              </div>
+
+              {/* SECCIÓN CONDICIONAL: Datos ITSE Previa */}
+              {itseRequierePrevia && (
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-6 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
+                  
+                  {/* Campo Nro ITSE */}
+                  <div className="md:col-span-4 flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">N.º ITSE Vigente</label>
+                    <input 
+                      className="w-full h-11 rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold focus:border-[#0f766e] outline-none transition-all placeholder:text-slate-300 uppercase" 
+                      placeholder="Ej: CERT-2026-001"
+                      {...register("licencia.numero_itse")}
+                    />
                   </div>
 
-                  {/* Botón SUNAT - Gris tono bajo, final del bloque */}
-                  <button
-                    type="button"
-                    className="h-full px-3 flex items-center gap-1.5 bg-slate-100 border border-slate-300 
-                              rounded-r-lg hover:bg-slate-200 text-slate-500 transition-colors group"
-                  >
-                    <Search size={13} className="group-hover:scale-110 transition-transform text-slate-400" />
-                    <span className="text-[10px] font-black tracking-tighter">SUNAT</span>
-                  </button>
+                  {/* Dropzone Estilizado para ITSE */}
+                  <div className="md:col-span-8 flex flex-col gap-1.5">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">Certificado ITSE (PDF)</label>
+                    
+                    {/* Input Oculto */}
+                    <input 
+                      type="file" 
+                      ref={itseInputRef} 
+                      onChange={handleItseFileChange} 
+                      className="hidden" 
+                      accept=".pdf"
+                    />
+
+                    <div 
+                      onClick={() => itseInputRef.current?.click()}
+                      className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl transition-all cursor-pointer group
+                        ${itseArchivo 
+                          ? 'border-[#0f766e] bg-teal-50/50' 
+                          : 'border-slate-300 bg-white hover:border-[#0f766e] hover:bg-teal-50/20'
+                        }`}
+                    >
+                      {itseArchivo ? (
+                        <div className="flex items-center gap-3 px-4 w-full">
+                          <div className="bg-[#0f766e] p-2 rounded-lg shrink-0">
+                            <Check size={16} className="text-white" />
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-[10px] font-black text-[#0f766e] uppercase">Certificado Cargado</span>
+                            <span className="text-[9px] text-slate-500 font-bold truncate">
+                              {itseArchivo instanceof File ? itseArchivo.name : 'Archivo_itse.pdf'}
+                            </span>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setValue("licencia.doc_itse", null); 
+                              if (itseInputRef.current) itseInputRef.current.value = "";
+                            }} 
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <UploadCloud className="h-6 w-6 text-slate-400 group-hover:text-[#0f766e] transition-colors" />
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-slate-600 font-black uppercase">Cargar certificado ITSE</span>
+                            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-tighter">Solo formato PDF (Máx. 5MB)</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-12">
+                    <p className="text-[9px] text-amber-600 font-bold bg-amber-50 p-2 rounded-lg border border-amber-100 flex items-center gap-2">
+                      <AlertCircle size={12} />
+                      PARA RIESGOS ALTOS/MUY ALTOS, EL CERTIFICADO ITSE DEBE ESTAR VIGENTE Y CARGADO OBLIGATORIAMENTE.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTÍTULO SECCIONADOR  */}
+              <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-[#0f766e] opacity-20">02-03</span>
+                  <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
+                    Solicitante, Representante
+                  </h2>
                 </div>
               </div>
 
-              {/* SUNARP - Ocupa 6/12 */}
-              <div className="md:col-span-6 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
-                  Partida Electrónica y Asiento <span className="text-slate-400 font-medium">(SUNARP)</span>
-                </label>
-                <div className="relative">
-                  <input
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 pl-9 text-xs 
-                              focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all"
-                    placeholder="Partida XXXXXX, Asiento YY"
-                    value={repSunarp}
-                    onChange={(e) => setRepSunarp(e.target.value)}
-                  />
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                </div>
-              </div>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* 1. LADO IZQUIERDO: SOLICITANTE */}
+                <div className="relative" ref={solicitanteRef}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-0.5">
+                      Solicitante
+                    </label>
+                    <button 
+                      type="button"
+                      onClick={() => { setEditingPersona(null); setOpenPersona(true); }}
+                      className="text-[9px] text-blue-600 hover:text-blue-700 font-black"
+                    >
+                      [+ NUEVO]
+                    </button>
 
-            {/* FILA 2: Nombres con botón al lado del label */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-3 ml-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-                  Apellidos y Nombres Completos
-                </label>
-                <button 
-                  onClick={() => setOpenPersona(true)}
-                  type="button"
-                  className="text-[9px] font-black text-[#0f766e] hover:text-[#0a5a54] transition-colors uppercase flex items-center gap-1"
+                    <PersonaModal 
+                      open={openPersona}
+                      onOpenChange={setOpenPersona}
+                      editingPersona={editingPersona}
+                      onSuccess={(personaCreada) => {
+                        // Seteamos los valores en Hook Form
+                        setValue("id_persona", personaCreada.id_persona);
+                        setValue("nombre_razon_social", personaCreada.nombre_razon_social);
+                        // Si el modal no limpia el apoderado, lo hacemos aquí por seguridad
+                        setValue("licencia.tiene_apoderado", false);
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="relative">
+                    <input 
+                      className={inputStyle}
+                      placeholder="Escriba el nombre o RUC del solicitante"
+                      {...register("nombre_razon_social")}
+                      onFocus={() => setShowSuggestionsSolicitante(true)}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setValue("nombre_razon_social", e.target.value);
+                        if (watch("id_persona")) {
+                          setValue("id_persona", null);
+                          setValue("licencia.tiene_apoderado", false);
+                        }
+                        setShowSuggestionsSolicitante(true);
+                      }} 
+                    />
+
+                    {/* Tu Lista Desplegable Solicitante */}
+                    {showSuggestionsSolicitante && sugerenciasFiltradasSolicitante.length > 0 && (
+                      <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                        <div className="max-h-52 overflow-y-auto bg-white">
+                          {sugerenciasFiltradasSolicitante.map((persona) => (
+                            <div 
+                              key={persona.id}
+                              onClick={() => {
+                                handleSelectPersona(persona);
+                                setShowSuggestionsSolicitante(false);
+                              }}
+                              className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center group border-b border-slate-50 last:border-none"
+                            >
+                              <div>
+                                <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 uppercase">{persona.nombre}</div>
+                                <div className="text-[9px] text-slate-500 font-medium">{persona.ruc}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CHECKBOX DE APODERADO (Solo para Personas Naturales) */}
+                  {idSolicitante && tipoPersona === 'NATURAL' && (
+                    <div className="mt-2 ml-1 flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100 animate-in slide-in-from-top-1">
+                      <Switch 
+                        id="chkApoderado"
+                        checked={watch("licencia.tiene_apoderado")}
+                        onCheckedChange={(val) => {
+                          setValue("licencia.tiene_apoderado", val);
+                        }}
+                        className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
+                      />
+                      <label htmlFor="chkApoderado" className="text-[9px] font-black text-slate-500 uppercase cursor-pointer select-none">
+                        ¿Actúa mediante un apoderado?
+                      </label>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. LADO DERECHO: REPRESENTANTE */}
+                <div 
+                  className={`relative transition-all duration-500 ${
+                    !mostrarRepresentante 
+                    ? 'opacity-30 grayscale pointer-events-none scale-[0.98]' 
+                    : 'opacity-100 scale-100'
+                  }`} 
+                  ref={representanteRef}
                 >
-                  <span className="bg-[#0f766e]/10 px-2 py-0.5 rounded-md border border-[#0f766e]/20">
-                    + Nuevo Registro
-                  </span>
-                </button>
-              </div>
-              <input
-                className="w-full h-9 rounded-lg border border-slate-300 bg-slate-50/50 px-3 text-xs text-slate-600 
-                          outline-none cursor-default"
-                placeholder="Ej. María López Huamán"
-                value={repNombre}
-                readOnly 
-              />
-            </div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <label className={`text-[10px] font-black uppercase tracking-tight ml-0.5 text-slate-500`}>
+                      {esJuridica ? 'Representante Legal' : 'Apoderado'}
+                    </label>
+                    
+                    {mostrarRepresentante && (
+                      <button 
+                        type="button"
+                        onClick={() => setOpenRep(true)}                       
+                        className="text-[9px] text-blue-600 hover:text-blue-700 font-black"
+                      >
+                        [+ NUEVO]
+                      </button> 
+                    )}
 
-          </div>
-        </Card>
+                    <RepresentanteModal 
+                      open={openRep}
+                      onOpenChange={setOpenRep}
+                      editingRep={null}
+                      juridicas={juridicas}
+                      selectedPersonaId={idSolicitante}
+                      onSuccess={(repCreado) => {
+                        setValue("licencia.nombre_representante", repCreado.nombre);
+                        setValue("licencia.id_representante", repCreado.id_representante);
+                      }}
+                    />
+
+                    
+
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      disabled={!mostrarRepresentante}
+                      className={`${inputStyle} ${!mostrarRepresentante ? 'bg-slate-50 border-transparent shadow-none' : 'bg-white'}`}
+                      placeholder={esJuridica ? "Buscar representante legal..." : "Buscar apoderado..."}
+                      {...register("licencia.nombre_representante")}
+                      onFocus={() => setShowSuggestionsRepresentante(true)}
+                      onChange={(e) => {
+                        setValue("licencia.nombre_representante", e.target.value);
+                        if (watch("licencia.id_representante")) setValue("licencia.id_representante", "");
+                        setShowSuggestionsRepresentante(true);
+                      }}
+                    />
+
+                    {/* Lista de Sugerencias Representante */}
+                    {showSuggestionsRepresentante && (
+                      <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                        <div className="max-h-52 overflow-y-auto bg-white">
+                          {sugerenciasFiltradasRepresentante.length > 0 ? (
+                            // LISTA DE SUGERENCIAS ENCONTRADAS
+                            sugerenciasFiltradasRepresentante.map((rep) => (
+                              <div
+                                key={rep.id_representante}
+                                onClick={() => {
+                                  handleSelectRepresentante(rep);
+                                  setShowSuggestionsRepresentante(false);
+                                }}
+                                className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center group border-b border-slate-50 last:border-none"
+                              >
+                                <div>
+                                  <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors uppercase">
+                                    {rep.nombre}
+                                  </div>
+                                  <div className="text-[9px] text-slate-500 font-medium">
+                                    Doc: <span className="text-blue-600">{rep.numero_documento}</span>
+                                  </div>
+                                </div>
+                                <span className="text-[8px] font-black text-blue-500 opacity-0 group-hover:opacity-100 uppercase tracking-tighter">
+                                  Seleccionar
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            // MENSAJE CUANDO NO HAY RESULTADOS VINCULADOS
+                            <div className="px-4 py-6 text-center animate-in fade-in duration-300">
+                              <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">
+                                Sin resultados
+                              </div>
+                              <p className="text-[10px] text-slate-500 italic leading-tight">
+                                No se encontraron representantes vinculados a este solicitante. 
+                                <br />
+                                Use el botón <span className="text-blue-600 font-bold"> [+ NUEVO] </span> para registrar uno.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Mensaje de estado cuando está bloqueado */}
+                  {!mostrarRepresentante && idSolicitante && (
+                    <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-md w-fit">
+                      <div className="w-1 h-1 bg-slate-400 rounded-full" />
+                      <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tight">
+                        Tramite Personal / Sin Apoderado
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-[#0f766e] opacity-20">05</span>
+                  <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
+                    Declaración jurada
+                  </h2>
+                </div>
+              </div>
+
+              {/* 1. Bloque de Compromisos Legales */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {[
+                  {
+                    id: 'vigencia_poder',
+                    text: "Cuento con poder suficiente vigente para actuar como representante legal de la persona jurídica o natural.",
+                    sub: "(Si aplica)",
+                  },
+                  {
+                    id: 'condiciones_seguridad',
+                    text: "El establecimiento cumple con las condiciones de seguridad en edificaciones y me someto a la inspección ITSE correspondiente.",
+                    sub: "Obligatorio",
+                  },
+                  {
+                    id: 'titulo_profesional',
+                    text: "Cuento con título y habilitación vigente para servicios de salud.",
+                    sub: "(Si corresponde)",
+                  }
+                ].map((item) => {
+                  const fieldName = `declaracion.${item.id}`;
+                  const isActive = watch(fieldName as any);
+                  return (
+                    <label 
+                      key={item.id} 
+                      className={`flex flex-col gap-3 p-4 rounded-xl border transition-all cursor-pointer hover:shadow-sm
+                        ${isActive ? 'border-[#0f766e] bg-[#0f766e]/5' : 'border-slate-200 bg-white hover:border-slate-300'}
+                      `}
+                    >
+                      <div className="flex justify-between items-center">
+                        <Switch 
+                          checked={isActive} 
+                          onCheckedChange={(val: boolean) => setValue(fieldName as any, val)}
+                          className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
+                        />
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter
+                          ${isActive ? 'bg-[#0f766e] text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          {isActive ? 'Aceptado' : 'Pendiente'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-snug font-bold text-slate-700">
+                        {item.text} <br/>
+                        <span className="text-[9px] text-slate-400 font-medium italic">{item.sub}</span>
+                      </p>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* AVISO DE FISCALIZACIÓN POSTERIOR */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 border-dashed">
+                <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
+                  <Switch 
+                    checked={chk_aceptacion}
+                    onCheckedChange={(val) => setValue("declaracion.aceptacion", val)}
+                    className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
+                  />
+                  <span className="text-[11px] font-black text-slate-600 group-hover:text-[#0f766e] transition-colors tracking-tight">
+                    Aviso de Fiscalización posterior
+                    <span className="block text-[9px] text-slate-400 font-bold italic normal-case">
+                      De comprobarse falsedad o inexactitud en esta declaración, se aplicarán las sanciones administrativas y penales correspondientes (Ley N° 27444)
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {/* 3. Observaciones */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                  Observaciones o comentarios adicionales
+                </label>
+                <textarea 
+                  rows={2} 
+                  className="w-full rounded-lg border border-slate-300 bg-slate-50/50 p-3 text-xs focus:bg-white focus:border-[#0f766e] outline-none transition-all resize-none"
+                  placeholder="Opcional: Detalles relevantes para la evaluación..." 
+                  {...register("declaracion.observaciones")}
+                />
+              </div>
+
+            </div>
+          </SeccionCard>
+        </div>
       </div>
     </div>
 
-
-
-    {/* PANEL DE VALIDACIÓN Y ERRORES (FULL WIDTH) */}
-    {error && (
-      <div className="w-full mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="relative overflow-hidden rounded-xl border border-rose-200 bg-rose-50/50 shadow-sm">
-          
-          {/* Indicador Lateral Sutil */}
-          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>
-
-          <div className="p-5 flex flex-col md:flex-row gap-5">
-            
-            {/* Icono de Estado */}
-            <div className="flex-shrink-0 flex items-start pt-1 justify-center md:justify-start">
-              <div className="bg-rose-500 text-white p-2.5 rounded-lg shadow-sm">
-                <AlertCircle size={20} strokeWidth={2.5} />
-              </div>
-            </div>
-
-            <div className="flex-grow">
-              <h3 className="text-sm font-black text-rose-800 uppercase tracking-tight mb-0.5">
-                Revisión requerida
-              </h3>
-              <p className="text-rose-600 font-bold text-[11px] leading-tight mb-3">
-                {error}
-              </p>
-
-              {/* Lista Detallada de Errores (Multi-columna) */}
-              {errores.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5 bg-white/60 rounded-lg p-3 border border-rose-100">
-                  {errores.map((e, i) => (
-                    <div key={i} className="flex items-start gap-2 text-[10px] text-rose-700 font-bold uppercase tracking-tight">
-                      <div className="mt-1 w-1 h-1 rounded-full bg-rose-400 flex-shrink-0" />
-                      {e}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Acción sugerida */}
-            <div className="flex-shrink-0 flex items-start pt-1">
-              <button 
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="w-full md:w-auto px-4 py-2 bg-rose-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 transition-all shadow-sm shadow-rose-200"
-              >
-                Subir y Corregir
-              </button>
-            </div>
-          </div>
-
-          {/* Info Técnica de Pie */}
-          <div className="bg-rose-100/30 px-5 py-1.5 border-t border-rose-100 flex justify-between items-center">
-            <span className="text-[9px] font-bold text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
-              <div className="w-1 h-1 rounded-full bg-rose-300 animate-pulse" />
-              Estado: Formulario Incompleto
-            </span>
-            <span className="text-[9px] font-black text-rose-300 uppercase tracking-widest">
-              ERR_VAL_04
-            </span>
-          </div>
-        </div>
-      </div>
-    )}
-
-
-  </div>
+    {/* BOTONES */}
+    <div className="mt-10 pt-8 border-t border-slate-100 flex flex-col md:flex-row items-center justify-end gap-4 w-full">
+      {/* Botón Cancelar - Más ancho y estilizado */}
+      <button 
+        type="button"
+        className="w-full md:w-auto md:min-w-[160px] flex items-center justify-center gap-3 px-8 h-12 bg-white border border-slate-300 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-slate-50 hover:border-slate-400 transition-all active:scale-95"
+      >
+        <ChevronLeft size={18} className="text-slate-400" /> 
+        <span>Cancelar</span>
+      </button>
+      
+      {/* Botón Guardar - Significativamente más ancho */}
+      <button 
+        type="submit"
+        className="w-full md:w-auto md:min-w-[240px] flex items-center justify-center gap-3 px-12 h-12 bg-[#0f766e] text-white rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-[#0d635d] hover:shadow-xl hover:shadow-[#0f766e]/30 transition-all active:scale-95 shadow-lg shadow-[#0f766e]/20"
+      >
+        <Save size={18} /> 
+        <span>Guardar Registro</span>
+      </button>
+    </div>
+  </form>  
+  </>
   );
 }
