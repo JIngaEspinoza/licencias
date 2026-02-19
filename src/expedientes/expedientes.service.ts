@@ -5,10 +5,211 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { FindExpedientesDto } from './dto/find-expedientes.dto';
 import { Prisma } from '@prisma/client';
 import { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.request';
+import PDFDocument from 'pdfkit';
+import { Response } from 'express';
 
 @Injectable()
 export class ExpedientesService {
   constructor(private readonly prisma: PrismaService){}
+
+  async generarPdf(id: number, res: Response) {
+    const expediente = await this.prisma.expediente.findUnique({
+      where: { id_expediente: id },
+    });
+
+    if (!expediente) {
+      throw new Error('Expediente no encontrado');
+    }
+
+    const PDFDocument = require('pdfkit');
+
+    const doc = new PDFDocument({
+      size: 'A4',
+      margins: { top: 140, bottom: 100, left: 70, right: 70 },
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename=resolucion-${id}.pdf`,
+    );
+
+    doc.pipe(res);
+
+    /* ===================================
+      🔷 HEADER
+    ===================================*/
+    const drawHeader = () => {
+      const top = 40;
+
+      // Logo
+      //doc.image('public/logo-municipal.png', 70, top, { width: 70 });
+
+      // Texto institucional
+      doc
+        .font('Times-Bold')
+        .fontSize(10)
+        .text('MUNICIPALIDAD DISTRITAL DE SAN MIGUEL', 160, top)
+        .font('Times-Roman')
+        .text(
+          'GERENCIA DE DESARROLLO ECONÓMICO Y COOPERACIÓN INTERINSTITUCIONAL',
+          160
+        )
+        .text('SUBGERENCIA DE LICENCIA Y COMERCIO', 160);
+
+      // Resolución (derecha)
+      doc
+        .font('Times-Bold')
+        .fontSize(11)
+        .text(
+          `RESOLUCIÓN DE SUBGERENCIA N° `, //${expediente.numero_resolucion ?? ''}
+          350,
+          top,
+          { align: 'right' }
+        )
+        .font('Times-Roman')
+        .text(
+          `San Miguel, ${new Date().toLocaleDateString('es-PE')}`,
+          { align: 'right' }
+        );
+
+      // Línea divisoria
+      doc
+        .moveTo(70, 120)
+        .lineTo(doc.page.width - 70, 120)
+        .stroke();
+
+      // Reiniciar cursor debajo del header
+      doc.y = 140;
+    };
+
+    /* ===================================
+      🔷 FOOTER
+    ===================================*/
+    const drawFooter = () => {
+      const bottom = doc.page.height - 70;
+
+      doc
+        .moveTo(70, bottom - 15)
+        .lineTo(doc.page.width - 70, bottom - 15)
+        .stroke();
+
+      doc
+        .fontSize(8)
+        .font('Times-Roman')
+        .text(
+          'Jr. Federico Gallese N° 350-370, San Miguel',
+          70,
+          bottom,
+          { align: 'center' }
+        )
+        .text(
+          'Telfs.: 208-5830, 208-5838, anexo 3328*3329',
+          { align: 'center' }
+        )
+        .text(
+          'web: www.munisanmiguel.gob.pe',
+          { align: 'center' }
+        );
+
+      // Número de página
+      doc.text(
+        `Página ${doc.page.pageNumber}`,
+        doc.page.width - 120,
+        bottom,
+        { align: 'right' }
+      );
+    };
+
+    /* ===================================
+      🔷 CONTROL SEGURO DE NUEVA PÁGINA
+    ===================================*/
+    const checkPageBreak = (spaceNeeded = 120) => {
+      if (doc.y + spaceNeeded > doc.page.height - 100) {
+        drawFooter();
+        doc.addPage();
+        drawHeader();
+      }
+    };
+
+    // Dibujar primera página
+    drawHeader();
+
+    /* ===================================
+      🔷 CUERPO
+    ===================================*/
+
+    doc.font('Times-Bold').fontSize(12).text('VISTO:', { underline: true });
+    doc.moveDown(0.5);
+
+    doc.font('Times-Roman').fontSize(12).text(
+      `El Expediente N° ${expediente.numero_expediente} de fecha ${expediente.fecha}, presentado por {representante}, identificado con D.N.I. N° {dni}, en calidad de representante legal de {solicitante} con RUC N° {ruc}, señalando domicilio fiscal en Avenida {direccion_fiscal} - San Miguel, quien solicita LICENCIA DE FUNCIONAMIENTO INDETERMINADA;`,
+      { align: 'justify' }
+    );
+
+    doc.moveDown();
+    checkPageBreak();
+
+    doc.font('Times-Bold').text('CONSIDERANDO:', { underline: true });
+    doc.moveDown(0.5);
+
+    doc.font('Times-Roman').text(
+      'Que, el artículo II del Título Preliminar de la Ley N° 27972, Ley Orgánica de Municipalidades, señala que los gobiernos locales gozan de autonomía política, económica y administrativa en los asuntos de su competencia...',
+      { align: 'justify' }
+    );
+
+    doc.moveDown();
+
+    doc.text(
+      `Que, con fecha ${expediente.fecha}, el administrado presenta la Solicitud Declaración Jurada conforme a la normativa vigente...`,
+      { align: 'justify' }
+    );
+
+    doc.moveDown();
+
+    doc.list([
+      'Presentación del Formato Solicitud-Declaración Jurada.',
+      `Declaración Jurada de Seguridad (calificación: ).`, //${expediente.nivel_riesgo}
+      'Número de Recibo de pago correspondiente.',
+    ]);
+
+    doc.moveDown();
+    checkPageBreak(180);
+
+    doc.font('Times-Bold').text('SE RESUELVE:', { underline: true });
+    doc.moveDown();
+
+    doc.font('Times-Roman').text(
+      'ARTÍCULO PRIMERO.- Declarar PROCEDENTE la solicitud de LICENCIA DE FUNCIONAMIENTO INDETERMINADA presentada por {solicitante}, para el desarrollo de la actividad comercial de {giros}, ubicado en Avenida {direccion_local}, distrito de San Miguel, con un área de {area} m2.',
+      { align: 'justify' }
+    );
+
+    doc.moveDown();
+
+    doc.text(
+      'ARTÍCULO SEGUNDO.- EMITIR el Certificado de Licencia de Funcionamiento correspondiente.',
+      { align: 'justify' }
+    );
+
+    doc.moveDown();
+
+    doc.text(
+      'ARTÍCULO TERCERO.- El establecimiento comercial queda sujeto a fiscalización posterior...',
+      { align: 'justify' }
+    );
+
+    doc.moveDown();
+
+    doc.text(
+      'ARTÍCULO CUARTO.- NOTIFICAR el presente acto administrativo a la parte interesada.',
+      { align: 'justify' }
+    );
+
+    // Footer final
+    drawFooter();
+
+    doc.end();
+  }
 
   create(createExpedienteDto: CreateExpedienteDto) {
     return 'This action adds a new expediente';

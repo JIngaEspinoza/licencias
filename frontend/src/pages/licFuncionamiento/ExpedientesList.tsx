@@ -221,7 +221,25 @@ export default function ExpedientesList() {
   const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
   const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
   const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
-  const imprimir = (row: Expedientes) => alert(`Imprimir expediente ${row.id_expediente}`);
+  //const imprimir = (row: Expedientes) => alert(`Imprimir expediente ${row.id_expediente}`);
+  /*const imprimir = async (row: Expedientes) => {
+    const url = expedientesApi.getPdf(row.id_expediente);
+    const url = `http://localhost:3000/expedientes/${row.id_expediente}/pdf`;
+    window.open(url, '_blank');
+  };*/
+
+  const imprimir = async (row: Expedientes) => {
+    try {
+      console.log(row.id_expediente);
+      const blob = await expedientesApi.getPdf(row.id_expediente);
+
+      const url = window.URL.createObjectURL(blob);
+
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Error al generar PDF:", error);
+    }
+  };
 
   function CrearNewDJ({ onSearch, activeFilters }) {
     const initialCriterios = {

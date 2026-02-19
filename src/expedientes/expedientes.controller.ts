@@ -1,14 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Res } from '@nestjs/common';
 import { ExpedientesService } from './expedientes.service';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
 import { FindExpedientesDto } from './dto/find-expedientes.dto';
 //import { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.request';
 import type { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.request';
+import type { Response } from 'express';
 
 @Controller('expedientes')
 export class ExpedientesController {
   constructor(private readonly expedientesService: ExpedientesService) {}
+
+  @Get(':id/pdf')
+  async generarPdf(@Param('id') id: string, @Res() res: Response) {
+    console.log("Controller=>", id);
+    return this.expedientesService.generarPdf(Number(id), res);
+  }
 
   @Post()
   create(@Body() createExpedienteDto: CreateExpedienteDto) {

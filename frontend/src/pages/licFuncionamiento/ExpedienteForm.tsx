@@ -423,9 +423,8 @@ export default function ExpedienteForm() {
     modo === "MODIFICACION" &&
     ["CAMBIO_DENOMINACION", "TRANSFERENCIA", "CESE"].includes(accion);   
 
-  const alEnviar = (data) => {
+  const alEnviar = (data: any) => {
     console.log("Datos limpios recolectados:", data);
-    // Aquí data ya trae: { modalidad: "TEMPORAL", fechaIni: "2024-01-01", ... }
   };
 
   const actualizarFormulario = (addr) => {
@@ -755,7 +754,7 @@ export default function ExpedienteForm() {
 
   return (  
    <>
-   <style>
+    <style>
         {`
           .etiqueta-zonificacion {
             background: transparent !important;
@@ -771,7 +770,7 @@ export default function ExpedienteForm() {
             display: none !important;
           }
         `}
-      </style>
+    </style>
   <form onSubmit={handleSubmit(alEnviar)}>
     <div className="min-h-screen w-full bg-[#f8fafc] text-slate-800 px-4 md:px-10">
       

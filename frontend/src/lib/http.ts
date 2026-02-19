@@ -1,7 +1,12 @@
 // Pequeño wrapper sobre fetch con baseURL y JSON por defecto
 const BASE = import.meta.env.VITE_API_URL as string;
 
-type Options = RequestInit & { auth?: true }; //boolean
+export type Options = RequestInit & { 
+  headers?: Record<string, string>;
+  auth?: true;
+  responseType?: 'json' | 'blob' | 'text' 
+};
+
 export type Paginated<T> = { data: T[]; total: number; page: number; limit: number };
 
 function getToken() {
@@ -29,6 +34,41 @@ async function httpRaw(path: string, init: RequestInit = {}) {
 export async function http<T = any>(path: string, opts: Options = {}) {
   const headers = new Headers(opts.headers || {});
 
+  if (!headers.has("Content-Type") && opts.body && opts.responseType !== "blob") {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (opts.auth) {
+    const token = getToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const {responseType="json", ...fetchOpts} = opts;
+
+  const res = await fetch(`${BASE}${path}`, {...fetchOpts, headers});
+    
+  if (!res.ok) {
+    const isJSON = res.headers.get("content-type")?.includes("application/json");
+    const errBody = isJSON ? await res.json().catch(() => ({})) : await res.text();
+    const message = (errBody as any)?.message || res.statusText;
+    throw new Error(`${res.status} ${message}`);
+  }
+
+  if (responseType ==="json") {
+    return res.json() as Promise<T>;
+  } else if (responseType === "blob") {
+    return res.blob() as Promise<T>;
+  } else if (responseType === "text") {
+    return res.text() as Promise<any>;
+  }
+
+
+  return null as unknown as T;
+}
+
+/*export async function http<T = any>(path: string, opts: Options = {}) {
+  const headers = new Headers(opts.headers || {});
+
   if (!headers.has("Content-Type") && opts.body) {
     headers.set("Content-Type", "application/json");
   }
@@ -45,7 +85,7 @@ export async function http<T = any>(path: string, opts: Options = {}) {
     throw new Error(`${res.status} ${message}`);
   }
   return (isJSON ? res.json() : (null as unknown)) as T;
-}
+}*/
 
 // Helper para mapear respuestas de lista a un shape común
 export async function httpList<T = any>(path: string, page: number, limit: number) {
