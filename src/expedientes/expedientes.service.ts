@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.request';
 import PDFDocument from 'pdfkit';
 import { Response } from 'express';
+import * as path from 'path';
 
 @Injectable()
 export class ExpedientesService {
@@ -17,198 +18,219 @@ export class ExpedientesService {
       where: { id_expediente: id },
     });
 
-    if (!expediente) {
-      throw new Error('Expediente no encontrado');
-    }
+    if (!expediente) throw new Error('Expediente no encontrado');
 
     const PDFDocument = require('pdfkit');
+    const path = require('path');
 
+    // 1. Configuración: autoFirstPage en true y definimos márgenes globales
+    // El margin top de 130 reserva el espacio para que el texto no choque con la cabecera
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 140, bottom: 100, left: 70, right: 70 },
+      bufferPages: true, 
+      autoFirstPage: true,
+      margins: { 
+        top: 140,    // El texto siempre empezará en Y=140 en CUALQUIER página nueva
+        bottom: 120, // El texto saltará de página antes de tocar tu Pie de Página
+        left: 70, 
+        right: 70 
+      }
     });
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename=resolucion-${id}.pdf`,
-    );
-
+    res.setHeader('Content-Disposition', `inline; filename=resolucion-${id}.pdf`);
     doc.pipe(res);
 
-    /* ===================================
-      🔷 HEADER
-    ===================================*/
-    const drawHeader = () => {
-      const top = 40;
-
-      // Logo
-      //doc.image('public/logo-municipal.png', 70, top, { width: 70 });
-
-      // Texto institucional
-      doc
-        .font('Times-Bold')
-        .fontSize(10)
-        .text('MUNICIPALIDAD DISTRITAL DE SAN MIGUEL', 160, top)
-        .font('Times-Roman')
-        .text(
-          'GERENCIA DE DESARROLLO ECONÓMICO Y COOPERACIÓN INTERINSTITUCIONAL',
-          160
-        )
-        .text('SUBGERENCIA DE LICENCIA Y COMERCIO', 160);
-
-      // Resolución (derecha)
-      doc
-        .font('Times-Bold')
-        .fontSize(11)
-        .text(
-          `RESOLUCIÓN DE SUBGERENCIA N° `, //${expediente.numero_resolucion ?? ''}
-          350,
-          top,
-          { align: 'right' }
-        )
-        .font('Times-Roman')
-        .text(
-          `San Miguel, ${new Date().toLocaleDateString('es-PE')}`,
-          { align: 'right' }
-        );
-
-      // Línea divisoria
-      doc
-        .moveTo(70, 120)
-        .lineTo(doc.page.width - 70, 120)
-        .stroke();
-
-      // Reiniciar cursor debajo del header
-      doc.y = 140;
-    };
+    // Constantes de diseño
+    const MARGIN = 70;
+    const PAGE_WIDTH = 595.28;
+    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
 
     /* ===================================
-      🔷 FOOTER
+      🔷 PARTE 1: CONTENIDO (Se escribe UNA sola vez)
     ===================================*/
-    const drawFooter = () => {
-      const bottom = doc.page.height - 70;
-
-      doc
-        .moveTo(70, bottom - 15)
-        .lineTo(doc.page.width - 70, bottom - 15)
-        .stroke();
-
-      doc
-        .fontSize(8)
-        .font('Times-Roman')
-        .text(
-          'Jr. Federico Gallese N° 350-370, San Miguel',
-          70,
-          bottom,
-          { align: 'center' }
-        )
-        .text(
-          'Telfs.: 208-5830, 208-5838, anexo 3328*3329',
-          { align: 'center' }
-        )
-        .text(
-          'web: www.munisanmiguel.gob.pe',
-          { align: 'center' }
-        );
-
-      // Número de página
-      doc.text(
-        `Página ${doc.page.pageNumber}`,
-        doc.page.width - 120,
-        bottom,
-        { align: 'right' }
-      );
-    };
-
-    /* ===================================
-      🔷 CONTROL SEGURO DE NUEVA PÁGINA
-    ===================================*/
-    const checkPageBreak = (spaceNeeded = 120) => {
-      if (doc.y + spaceNeeded > doc.page.height - 100) {
-        drawFooter();
-        doc.addPage();
-        drawHeader();
+    
+    // Título de Resolución
+    doc.font('Times-Roman').fontSize(10).text(
+      'RESOLUCIÓN DE SUBGERENCIA N° 0125-2026-SGLC-GDECI/MDSM',
+      MARGIN, // X: Empezamos en tu margen de 70
+      130,    // Y: Bajamos un poco para que no choque con la línea
+      { 
+        align: 'right', 
+        underline: true,
+        width: PAGE_WIDTH - (MARGIN * 2)
       }
-    };
+    );
 
-    // Dibujar primera página
-    drawHeader();
+    doc.font('Times-Roman').fontSize(10).text(
+      'San Miguel, 11 de Febrero de 2026',
+      { align: 'right' }
+    );
 
-    /* ===================================
-      🔷 CUERPO
-    ===================================*/
+    doc.moveDown(1);
 
-    doc.font('Times-Bold').fontSize(12).text('VISTO:', { underline: true });
-    doc.moveDown(0.5);
-
-    doc.font('Times-Roman').fontSize(12).text(
-      `El Expediente N° ${expediente.numero_expediente} de fecha ${expediente.fecha}, presentado por {representante}, identificado con D.N.I. N° {dni}, en calidad de representante legal de {solicitante} con RUC N° {ruc}, señalando domicilio fiscal en Avenida {direccion_fiscal} - San Miguel, quien solicita LICENCIA DE FUNCIONAMIENTO INDETERMINADA;`,
+    // Sección VISTO
+    doc.font('Times-Bold').fontSize(11).text('VISTO:');
+    doc.font('Times-Roman').fontSize(10).text(
+      `El Expediente N° ${expediente.numero_expediente}, de fecha ${expediente.fecha}, presentado por {representante}, identificado con D.N.I. N° {dni}, en calidad de representante legal de {solicitante} con RUC N° {ruc}, señalando domicilio fiscal en Avenida {direccion_fiscal} - San Miguel, quien solicita LICENCIA DE FUNCIONAMIENTO INDETERMINADA;`,
       { align: 'justify' }
     );
 
-    doc.moveDown();
-    checkPageBreak();
+    doc.moveDown(1.5);
 
-    doc.font('Times-Bold').text('CONSIDERANDO:', { underline: true });
-    doc.moveDown(0.5);
+    // Sección CONSIDERANDO
+    doc.font('Times-Bold').fontSize(11).text('CONSIDERANDO:');
+    
+    const parrafosConsiderando = [
+      'Que, el articulo ll del Título Preliminar de la Ley N• 27972, Ley Orgánica de Municipalidades, señala que los gobiernos locales gozan de autonomía política, económica y administrativa en los asuntos de su competencia. La autonomía que la Constitución Política del Perú establece para las municipalidades radica en la facultad de ejercer actos de gobierno, administrativos y de administración, con sujeción al ordenamiento jurídico;',
+      `Que, con fecha ${expediente.fecha}, el administrado VARGAS SOLIS LILIANA CAROLINA, en calidad de representante legal de BUBBLEX S.A.C., presenta el formato de Solicitud Declaración Jurada para autorizaciones municipales, según el Texto Único Ordenado de la Ley N° 28976, Ley Marco de licencias de Funcionamiento, aprobado mediante Decreto Supremo N” 165-2020-PCM y el decreto Supremo N° 200-2020-PCM, para el establecimiento comercial ubicado en Avenida Universitaria N° 571, Urbanización Pando 1° Etapa, distrito de San Miguel, declarando un área de 281.21 m2, para desarrollar la actividad comercial de LAVADO VEHICULAR Y TALLER DE MECANICA`,
+      `Que, el presente procedimiento según prescribe el Decreto Supremo N° 200-2020-PCM, que aprueba los Procedimientos Administrativos Estandarizados de Licencia de funcionamiento en cumplimiento del artículo 41° del Texto Único Ordenado de la Ley N° 27444, Ley del Procedimiento Administrativo General y la Ordenanza N" 428/MDSM, Que aprueba la incorporación de los procedimientos administrativos estandarizados al Texto Único de Procedimientos Administrativos — TUPA de la Municipalidad de San Miguel, establece como requisitos para el presente caso, lo siguiente:`,    
+    ];
 
-    doc.font('Times-Roman').text(
-      'Que, el artículo II del Título Preliminar de la Ley N° 27972, Ley Orgánica de Municipalidades, señala que los gobiernos locales gozan de autonomía política, económica y administrativa en los asuntos de su competencia...',
-      { align: 'justify' }
-    );
-
-    doc.moveDown();
-
-    doc.text(
-      `Que, con fecha ${expediente.fecha}, el administrado presenta la Solicitud Declaración Jurada conforme a la normativa vigente...`,
-      { align: 'justify' }
-    );
-
-    doc.moveDown();
+    parrafosConsiderando.forEach(parrafo => {
+      doc.font('Times-Roman').fontSize(10).text(parrafo, { align: 'justify' });
+      doc.moveDown(0.8);
+    });
 
     doc.list([
-      'Presentación del Formato Solicitud-Declaración Jurada.',
-      `Declaración Jurada de Seguridad (calificación: ).`, //${expediente.nivel_riesgo}
-      'Número de Recibo de pago correspondiente.',
+      `Presentación del Formato Solicitud-Declaración Jurada.`,
+      `Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación calificación: Riesgo Medio).`,
+      `Número de Recibo de pago (N° 017707-2026 por el monto de S/ 178.90 de fecha 01/02/2026)`,
     ]);
 
-    doc.moveDown();
-    checkPageBreak(180);
-
-    doc.font('Times-Bold').text('SE RESUELVE:', { underline: true });
-    doc.moveDown();
-
-    doc.font('Times-Roman').text(
-      'ARTÍCULO PRIMERO.- Declarar PROCEDENTE la solicitud de LICENCIA DE FUNCIONAMIENTO INDETERMINADA presentada por {solicitante}, para el desarrollo de la actividad comercial de {giros}, ubicado en Avenida {direccion_local}, distrito de San Miguel, con un área de {area} m2.',
-      { align: 'justify' }
-    );
-
-    doc.moveDown();
+    doc.moveDown(0.8);
 
     doc.text(
-      'ARTÍCULO SEGUNDO.- EMITIR el Certificado de Licencia de Funcionamiento correspondiente.',
+      `Que, de la revisión del expediente, se observa gue el administrado cumple con presentar los requisitos determinados por Iey, por lo que corresponde a este despacho continuar con el procedimiento;`,
       { align: 'justify' }
     );
 
-    doc.moveDown();
+    doc.moveDown(0.8);
 
     doc.text(
-      'ARTÍCULO TERCERO.- El establecimiento comercial queda sujeto a fiscalización posterior...',
+      `Que, según el artículo 6° de la norma acotada, referido a la evaluación del expediente por parte de la autoridad competente, señala lo siguiente: “para el otorgamiento de la Licencia de Funcionamiento, la municipalidad evaluará los siguientes aspectos:`,
       { align: 'justify' }
     );
 
-    doc.moveDown();
+    doc.moveDown(0.8);
 
-    doc.text(
-      'ARTÍCULO CUARTO.- NOTIFICAR el presente acto administrativo a la parte interesada.',
-      { align: 'justify' }
+    doc.list([
+      'Zonificación y Compatibilidad de Uso.',
+      `Condiciones de Seguridad de la Edificación.`,
+    ]);
+
+    doc.moveDown(0.8);
+
+    doc.font('Times-Italic').text('Cualquier aspecto adicional será materia de fiscalización posterior', { underline: true });
+    doc.moveDown(0.8);
+
+    const parrafos2 = [
+      `Que, de la revisión del formato Solicitud-Declaración Jurada presentado, en relación al establecimiento comercial ubicado en Avenida Universitaria N° 571, Urbanización Pando 1° Etapa, distrito de san Miguel, el técnico que evalúa la documentación, consigna la Zonificación de COMERCIO ZONAL (CZ), en la Ficha Técnica de Zonificación y Compatibilidad de Uso N° 02 19-2026: de conformidad con la Ordenanza N° 1015- MML, que aprueba el reajuste integral de la zonificación de los usos del suelo de los distritos de San Martín de Porres y otros que forman parte de las áreas de Tratamiento Normativo I y II de Lima Metropolitana y la Ordenanza N° 2146-MML que aprueba el Plano de Zonificación de los Usos del Suelo: en dicho sentido el establecimiento comercial, conforme al cuadro de Índice de Usos solicitados como {giros} con código {código_giros}, es considerado {compatible} con la zonificación vigente.`, 
+      `Que, asimismo, a fojas ocho (08) al once (11), obra la presentación de la Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación proporcionada por el solicitante para la determinación del nivel de riesgo del establecimiento objeto de inspección - Anexo 4, cumpliendo con las condiciones de seguridad exigidas por ley, en concordancia con lo prescrito en el Decreto Supremo que aprueba el Nuevo Reglamento de Inspecciones Técnicas de Seguridad en edificaciones N" 002-2018-PCM, que en su artículo 15, numeral 15. 1. señala "que para el caso de los establecimientos objeto de inspección clasificados con riesgo bajo o medio, que requieren de una ITSE posterior conforme al numeral 18.1 del artículo 18" del Reglamento" la licencia de funcionamiento es sustentada con la Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación, que es materia de verificación a través de la ITSE posterior, finalizando el procedimiento con la emisión de una resolución. y, de corresponder, el Certificado de ITSE; debiendo este despacho emitir pronunciamiento;`,
+      `Por las consideraciones expuestas y en uso de las facultades conferidas por el numeral 3.6 del artículo 83° de la Ley N 27972, Ley Orgánica de Municipalidades y a Io dispuesto por la Ley N" 28976, Ley Marco de Licencia de Funcionamiento:`
+    ];
+
+    parrafos2.forEach(element => {
+      doc.font('Times-Roman').fontSize(10).text(element, { align: 'justify' });
+      doc.moveDown(0.8);
+    });
+
+    doc.font('Times-Bold').fontSize(11).text('SE RESUELVE:');
+    doc.moveDown(0.8);
+
+    const parrafos3 = [
+      `<b>ARTÍCULO PRIMERO.</b> - Declarar PROCEDENTE la solicitud de LICENCIA DE FUNCIONAMIENTO INDETERMINADA, presentado por {solicitante}, para el desarrollo de la actividad comercial de {giros}, en el establecimiento comercial ubicado en Avenida {dirección_local}, distrito de San Miguel, con un área de {área} m2, por las consideraciones expuestas en la presente resolución.`, 
+      `<b>ARTÍCULO SEGUNDO.</b> - EMITIR el Certificado de Licencia de Funcionamiento N 24662, la presente Resolución no autoriza el uso de la vía pública, retiro municipal y/o edificaciones antirreglamentarias.`,
+      `<b>ARTÍCULO TERCERO.</b> - El establecimiento comercial queda sujeto a fiscalización posterior a fin de verificar que los datos proporcionados sean verdaderos, en caso de existir discrepancias entre lo declarado y lo constatado, se procederá a dar inicio al procedimiento administrativo de NULIDAD de la licencia de funcionamiento expedida y a iniciar las acciones legales por presentar declaración jurada con datos falsos, así mismo en caso de detectarse irregularidades durante la vigencia de la presente licencia de funcionamiento, con referencia a quejas o por denuncias de terceros, ampliación de giros no autorizados, emisión de humo, gases, ruidos molestos; la administración procederá a dejar sin efecto la licencia, ordenando la clausura del establecimiento, sin perjuicio de las acciones penales por el delito contra la administración pública.`,
+      `<b>ARTÍCULO CUARTO.</b> - NOTIFICAR el presente acto administrativo a la parte interesada, y poner de conocimiento a la Subgerencia de Inspecciones y Control de Sanciones, a efecto de velar por el cumplimiento de las condiciones de funcionamiento en la presente resolución.`
+    ];
+
+    parrafos3.forEach(p => {
+      // LLAMADA A LA FUNCIÓN QUE ESTÁ AFUERA
+      this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
+    });
+    /*parrafos3.forEach(element => {
+      doc.font('Times-Roman').fontSize(10).text(element, { align: 'justify' });
+      doc.moveDown(0.8);
+    });*/
+
+    doc.font('Times-BoldItalic').fontSize(10).text(
+      `REGISTRESE, COMUNÍQUESE, CÚMPLASE`,
+      { align: 'left' }
     );
 
-    // Footer final
-    drawFooter();
+    /* ===================================
+      PARTE 2: ESTAMPADO DE CABECERA Y PIE
+    ===================================*/
+    
+    const range = doc.bufferedPageRange(); // Sabe si el texto ocupó 1, 2 o más páginas
+
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+
+      // --- CABECERA (Posición Absoluta) ---
+      try { doc.image(logoPath, MARGIN, 40, { width: 70 }); } catch (e) {}
+      
+      doc.font('Times-Bold').fontSize(7).text('MUNICIPALIDAD DISTRITAL DE SAN MIGUEL', MARGIN, 80);
+      doc.font('Times-Roman').fontSize(7)
+        .text('GERENCIA DE DESARROLLO ECONÓMICO Y COOPERACIÓN INTERINSTITUCIONAL', MARGIN, 90)
+        .text('SUBGERENCIA DE LICENCIA Y COMERCIO', MARGIN, 100);
+
+      doc.moveTo(MARGIN, 115).lineTo(PAGE_WIDTH - MARGIN, 115).lineWidth(0.5).stroke();
+
+      const FOOTER_Y = 730;
+      
+      // Dibujamos la línea
+      doc.moveTo(MARGIN, FOOTER_Y).lineTo(PAGE_WIDTH - MARGIN, FOOTER_Y).lineWidth(0.5).stroke();
+      
+      doc.font('Times-Roman').fontSize(8);
+      doc.text(
+        'Jr. Federico Gallese N° 350-370, San Miguel Telfs.: 208-5830, 208-5838, anexo 3328*3329', 
+        MARGIN, 
+        FOOTER_Y + 10, 
+        { lineBreak: false }
+      );
+
+      doc.text(
+        'Web: www.munisanmiguel.gob.pe', 
+        MARGIN, 
+        FOOTER_Y + 20, 
+        { lineBreak: false }
+      );
+
+      doc.text(
+        `Página ${i + 1} de ${range.count}`, 
+        460,
+        FOOTER_Y + 10, 
+        { lineBreak: false }
+      );
+    }
 
     doc.end();
+  }
+
+  private imprimirTextoFormateado(doc: any, textoFull: string, MARGIN: number, PAGE_WIDTH: number) {
+    const widthArea = PAGE_WIDTH - (MARGIN * 2);
+    const partes = textoFull.split(/(<b>.*?<\/b>|<i>.*?<\/i>)/g);
+
+    partes.forEach((parte, index) => {
+      if (!parte) return;
+
+      let fuente = 'Times-Roman';
+      if (parte.startsWith('<b>')) fuente = 'Times-Bold';
+      if (parte.startsWith('<i>')) fuente = 'Times-Italic';
+      if (parte.startsWith('<b><i>') || parte.startsWith('<i><b>')) fuente = 'Times-BoldItalic';
+
+      const textoLimpio = parte.replace(/<\/?b>/g, '').replace(/<\/?i>/g, '');
+      const esUltimo = index === partes.length - 1;
+
+      doc.font(fuente).fontSize(10).text(textoLimpio, {
+        continued: !esUltimo,
+        align: 'justify',
+        width: widthArea
+      });
+    });
+    doc.moveDown(0.8);
   }
 
   create(createExpedienteDto: CreateExpedienteDto) {
