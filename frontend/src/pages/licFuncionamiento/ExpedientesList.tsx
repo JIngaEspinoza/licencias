@@ -220,14 +220,17 @@ export default function ExpedientesList() {
   const verExpediente = (row: Expedientes) => alert(`Ver expediente ${row.numero_expediente}`);
   const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
   const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
-  const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
-  //const imprimir = (row: Expedientes) => alert(`Imprimir expediente ${row.id_expediente}`);
-  /*const imprimir = async (row: Expedientes) => {
-    const url = expedientesApi.getPdf(row.id_expediente);
-    const url = `http://localhost:3000/expedientes/${row.id_expediente}/pdf`;
-    window.open(url, '_blank');
-  };*/
-
+  //const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
+  const abrirEventos = async (row: Expedientes) => {
+    try {
+      const blob = await expedientesApi.getPdfCarton(row.id_expediente);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Error al generar el Carton:", error);
+    }
+  }
+  
   const imprimir = async (row: Expedientes) => {
     try {
       console.log(row.id_expediente);
@@ -239,7 +242,7 @@ export default function ExpedientesList() {
     } catch (error) {
       console.error("Error al generar PDF:", error);
     }
-  };
+  }
 
   function CrearNewDJ({ onSearch, activeFilters }) {
     const initialCriterios = {

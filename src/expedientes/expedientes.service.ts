@@ -44,7 +44,7 @@ export class ExpedientesService {
     // Constantes de diseño
     const MARGIN = 70;
     const PAGE_WIDTH = 595.28;
-    const logoPath = path.join(process.cwd(), 'public', 'logo.png');
+    const logoPath = path.join(process.cwd(), 'public', 'logo_con.png');
 
     /* ===================================
       🔷 PARTE 1: CONTENIDO (Se escribe UNA sola vez)
@@ -231,6 +231,238 @@ export class ExpedientesService {
       });
     });
     doc.moveDown(0.8);
+  }
+
+  async generarPdfCarton(id: number, res: Response) {
+    const expediente = await this.prisma.expediente.findUnique({
+      where: { id_expediente: id },
+    });
+
+    if (!expediente) throw new Error('Expediente no encontrado');
+
+    const PDFDocument = require('pdfkit');
+    const QRCode = require('qrcode');
+
+    const MARGIN_X = 150.23;
+    const MARGIN_Y = 70.86;
+    const MARGIN_R = 79.37;
+    const PAGE_WIDTH = 595.28;
+
+    const doc = new PDFDocument({
+      size: 'A4',
+      bufferPages: true, 
+      autoFirstPage: true,
+      margins: { 
+        top: MARGIN_Y,
+        left: MARGIN_X, 
+        right: MARGIN_R, 
+        bottom: 40,
+      }
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename=carton-${id}.pdf`);
+    doc.pipe(res);
+
+    const numero_expediente = 'I20260003513';
+    const numero_certificado = '24662';
+    const numero_resolucion = '0125-2026-SGLC-GDECI/MDSM';
+    const solicitante = 'BUBBLEX S.A.C.';
+    const giros = 'LAVADO VEHICULAR Y TALLER DE MECANICA';
+    const direccion = 'Avenida Universitaria N° 571 Urbanización Pando 1° Etapa San Miguel,';
+    const area = 281.21;
+    const ruc = '20614965208';
+    const categoria = 'INDETERMINADO';
+    const horario = 'Desde las 08:00 hasta las 23:00 horas';
+    const restricciones = 'NO SE AUTORIZA EL USO DE LA VÍA PUBLICA Y/O RETIRO MUNICIPAL';
+    
+    doc.font('Times-Bold').fontSize(15).text(
+      'MUNICIPALIDAD DISTRITAL DE SAN MIGUEL',
+      { 
+        align: 'center', 
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+
+    doc.moveDown(0.2);
+
+    doc.font('Times-Bold').fontSize(15).text(
+      'PROVINCIAL DE LIMA',
+      { 
+        align: 'center', 
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+
+    const yLinea = doc.y + 48.18;
+    doc.font('Times-Bold').fontSize(11)
+      .text('Expediente N°', MARGIN_X, yLinea, { continued: true });
+    doc.font('Times-Roman').text(` ${numero_expediente}`);
+
+    doc.font('Times-Bold')
+      .text('CERTIFICADO N°', 380, yLinea, { continued: true });
+    doc.font('Times-Roman').text(` ${numero_certificado}`);
+
+    const SALTO_LINEA = 16;
+    const yResolucion = doc.y + SALTO_LINEA;
+
+    doc.font('Times-Bold').fontSize(11).text(
+      'Resolución N° ', 
+      MARGIN_X, 
+      yResolucion, 
+      { continued: true }
+    );
+
+    doc.font('Times-Roman').text(`${numero_resolucion}`, {
+      width: PAGE_WIDTH - MARGIN_X - MARGIN_R,
+      align: 'left'
+    });
+
+    doc.y += 48.18;
+    doc.font('Times-Bold').fontSize(13).text(
+      'LICENCIA MUNICIPAL DE FUNCIONAMIENTO\nPARA EL DESARROLLO DE ACTIVIDADES ECONÓMICAS',
+      { 
+        align: 'center', 
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R,
+        lineGap: 2 
+      }
+    );
+
+    doc.moveDown(1.5);
+
+    doc.font('Times-Roman').fontSize(11).text(
+      'Habiendo cumplido con todos los requisitos establecidos en la Ley Marco de Licencia de funcionamiento - Ley N° 28976, para obtener la Licencia Municipal de funcionamiento, y de conformidad con la Ley Orgánica de Municipalidades Ley N° 27972, artículo 83° Numeral 83.3.6 y Ordenanza N° 411-MDSM, se concede el presente certificado a:',
+      {
+        align: 'justify',
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R,
+        lineGap: 4
+      }
+    );
+
+    doc.moveDown();
+
+    doc.font('Times-Bold').fontSize(14).text(
+      `${solicitante}`.toUpperCase(),
+      {
+        align: 'center',
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+
+    doc.moveDown();
+    doc.font('Times-Roman').fontSize(11).text(
+      'para iniciar actividades con el giro de',
+      {
+        align: 'left',
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+
+    doc.moveDown();
+    doc.font('Times-Bold').fontSize(14).text(
+      `${giros}`.toUpperCase(),
+      {
+        align: 'center',
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+
+    doc.moveDown();
+    doc.font('Times-Roman').fontSize(11).text(
+      'en el establecimiento ubicada en ',
+      {
+        align: 'left',
+        continued: true,
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+    doc.font('Times-Bold').fontSize(11).text(
+      `${direccion}`
+    );
+
+    doc.moveDown();
+    doc.font('Times-Roman').fontSize(11).text(
+      'en un área de ',
+      {
+        align: 'left',
+        continued: true,
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R
+      }
+    );
+    doc.font('Times-Bold').fontSize(11).text(
+      `${area} m2.`
+    );
+
+    const X_ETIQUETA = MARGIN_X; 
+    const X_DOS_PUNTOS = MARGIN_X + 110;
+    const X_VALOR = MARGIN_X + 120;
+    const ANCHO_CONTENIDO = PAGE_WIDTH - X_VALOR - MARGIN_R;
+
+    const detalles = [
+      { label: 'RUC', value: ruc },
+      { label: 'Categoría de Licencia', value: categoria },
+      { label: 'Horario', value: horario },
+      { label: 'Restricciones', value: restricciones }
+    ];
+
+    doc.moveDown(2);
+
+    detalles.forEach(item => {
+      const yFila = doc.y;
+
+      doc.font('Times-Bold').fontSize(10)
+        .text(`${item.label} :`, X_ETIQUETA, yFila, {
+          width: 105,
+        });
+
+      doc.font('Times-Bold').fontSize(10)
+        .text(':', X_DOS_PUNTOS, yFila);
+
+      doc.font('Times-Roman').fontSize(10)
+        .text(item.value, X_VALOR, yFila, {
+          width: ANCHO_CONTENIDO,
+          align: 'justify'
+        });
+
+      doc.moveDown(0.5);
+    });
+
+    doc.moveDown();
+
+    doc.font('Times-Roman').fontSize(11).text(
+      'San Miguel, 11 de Febrero de 2026',
+      MARGIN_X,
+      doc.y,
+      {
+        width: PAGE_WIDTH - MARGIN_X - MARGIN_R, 
+        align: 'right'
+      }
+    );
+
+    const qrData = "https://www.munisanmiguel.gob.pe/valida/12345";
+    const qrBuffer = await QRCode.toBuffer(qrData, {
+      errorCorrectionLevel: 'H', // Alta recuperación para que escanee aunque el cartón se dañe
+      margin: 1,
+      width: 100 // Tamaño en puntos (aprox 3.5cm)
+    });
+
+    // 2. Lo posicionamos en el PDF
+    // X: Usamos tu margen izquierdo (150.23 pts o 5.3cm)
+    // Y: Lo ponemos cerca del final de la hoja A4 (841.89 - 130)
+    const qrPosX = MARGIN_X; 
+    const qrPosY = 700;
+
+    doc.image(qrBuffer, qrPosX, qrPosY, { width: 80 });
+
+    // 3. Opcional: Agregar un pequeño texto debajo del QR
+    doc.font('Times-Roman').fontSize(7).text(
+      'VALIDACIÓN ELECTRÓNICA',
+      qrPosX,
+      qrPosY + 85,
+      { width: 80, align: 'center' }
+    );
+
+    doc.end();
   }
 
   create(createExpedienteDto: CreateExpedienteDto) {

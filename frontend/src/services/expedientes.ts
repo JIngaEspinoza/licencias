@@ -253,6 +253,11 @@ export const expedientesApi = {
     auth: true
   }),
 
+  getPdfCarton: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdfCarton`, {
+    responseType: "blob",
+    auth: true
+  }),
+
   list: (params = {}) => {
     const defaultParams = { page: 1, limit: 10 };
     const finalParams = { ...defaultParams, ...params };

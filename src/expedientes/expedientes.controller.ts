@@ -17,6 +17,12 @@ export class ExpedientesController {
     return this.expedientesService.generarPdf(Number(id), res);
   }
 
+  @Get(':id/pdfCarton')
+  async generarPdfCarton(@Param('id') id: string, @Res() res: Response) {
+    console.log("Controller=>", id);
+    return this.expedientesService.generarPdfCarton(Number(id), res);
+  }
+
   @Post()
   create(@Body() createExpedienteDto: CreateExpedienteDto) {
     return this.expedientesService.create(createExpedienteDto);
