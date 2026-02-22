@@ -2,13 +2,94 @@ import React, { useEffect, useMemo, useState } from "react";
 import { expedientesApi, Expedientes, NuevaDJCompletaInput } from "../../services/expedientes";
 import { useDebounce } from "../../hooks/useDebounce";
 import { Link, useNavigate } from "react-router-dom";
-import { Play, Plus, Pencil, Trash2, Shield, Users, Key, Edit2, Search , Eye, Paperclip, CreditCard, Calendar, Printer} from "lucide-react";
+import { Play, Plus, Pencil, Trash2, Shield, Users, Key, Edit2, Search , 
+  MoreVertical, Trash,
+  Eye, Paperclip, CreditCard, Calendar, Printer, Filter, RotateCcw,
+  FileText, DollarSign, Scale, CheckCircle
+} from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
 import { Label } from "../../types/components/ui/label";
 import { Input } from "../../types/components/ui/input";
 import { Button } from "../../types/components/ui/button";
 import Pagination from "../../components/Pagination";
 import { Badge } from "../../types/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../types/components/ui/dropdown-menu"
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../../types/components/ui/popover";
+
+import ValidationPanel from "./ExpedientePagosAnexos";
+
+const StatusSteps = ({ pasoActual, esObservado = false }) => {
+  const steps = [
+    { id: 1, icon: FileText, label: 'DJ' },
+    { id: 2, icon: DollarSign, label: 'Pago' },
+    { id: 3, icon: Paperclip, label: 'Anexos' },
+    { id: 4, icon: Scale, label: 'Dictamen' },
+    { id: 5, icon: CheckCircle, label: 'Licencia' },
+  ];
+
+  const progressWidth = ((pasoActual - 1) / (steps.length - 1)) * 100;
+
+  // Definimos colores dinámicos según el estado
+  const colorPrimario = esObservado ? 'bg-amber-500' : 'bg-emerald-500';
+  const colorBorde = esObservado ? 'border-amber-500' : 'border-emerald-500';
+  const colorTexto = esObservado ? 'text-amber-600' : 'text-emerald-600';
+
+  return (
+    <div className="relative flex items-center justify-between w-full max-w-[240px] py-4 group">
+      
+      {/* LINEA DE FONDO */}
+      <div className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-100 -translate-y-1/2 z-0" />
+
+      {/* LINEA DE PROGRESO ACTIVA (Cambia a Ámbar si hay observación) */}
+      <div 
+        className={`absolute top-1/2 left-0 h-[2px] ${colorPrimario} -translate-y-1/2 z-0 transition-all duration-700`} 
+        style={{ width: `${progressWidth}%` }}
+      />
+
+      {/* ICONOS */}
+      {steps.map((step) => {
+        const isCompleted = pasoActual > step.id;
+        const isCurrent = pasoActual === step.id;
+        
+        // El icono cambia a un triángulo de alerta si es el paso actual y está observado
+        const IconComponent = (isCurrent && esObservado) ? AlertTriangle : step.icon;
+
+        return (
+          <div key={step.id} className="relative z-10 flex flex-col items-center">
+            <div 
+              className={`
+                flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-300 bg-white
+                ${isCompleted ? `${colorBorde} ${colorTexto}` : 'border-zinc-100 text-zinc-300'}
+                ${isCurrent ? (esObservado ? 'border-amber-500 text-amber-500 ring-4 ring-amber-50 scale-110' : 'border-emerald-500 text-emerald-500 ring-4 ring-emerald-50 scale-110') : ''}
+              `}
+            >
+              <IconComponent size={14} strokeWidth={isCompleted || isCurrent ? 3 : 2} />
+            </div>
+            
+            {/* Label con estado */}
+            <span className={`absolute -bottom-6 text-[8px] font-bold uppercase tracking-tighter whitespace-nowrap
+              ${isCurrent && esObservado ? 'text-amber-600' : (isCompleted || isCurrent ? 'text-zinc-800' : 'text-zinc-400')}
+            `}>
+              {isCurrent && esObservado ? 'Observado' : step.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function ExpedientesList() {
   const [q, setQ] = useState("");
@@ -31,6 +112,7 @@ export default function ExpedientesList() {
   // ===== Modal Nueva DJ (completa) =====
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [selectedExpediente, setSelectedExpediente] = useState(null);
 
   const [newForm, setNewForm] = useState<NuevaDJCompletaInput>({
     id_persona: 0,
@@ -217,7 +299,13 @@ export default function ExpedientesList() {
   };
 
   // Acciones de fila (placeholders)
-  const verExpediente = (row: Expedientes) => alert(`Ver expediente ${row.numero_expediente}`);
+  //const verExpediente = (row: Expedientes) => alert(`Ver expediente ${row.numero_expediente}`);
+
+  const verExpediente = (row: Expedientes) => {
+    setSelectedExpediente(row.numero_expediente);
+  };
+  
+
   const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
   const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
   //const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
@@ -255,6 +343,7 @@ export default function ExpedientesList() {
     };
 
     const [criterios, setCriterios] = useState(initialCriterios);
+    const [showFilters, setShowFilters] = useState(false); // Para control visual si prefieres grilla en vez de Popover
 
     useEffect(() => {
       setCriterios(initialCriterios);
@@ -262,16 +351,11 @@ export default function ExpedientesList() {
 
     const handleChange = (e) => {
       const { name, value } = e.target;
-
-      setCriterios((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setCriterios((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleBuscar = () => {
       const cleanParams = {};
-
       const mappedCriterios = {
         numero_expediente: criterios.expediente,
         razonSocial: criterios.razonSocial,
@@ -281,128 +365,125 @@ export default function ExpedientesList() {
         fechaFin: criterios.fechaFin,
       };
 
-      Object.keys(mappedCriterios).forEach(key => {
+      Object.keys(mappedCriterios).forEach((key) => {
         const value = mappedCriterios[key];
-        if (value !== '' && value !== null && value !== undefined) {
+        if (value !== "" && value !== null && value !== undefined) {
           cleanParams[key] = value;
         }
       });
-
-      console.log("Criterios limpios para API:", cleanParams);
-
-      if (onSearch) {
-        onSearch(cleanParams);
-      }
+      if (onSearch) onSearch(cleanParams);
     };
 
-    const handleNuevoDJ = () => {
-      console.log("Iniciando la creación de una nueva Declaración Jurada...");
+    const resetFiltros = () => {
+      const reset = {
+        expediente: "", razonSocial: "", ruc: "",
+        modalidadTramite: "", fechaInicio: "", fechaFin: ""
+      };
+      setCriterios(reset);
+      onSearch({});
     };
 
     const opcionesModalidad = [
-      { value: '', label: 'Todas las Modalidades' },
-      { value: 'nuevo', label: 'Nuevo' },
-      { value: 'cambio_giro', label: 'Cambio de Giro' },
-      { value: 'ampliacion_area', label: 'Ampliación de Área' }
+      { value: "", label: "Todas las Modalidades" },
+      { value: "nuevo", label: "Nuevo" },
+      { value: "cambio_giro", label: "Cambio de Giro" },
+      { value: "ampliacion_area", label: "Ampliación de Área" },
     ];
 
     return (
-      <div className="flex gap-2 items-end flex-wrap">
-        <div>
-          <Label>Expediente</Label>
-          <Input 
-            name="expediente" 
-            className="w-40" 
-            placeholder="Ej: 2023-001234" 
-            value={criterios.expediente} 
-            onChange={handleChange} 
-          />
-        </div>
-
-        <div>
-          <Label>Razón Social</Label>
-          <Input 
-            id="razonSocial" 
-            name="razonSocial" 
-            className="w-60" 
-            placeholder="Ej: Empresa S.A.C." 
-            value={criterios.razonSocial} 
-            onChange={handleChange} 
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="ruc">RUC</Label>
-          <Input 
-            id="ruc" 
-            name="ruc" 
-            className="w-40" 
-            placeholder="Ej: 20XXXXXXXXX" 
-            value={criterios.ruc} 
-            onChange={handleChange} 
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="modalidadTramite">Modalidad de Trámite</Label>
-          <select 
-            id="modalidadTramite" 
-            name="modalidadTramite" 
-            className="w-48 border border-gray-300 p-2 rounded-md" 
-            value={criterios.modalidadTramite} 
-            onChange={handleChange}
-          >
-             {opcionesModalidad.map((op) => (
-                <option key={op.value} value={op.value}>
-                  {op.label}
-                </option>
-              ))}
-          </select>
-        </div>
-
-        <div>
-          <Label htmlFor="fechaInicio">Fecha Desde</Label>
-          <Input 
-            type="date" 
-            id="fechaInicio" 
-            name="fechaInicio" 
-            className="w-36" 
-            value={criterios.fechaInicio} 
-            onChange={handleChange} 
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="fechaFin">Fecha Hasta</Label>
-          <Input 
-            type="date" 
-            id="fechaFin" 
-            name="fechaFin" 
-            className="w-36" 
-            value={criterios.fechaFin} 
-            onChange={handleChange} 
-          />
-        </div>
-
-        <Button
-          onClick={handleBuscar}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs sm:text-sm font-medium text-white shadow hover:bg-blue-700 active:bg-blue-800"
-        >
-          <Search className="w-4 h-4 mr-1"/> Buscar
-        </Button>
-
-        <div 
-          className="flex justify-end"
+      <div className="w-full space-y-3 bg-zinc-50/50 p-4 rounded-xl border border-zinc-200 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           
-          >
-          <Link
-            to="/licfuncionamiento/nueva"
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs sm:text-sm font-medium text-white shadow hover:bg-emerald-700 active:bg-emerald-800"
-          >
-            <Plus className="w-4 h-4 mr-2"/> Nuevo DJ
-          </Link>
-        </div>
+          {/* GRUPO IZQUIERDO: Búsqueda rápida y Filtros */}
+          <div className="flex items-center gap-2 flex-1 min-w-[300px]">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <Input
+                name="razonSocial"
+                value={criterios.razonSocial}
+                onChange={handleChange}
+                placeholder="Buscar por Razón Social..."
+                className="pl-9 bg-white border-zinc-200 focus:ring-blue-500 rounded-lg"
+              />
+            </div>
 
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex gap-2 border-zinc-300 hover:bg-zinc-100 cursor-pointer">
+                  <Filter className="w-4 h-4 text-zinc-600" />
+                  <span>Filtros</span>
+                  {Object.values(criterios).filter(v => v !== "").length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded-full font-bold">
+                      {Object.values(criterios).filter(v => v !== "").length}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[450px] p-5 shadow-2xl rounded-2xl border-zinc-200" align="start">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">N° Expediente</Label>
+                    <Input name="expediente" value={criterios.expediente} onChange={handleChange} placeholder="Ej: 2023-001234" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">RUC</Label>
+                    <Input name="ruc" value={criterios.ruc} onChange={handleChange} placeholder="10XXXXXXXXX" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Modalidad</Label>
+                    <select
+                      name="modalidadTramite"
+                      className="w-full flex h-10 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={criterios.modalidadTramite}
+                      onChange={handleChange}
+                    >
+                      {opcionesModalidad.map((op) => (
+                        <option key={op.value} value={op.value}>{op.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Fecha Desde</Label>
+                    <Input type="date" name="fechaInicio" value={criterios.fechaInicio} onChange={handleChange} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Fecha Hasta</Label>
+                    <Input type="date" name="fechaFin" value={criterios.fechaFin} onChange={handleChange} />
+                  </div>
+
+                  <div className="col-span-2 flex gap-2 pt-4 border-t mt-2">
+                    <Button variant="ghost" className="flex-1 cursor-pointer" onClick={resetFiltros}>
+                      <RotateCcw className="w-4 h-4 mr-2" /> Reiniciar
+                    </Button>
+                    <Button className="flex-1 bg-blue-600 hover:bg-blue-700 cursor-pointer text-white" onClick={handleBuscar}>
+                      Aplicar Filtros
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            
+            <Button onClick={handleBuscar} className="bg-zinc-800 hover:bg-black text-white px-6 cursor-pointer rounded-lg shadow-sm transition-all">
+              Buscar
+            </Button>
+          </div>
+
+          {/* GRUPO DERECHO: Acciones principales */}
+          <div className="flex items-center gap-2">
+            <Link
+              to="/licfuncionamiento/nueva"
+              className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20
+              "
+            >
+              <Plus className="w-5 h-5 stroke-[2.5]" /> 
+              <span>Nuevo DJ</span>
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -452,6 +533,7 @@ export default function ExpedientesList() {
                 <th className="text-left p-3">N° Expediente</th>
                 <th className="text-left p-3">Fecha</th>
                 <th className="text-left p-3">Persona</th>
+                <th className="text-left p-3">Progreso</th>
                 <th className="text-left p-3">Estado</th>
                 <th className="text-right p-3">Acciones</th>
               </tr>
@@ -479,6 +561,9 @@ export default function ExpedientesList() {
                     }
                   </td>
                   <td className="p-3">
+                    <StatusSteps pasoActual={5} />
+                  </td>
+                  <td className="p-3">
                     <span className="flex flex-wrap gap-2">
                       <Badge key={row.estado} 
                         className={`rounded-2xl px-3 py-1 ${getColorClasses(row.estado)}`}>
@@ -489,36 +574,40 @@ export default function ExpedientesList() {
 
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-2">
-                      <Button size="sm"
-                        onClick={() => verExpediente(row)} 
-                        variant="outline" 
-                        className="border-blue-300 text-blue-700 hover:bg-blue-50">
-                        <Eye className="w-4 h-4 mr-1"/>Ver
+                      {/* Acciones Primarias */}
+                      <Button size="sm" onClick={() => verExpediente(row)} variant="ghost" className="text-blue-600">
+                        <Eye className="w-4 h-4 mr-1"/> Ver
                       </Button>
-                      <Button 
-                        onClick={() => abrirAnexos(row)} 
-                        variant="outline" 
-                        className="border-indigo-300 text-indigo-700 hover:bg-indigo-50">
-                        <Paperclip className="w-4 h-4 mr-1"/>Anexos
+                      
+                      <Button size="sm" onClick={() => abrirAnexos(row)} variant="ghost" className="text-indigo-600">
+                        <Paperclip className="w-4 h-4 mr-1"/> Anexos
                       </Button>
-                      <Button 
-                        onClick={() => abrirPagos(row)} 
-                        variant="outline" 
-                        className="border-green-300 text-green-700 hover:bg-green-50">
-                        <CreditCard className="w-4 h-4 mr-1"/>Pagos
+
+                      <Button size="sm" onClick={() => abrirPagos(row)} variant="ghost" className="text-green-600">
+                        <CreditCard className="w-4 h-4 mr-1"/> Pagos
                       </Button>
-                      <Button 
-                        onClick={() => abrirEventos(row)} 
-                        variant="outline" 
-                        className="border-amber-300 text-amber-700 hover:bg-amber-50">
-                        <Calendar className="w-4 h-4 mr-1"/>Eventos
-                      </Button>
-                      <Button 
-                        onClick={() => imprimir(row)} 
-                        variant="outline" 
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50">
-                        <Printer className="w-4 h-4 mr-1"/>Imprimir
-                      </Button>
+
+                      {/* Menú de Tres Puntitos */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuLabel>Más opciones</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => abrirEventos(row)} className="cursor-pointer">
+                            <Calendar className="w-4 h-4 mr-2 text-amber-600" /> Eventos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => imprimir(row)} className="cursor-pointer">
+                            <Printer className="w-4 h-4 mr-2 text-gray-600" /> Imprimir
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-600 cursor-pointer">
+                            <Trash className="w-4 h-4 mr-2" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </td>
                 </tr>
@@ -526,6 +615,14 @@ export default function ExpedientesList() {
             </tbody>
           </table>
         </div>
+
+        {selectedExpediente && (
+          <ValidationPanel
+            expediente={selectedExpediente} 
+            onClose={() => setSelectedExpediente(null)}
+          />
+        )}
+
         <Pagination
           page={page}
           limit={limit}
