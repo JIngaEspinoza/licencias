@@ -48,6 +48,8 @@ const MOCK_EXPEDIENTES: Expediente[] = [
   { id_expediente: 3, numero: "EXP-2025-000789", ruc: "10456789012", razon_social: "SERVICIOS PACÍFICO EIRL", solicitante: "Carlos Ruiz", estado: "OBSERVADO" },
 ];
 
+const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
 const girosEjemplo = [
   {
     id_giro: 1,
@@ -653,7 +655,7 @@ export default function ExpedienteForm() {
       setValue("declaracion.zonificacion", zona);
 
       // 2. Dirección con Mapbox API
-      const ACCESS_TOKEN = "";
+      const ACCESS_TOKEN = mapboxToken;
       // Usamos el endpoint 'mapbox.places' para geocodificación inversa
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${ACCESS_TOKEN}&types=address&language=es`;
 
@@ -705,7 +707,7 @@ export default function ExpedienteForm() {
     if (!termino) return;
     
     setLoading(true);
-    const ACCESS_TOKEN = "";
+    const ACCESS_TOKEN = mapboxToken;
     
     // Añadimos proximidad o filtros para que priorice resultados en Lima
     // bbox ayuda a que no busque en otros países (long_min, lat_min, long_max, lat_max)
