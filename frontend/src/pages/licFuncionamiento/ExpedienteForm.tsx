@@ -653,7 +653,7 @@ export default function ExpedienteForm() {
       setValue("declaracion.zonificacion", zona);
 
       // 2. Dirección con Mapbox API
-      const ACCESS_TOKEN = "pk.eyJ1IjoiamluZ2Flc3Bpbm96YSIsImEiOiJjbWx5Z2J3amIweWIxM2RxN2VrMnA2ZGN2In0.tdRYlecKEahnD97jtnlfaA";
+      const ACCESS_TOKEN = "";
       // Usamos el endpoint 'mapbox.places' para geocodificación inversa
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${ACCESS_TOKEN}&types=address&language=es`;
 
@@ -705,7 +705,7 @@ export default function ExpedienteForm() {
     if (!termino) return;
     
     setLoading(true);
-    const ACCESS_TOKEN = "pk.eyJ1IjoiamluZ2Flc3Bpbm96YSIsImEiOiJjbWx5Z2J3amIweWIxM2RxN2VrMnA2ZGN2In0.tdRYlecKEahnD97jtnlfaA";
+    const ACCESS_TOKEN = "";
     
     // Añadimos proximidad o filtros para que priorice resultados en Lima
     // bbox ayuda a que no busque en otros países (long_min, lat_min, long_max, lat_max)
