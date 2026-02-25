@@ -47,7 +47,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside className={`
         ${open ? 'translate-x-0' : '-translate-x-full'} 
-        lg:translate-x-0 fixed z-50 inset-y-0 left-0 w-64 
+        fixed z-50 inset-y-0 left-0 w-64 
         bg-[#0c7286] text-white transition-transform duration-300 ease-in-out shadow-2xl
       `}>
         
@@ -62,13 +62,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             </span>
           </div>
 
-          {/* BOTÓN X: IMPORTANTE - Llama a onClose */}
-          <button 
+          {/* <button 
             onClick={onClose}
-            className="lg:hidden p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+            className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
           >
             <X size={24} />
-          </button>
+          </button> */}
         </div>
 
         <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-160px)]">

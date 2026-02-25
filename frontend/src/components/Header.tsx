@@ -24,7 +24,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           <div className="flex items-center gap-4">
             <button 
               onClick={onToggleSidebar} 
-              className="h-10 w-10 flex items-center justify-center border border-slate-200 rounded-xl lg:hidden hover:bg-slate-50 transition-colors text-slate-600"
+              className="h-10 w-10 flex items-center justify-center border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-slate-600"
             >
               <Menu size={20} />
             </button>

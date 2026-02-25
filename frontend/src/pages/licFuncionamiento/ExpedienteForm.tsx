@@ -35,6 +35,14 @@ import { MapaZonificacion } from './MapaZonificacion';
 import { ModalSeleccionGiro } from "../gestion/GiroModal";
 import { BuscadorSolicitante } from "./BuscadorSolicitante";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
+
+  // ESTILOS GENERALES
+const inputClassLine = "h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none";
+const labelClasses = "text-[10px] font-black text-slate-500 uppercase tracking-tight ml-0.5";
+const inputClasses  = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 uppercase";
+const buttonClasses = "h-9 px-4 inline-flex items-center whitespace-nowrap rounded-lg bg-[#0f766e] text-white font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all focus:outline-none shadow-sm shadow-[#0f766e]/20 active:scale-95"
+const buttonPrimary = "w-full md:w-auto md:min-w-[240px] flex items-center justify-center gap-3 px-12 h-12 bg-[#0f766e] text-white rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-[#0d635d] hover:shadow-xl hover:shadow-[#0f766e]/30 transition-all active:scale-95 shadow-lg shadow-[#0f766e]/20"
+
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -49,58 +57,6 @@ const MOCK_EXPEDIENTES: Expediente[] = [
 ];
 
 const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
-
-const girosEjemplo = [
-  {
-    id_giro: 1,
-    codigo: "C10101",
-    nombre: "VENTA AL POR MENOR EN MINIMERCADOS",
-    riesgo_base: "BAJO",
-    giro_zonificacion: [
-      {
-        id_zonificacion: 1,
-        zonificacion: { codigo: "CZ" }, // Comercio Zonal
-        estado_uso: { codigo: "H", descripcion: "PERMITIDO" }
-      },
-      {
-        id_zonificacion: 2,
-        zonificacion: { codigo: "RDM" }, // Residencia Densidad Media
-        estado_uso: { codigo: "H", descripcion: "PERMITIDO" }
-      }
-    ]
-  },
-  {
-    id_giro: 2,
-    codigo: "C10205",
-    nombre: "TALLER DE MECÁNICA AUTOMOTRIZ",
-    riesgo_base: "MEDIO",
-    giro_zonificacion: [
-      {
-        id_zonificacion: 1,
-        zonificacion: { codigo: "CZ" },
-        estado_uso: { codigo: "X", descripcion: "NO PERMITIDO" }
-      },
-      {
-        id_zonificacion: 3,
-        zonificacion: { codigo: "I-1" }, // Industria Elemental
-        estado_uso: { codigo: "H", descripcion: "PERMITIDO" }
-      }
-    ]
-  },
-  {
-    id_giro: 3,
-    codigo: "C10508",
-    nombre: "BAR Y DISCOTECA",
-    riesgo_base: "ALTO",
-    giro_zonificacion: [
-      {
-        id_zonificacion: 1,
-        zonificacion: { codigo: "CZ" },
-        estado_uso: { codigo: "X", descripcion: "NO PERMITIDO" }
-      }
-    ]
-  }
-];
 
 const norm = (s?: string | null) =>
   (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -149,7 +105,7 @@ const SlimSearchBlock = memo(({ onSearch, loading }) => {
         <div className="flex-1 relative flex items-center">
           <Search className="absolute left-2 text-slate-400" size={12} />
           <input
-            className="w-full h-7 pl-7 pr-2 bg-transparent text-[11px] outline-none placeholder:text-slate-300 font-medium"
+            className={`${inputClasses} pl-9`}
             placeholder="Calle, número, distrito..."
             value={localInput}
             onChange={(e) => setLocalInput(e.target.value)}
@@ -183,15 +139,7 @@ const SlimSearchBlock = memo(({ onSearch, loading }) => {
   );
 });
 
-
-
 export default function ExpedienteForm() {
-  // ESTILOS GENERALES
-  const inputClassLine = "h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none";
-  const labelClasses = "text-[10px] font-black text-slate-800 uppercase tracking-tight mb-1.5 block ml-0.5";
-  const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 placeholder:font-normal";
-  const inputStyle = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-50 outline-none transition-all placeholder:text-slate-400";
-  const inputClasses2 = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 uppercase";
 
   // 1. Solicitante
   const [solicitantesParaSeleccion, setSolicitantesParaSeleccion] = useState<Personas[]>([]);
@@ -367,7 +315,7 @@ export default function ExpedienteForm() {
   const [metodoUbica, setMetodoUbica] = useState('manual'); // 'manual' o 'busqueda'
 
   const [girosDb, setGirosDb] = useState<GiroModal[]>([]);
-  const [buscandoGiro, setBuscandoGiro] = useState(false);
+  const [buscandoGiro, setBuscandoGiro] = useState(false); 
 
   const { register, handleSubmit, setValue, watch, control, getValues } = useForm({
     defaultValues: {
@@ -442,7 +390,11 @@ export default function ExpedienteForm() {
         observaciones: '',        
       },
       giros_seleccionados: [],      
-      pagos: []
+      pagos: [{
+        nro_recibo: '',
+        fecha_pago: '',
+        monto:''
+      }]
     }
   });
 
@@ -1126,8 +1078,8 @@ export default function ExpedienteForm() {
                     
                     <div className="flex gap-3">
                       {[
-                        { id: 'INDETERMINADA', label: 'Indeterminada' },
-                        { id: 'TEMPORAL', label: 'Temporal' }
+                        { id: 'INDETERMINADA', label: 'INDETERMINADA' },
+                        { id: 'TEMPORAL', label: 'TEMPORAL' }
                       ].map((m) => (
                         <button
                           key={m.id}
@@ -1135,8 +1087,8 @@ export default function ExpedienteForm() {
                           onClick={() => {
                             setValue('licencia.modalidad', m.id);
                             if (m.id === 'INDETERMINADA') {
-                              setValue('licencia.fecha_inicio_plazo', '');
-                              setValue('licencia.fecha_fin_plazo', '');
+                              setValue('licencia.fecha_inicio_plazo', null);
+                              setValue('licencia.fecha_fin_plazo', null);
                             }
                           }}
                           className={`flex-1 py-2 px-3 rounded-lg border-2 font-bold text-[11px] transition-all
@@ -1154,7 +1106,7 @@ export default function ExpedienteForm() {
                       <div className="grid grid-cols-2 gap-3 mt-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex flex-col gap-1.5">
                           {/* Label secundario en Slate-700 para legibilidad */}
-                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Desde</label>
+                          <label className={labelClasses}>Desde</label>
                           <input 
                             type="date" 
                             className={inputClasses}
@@ -1162,7 +1114,7 @@ export default function ExpedienteForm() {
                           />
                         </div>
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Hasta</label>
+                          <label className={labelClasses}>Hasta</label>
                           <input 
                             type="date" 
                             className={inputClasses}
@@ -1217,7 +1169,7 @@ export default function ExpedienteForm() {
                     <div className="mt-4 space-y-3">
                       {watch("licencia.anuncio") && (
                         <div className="animate-in slide-in-from-right-2 duration-200 flex flex-col gap-1.5">
-                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Descripción del Anuncio</label>
+                          <label className={labelClasses}>Descripción del Anuncio</label>
                           <input 
                             className={inputClasses}
                             placeholder="Ej: Letrero luminoso" 
@@ -1227,7 +1179,7 @@ export default function ExpedienteForm() {
                       )}
                       {watch("licencia.cesionario") && (
                         <div className="animate-in slide-in-from-right-2 duration-200 flex flex-col gap-1.5">
-                          <label className="text-[9px] font-black text-slate-700 uppercase ml-1">Nro de licencia de funcionamiento principal</label>
+                          <label className={labelClasses}>Nro de licencia de funcionamiento principal</label>
                           <input 
                             className={inputClasses}
                             placeholder="Nº Licencia Titular Principal" 
@@ -1247,7 +1199,7 @@ export default function ExpedienteForm() {
             <SeccionCard title="">
               <fieldset disabled={modo !== 'MODIFICACION'} className="space-y-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                  <label className={labelClasses}>
                     Tipo de Acción Solicitada
                   </label>
                   <div className="relative group">
@@ -1329,8 +1281,8 @@ export default function ExpedienteForm() {
               {/* MAPA */}
               <div className="flex flex-col gap-2 pt-2">
                 <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Geolocalización del Establecimiento</label>
-                  <span className="text-[9px] font-bold text-[#0f766e] italic">Haga clic en el mapa para ubicar el local</span>
+                  <label className={labelClasses}>Geolocalización del Establecimiento</label>
+                  <span className="text-[9px] font-bold text-[#0f766e] italic">Suelte el pin sobre la ubicación de su local</span>
                 </div>
 
                 {/* BLOQUE BUSCADOR */}
@@ -1352,7 +1304,7 @@ export default function ExpedienteForm() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
                 {/* COLUMNA ZONIFICACIÓN */}
                 <div className="md:col-span-3 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">
+                  <label className={labelClasses}>
                     Zonificación
                   </label>
                   <input
@@ -1392,26 +1344,27 @@ export default function ExpedienteForm() {
                     </select>
                     <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" 
                       placeholder="Nombre de vía"
+                      autoComplete="off"
                       {...register("declaracion.via_nombre")}
                     />
                   </div>
                   
                   <div className="md:col-span-7 grid grid-cols-5 gap-2">
-                    <input className={inputClassLine} placeholder="N°" {...register("declaracion.numero")} />
-                    <input className={inputClassLine} placeholder="Int." {...register("declaracion.interior")} />
-                    <input className={inputClassLine} placeholder="Mz" {...register("declaracion.mz")} />
-                    <input className={inputClassLine} placeholder="Lt" {...register("declaracion.lt")} />
-                    <input className={inputClassLine} placeholder="Otros" {...register("declaracion.otros")} />
+                    <input className={inputClasses} autoComplete="off" placeholder="N°" {...register("declaracion.numero")} />
+                    <input className={inputClasses} autoComplete="off" placeholder="Int." {...register("declaracion.interior")} />
+                    <input className={inputClasses} autoComplete="off" placeholder="Mz" {...register("declaracion.mz")} />
+                    <input className={inputClasses} autoComplete="off" placeholder="Lt" {...register("declaracion.lt")} />
+                    <input className={inputClasses} autoComplete="off" placeholder="Otros" {...register("declaracion.otros")} />
                   </div>
 
                   <div className="md:col-span-6">
                     <label className={labelClasses}>Urb. / AA.HH. / Sector</label>
-                    <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]"
+                    <input className={inputClasses} autoComplete="off"
                       {...register("declaracion.urb_aa_hh_otros")} />
                   </div>
                   <div className="md:col-span-4">
                     <label className={labelClasses}>Provincia / Distrito</label>
-                    <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" 
+                    <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" autoComplete="off"
                       {...register("declaracion.provincia")}/>
                   </div>
                   <div className="md:col-span-2">
@@ -1427,25 +1380,27 @@ export default function ExpedienteForm() {
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
                 <div className="md:col-span-2 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Código CIIU</label>
+                  <label className={labelClasses}>Código CIIU</label>
                   <input
                     className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all text-center font-mono"
                     placeholder="5610"
+                    autoComplete="off"
                     {...register("declaracion.codigo_ciiu")}
                   />
                 </div>
 
                 <div className="md:col-span-10 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Giro(s) del Negocio*</label>
+                  <label className={labelClasses}>Giro(s) del Negocio*</label>
                   <div className="flex gap-2">
                     <input
                       className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none"
                       placeholder="Ej. Venta de abarrotes..."
+                      autoComplete="off"
                       {...register("declaracion.nombre_giro")}
                     />
                     <button
                       type="button"
-                      className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20"
+                      className={buttonClasses}
                       onClick={() => setIsGiroModalOpen(true)}
                     >
                       <Plus size={14} /> Agregar
@@ -1503,19 +1458,21 @@ export default function ExpedienteForm() {
               {/* 1. Identificación y Actividad */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
                 <div className="md:col-span-6 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Nombre Comercial</label>
+                  <label className={labelClasses}>Nombre Comercial</label>
                   <input
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all font-bold"
+                    className={inputClasses}
                     placeholder="Ej. Restaurante Sazón Peruana"
+                    autoComplete="off"
                     {...register("declaracion.nombre_comercial")}
                   />
                 </div>
 
                 <div className="md:col-span-6 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Actividad Específica</label>
+                  <label className={labelClasses}>Actividad Específica</label>
                   <input
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e] transition-all"
+                    className={inputClasses}
                     placeholder="Detalle la actividad principal..."
+                    autoComplete="off"
                     {...register("declaracion.actividad")}
                   />
                 </div>
@@ -1553,7 +1510,7 @@ export default function ExpedienteForm() {
                     <div className="md:col-span-3">
                       <label className={labelClasses}>Entidad</label>
                       <input 
-                        className={inputClasses2}
+                        className={inputClasses}
                         placeholder="EJ. MINSA, MTC" 
                         {...register("declaracion.aut_entidad")}
                       />
@@ -1562,7 +1519,7 @@ export default function ExpedienteForm() {
                     <div className="md:col-span-4">
                       <label className={labelClasses}>Denominación del Permiso</label>
                       <input 
-                        className={inputClasses2}
+                        className={inputClasses}
                         placeholder="NOMBRE DEL DOCUMENTO..." 
                         {...register("declaracion.aut_denominacion")}
                       />
@@ -1572,7 +1529,7 @@ export default function ExpedienteForm() {
                       <label className={labelClasses}>Fecha Emisión</label>
                       <input 
                         type="date" 
-                        className={inputClasses2}
+                        className={inputClasses}
                         {...register("declaracion.aut_fecha")}
                       />
                     </div>
@@ -1580,7 +1537,7 @@ export default function ExpedienteForm() {
                     <div className="md:col-span-3">
                       <label className={labelClasses}>N° Resolución / Código</label>
                       <input 
-                        className={inputClasses2} 
+                        className={inputClasses} 
                         placeholder="EJ. 123-2024/MINSA"
                         {...register("declaracion.aut_numero")}
                       />
@@ -1730,11 +1687,12 @@ export default function ExpedienteForm() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end mb-8">
               {/* N.º Expediente */}
               <div className="md:col-span-5 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                <label className={labelClasses}>
                   N.º de Expediente
                 </label>
                 <div className="flex gap-2">
                   <input 
+                    autoComplete="off"
                     className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
                               focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-400" 
                     placeholder="Ingrese número..."
@@ -1746,9 +1704,7 @@ export default function ExpedienteForm() {
                     trigger={
                       <button
                         type="button"
-                        className="h-9 px-4 inline-flex items-center whitespace-nowrap rounded-lg
-                                  bg-[#0f766e] text-white font-bold text-[10px] uppercase tracking-tighter
-                                  hover:bg-[#0a5a54] transition-all focus:outline-none shadow-sm shadow-[#0f766e]/20 active:scale-95"
+                        className={buttonClasses}
                       >
                         <Search className="mr-2 h-3.5 w-3.5" />
                         Buscar
@@ -1760,7 +1716,7 @@ export default function ExpedienteForm() {
 
               {/* Fecha Recepción */}
               <div className="md:col-span-3 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                <label className={labelClasses}>
                   Fecha de Recepción
                 </label>
                 <input 
@@ -1773,7 +1729,7 @@ export default function ExpedienteForm() {
 
               {/* Estado */}
               <div className="md:col-span-4 flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                <label className={labelClasses}>
                   Estado del Trámite
                 </label>
                 <div className="relative group">
@@ -1975,7 +1931,7 @@ export default function ExpedienteForm() {
                 {/* 1. LADO IZQUIERDO: SOLICITANTE */}
                 <div className="relative" ref={solicitanteRef}>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-0.5">
+                    <label className={labelClasses}>
                       Solicitante
                     </label>
                     <button 
@@ -2146,7 +2102,7 @@ export default function ExpedienteForm() {
                     <input
                       autoComplete="off"
                       disabled={!(getValues("tipo_persona") === 'JURIDICA' || getValues("licencia.tiene_apoderado"))}
-                      className={`${inputStyle} ${
+                      className={`${inputClasses} ${
                         !(getValues("tipo_persona") === 'JURIDICA' || getValues("licencia.tiene_apoderado")) 
                           ? 'bg-slate-50 border-transparent shadow-none cursor-not-allowed' 
                           : 'bg-white'
@@ -2309,11 +2265,12 @@ export default function ExpedienteForm() {
 
               {/* 3. Observaciones */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">
+                <label className={labelClasses}>
                   Observaciones o comentarios adicionales
                 </label>
                 <textarea 
                   rows={2} 
+                  autoComplete="off"
                   className="w-full rounded-lg border border-slate-300 bg-slate-50/50 p-3 text-xs focus:bg-white focus:border-[#0f766e] outline-none transition-all resize-none"
                   placeholder="Opcional: Detalles relevantes para la evaluación..." 
                   {...register("declaracion.observaciones")}
@@ -2337,6 +2294,7 @@ export default function ExpedienteForm() {
                         {...register(`pagos.${index}.nro_recibo`)} 
                         className={inputClasses} 
                         placeholder="000-XXXXX" 
+                        autoComplete="off"
                       />
                     </div>
 
@@ -2417,7 +2375,7 @@ export default function ExpedienteForm() {
       {/* Botón Guardar - Significativamente más ancho */}
       <button 
         type="submit"
-        className="w-full md:w-auto md:min-w-[240px] flex items-center justify-center gap-3 px-12 h-12 bg-[#0f766e] text-white rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-[#0d635d] hover:shadow-xl hover:shadow-[#0f766e]/30 transition-all active:scale-95 shadow-lg shadow-[#0f766e]/20"
+        className={buttonPrimary}
       >
         <Save size={18} /> 
         <span>Guardar Registro</span>
