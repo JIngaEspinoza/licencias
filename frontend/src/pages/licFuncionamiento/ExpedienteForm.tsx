@@ -1,34 +1,40 @@
 import React, { useEffect, useMemo, useState, useRef, memo } from "react";
-import { useForm } from "react-hook-form";
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON} from 'react-leaflet';
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+//import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON} from 'react-leaflet';
 import * as turf from '@turf/turf';
-import L from 'leaflet';
+//import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import datosGeoJSON from '../../geoJson/mapa.json';
 import lineaMapa from '../../geoJson/lineaLimite.json';
-import { useNavigate } from "react-router-dom";
+//import { useNavigate } from "react-router-dom";
 import { expedientesApi } from "../../services/expedientes";
+import { GiroModal, girosApi } from "../../services/giros";
+import { personasApi } from "../../services/personas";
+import { Representantes, representantesApi } from "../../services/representantes";
+
+import type { Personas } from "@/types/persona";
 import { ChevronLeft, ChevronDown, Upload, Building2, AlertTriangle, ShieldCheck, Plus, 
   MapPin, LocateFixed, X, Loader2, 
-  AlertCircle, Copy, FileText, Save, Search, UploadCloud, Check, Trash2 } from "lucide-react";
+  AlertCircle, Copy, FileText, Save, Search, UploadCloud, Check, Trash2, XCircle } from "lucide-react";
 import type { NuevaDJTransaccionalRequest } from "@/types/declaracionJurada";
+import { Toast } from "../../lib/toast";
 
 import { Label } from "../../types/components/ui/label";
-import { Input } from "../../types/components/ui/input";
+//import { Input } from "../../types/components/ui/input";
 import { Checkbox } from "../../types/components/ui/checkbox";
 import { Switch } from "../../types/components/ui/switch";
 
 import { PersonaModal } from '../persona/PersonaModal';
-import type { Personas } from "@/types/persona";
+
 import { RepresentanteModal } from "../persona/RepresentanteModal";
 
 import BuscarExpedienteDialog, { Expediente } from "../../components/BuscarExpedientesDialog";
-import { personasApi } from "../../services/personas";
 import { useDebounce } from "../../hooks/useDebounce";
 import { SeccionCard } from './SeccionCard';
 import { MapaZonificacion } from './MapaZonificacion';
 import { ModalSeleccionGiro } from "../gestion/GiroModal";
-
+import { BuscadorSolicitante } from "./BuscadorSolicitante";
+import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -129,6 +135,12 @@ const SlimSearchBlock = memo(({ onSearch, loading }) => {
     if (localInput.trim()) onSearch(localInput);
   };
 
+  const handleLimpiar = () => {
+    setLocalInput(""); // Limpia el texto
+    // setValue("declaracion.via_nombre", "");
+    // setValue("declaracion.numero", "");
+  };
+
   return (
     <div className="w-full mb-2">
       <div className="group relative flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm focus-within:border-[#0f766e]/40 transition-all">
@@ -139,8 +151,22 @@ const SlimSearchBlock = memo(({ onSearch, loading }) => {
             placeholder="Calle, número, distrito..."
             value={localInput}
             onChange={(e) => setLocalInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAction()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAction();
+              }
+            }}
           />
+          {localInput && (
+            <button
+              type="button"
+              onClick={handleLimpiar}
+              className="absolute right-1 p-1 text-slate-400 hover:text-rose-500 transition-colors"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
         <button
           type="button"
@@ -164,6 +190,17 @@ export default function ExpedienteForm() {
   const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 placeholder:font-normal";
   const inputStyle = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-50 outline-none transition-all placeholder:text-slate-400";
   const inputClasses2 = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 uppercase";
+
+  // 1. Solicitante
+  const [solicitantesParaSeleccion, setSolicitantesParaSeleccion] = useState<Personas[]>([]);
+  const [totalSolicitantesRegistrados, setTotalSolicitantesRegistrados] = useState(0);
+  const [cargandoSolicitantes, setCargandoSolicitantes] = useState(false);
+  const [errorCargaSolicitantes, setErrorCargaSolicitantes] = useState("");
+
+  // 2. Representantes
+  const [representantesParaSeleccion, setRepresentantesParaSeleccion] = useState<Representantes[]>([]);
+  const [cargandoRepresentantes, setCargandoRepresentantes] = useState(false);
+  const [errorCargaRepresentantes, setErrorCargaRepresentantes] = useState("");
 
   // ESTADOS
   const [esPatrimonio, setEsPatrimonio] = useState(false);
@@ -285,11 +322,14 @@ export default function ExpedienteForm() {
   const [editingPersona, setEditingPersona] = React.useState(null);
   const [rows, setRows] = useState<Personas[]>([]);
   const [total, setTotal] = useState(0);
+  const [valorInput, setValorInput] = useState("");
   const [q, setQ] = useState("");
-  const dq = useDebounce(q, 400);
+  //const dq = useDebounce(valorInput, 500);
+  const [dq, setDq] = useState("");
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [loading, setLoading] = useState(false);
+  
 
   // VI — Clasificación (simulada municipal)
   const [califEditable, setCalifEditable] = React.useState(false);
@@ -322,10 +362,15 @@ export default function ExpedienteForm() {
   const [isGiroModalOpen, setIsGiroModalOpen] = useState(false);
   const [giros, setGiros] = useState([]);
   const [loadingGiros, setLoadingGiros] = useState(false);
+  const [metodoUbica, setMetodoUbica] = useState('manual'); // 'manual' o 'busqueda'
 
-  const { register, handleSubmit, setValue, watch } = useForm({
+  const [girosDb, setGirosDb] = useState<GiroModal[]>([]);
+  const [buscandoGiro, setBuscandoGiro] = useState(false);
+
+  const { register, handleSubmit, setValue, watch, control, getValues } = useForm({
     defaultValues: {
       id_persona: null,
+      tipo_persona: '',
       nombre_razon_social: '',
       fecha: new Date().toISOString().split('T')[0],
       numero_expediente: '',
@@ -338,8 +383,8 @@ export default function ExpedienteForm() {
         fecha_recepcion: new Date().toISOString().split('T')[0],
         tipo_tramite: 'NUEVA', //NUEVA_LICENCIA | MODIFICACIONES
         modalidad: 'INDETERMINADA',
-        fecha_inicio_plazo: '',
-        fecha_fin_pazo: '',
+        fecha_inicio_plazo: null,
+        fecha_fin_plazo: null,
         anuncio: false, 
         a_descripcion: '',
         cesionario: false,
@@ -392,16 +437,33 @@ export default function ExpedienteForm() {
         condiciones_seguridad: true,
         titulo_profesional: false,
         aceptacion: true,
-        observaciones: '',
-        // --- GIROS SELECCIONADOS (Tabla Puente) ---
-        giros_seleccionados: [],
+        observaciones: '',        
       },
+      giros_seleccionados: [],      
+      pagos: []
     }
+  });
+
+  const { 
+    fields: fieldsGiros, 
+    append: appendGiro, 
+    remove: removeGiro 
+  } = useFieldArray({
+    control,
+    name: "giros_seleccionados"
+  });
+
+  const { 
+    fields: fieldsPagos, 
+    append: appendPago, 
+    remove: removePago 
+  } = useFieldArray({
+    control,
+    name: "pagos" 
   });
 
   const modalidad = watch("licencia.modalidad");
   const modo = watch("licencia.tipo_tramite");
-  const zonificacionActual = watch("declaracion.zonificacion");
   const chk_bajoJuramento = watch("licencia.bajo_juramento");
   const chk_aceptacion = watch("declaracion.aceptacion");
   const watchAccion = watch("licencia.tipo_accion_tramite");
@@ -411,10 +473,8 @@ export default function ExpedienteForm() {
   const estado = watch("estado");
   const nivelRiesgo = watch("licencia.nivel_riesgo");
   const itseArchivo = watch("licencia.doc_itse");
-  const queryNameSolicitante = watch("nombre_razon_social");
-  const queryNameRepresentante = watch("licencia.nombre_representante");
-  const idSolicitante = watch("id_persona");
-  //const nombreSolicitante = watch("nombre_razon_social") || "";
+  const nombreRepresentante = watch("licencia.nombre_representante");
+  //const idSolicitante = watch("id_persona");
   const tieneApoderado = watch("licencia.tiene_apoderado");
 
   const itseRequierePrevia = ["ALTO", "MUY_ALTO"].includes(nivelRiesgo);
@@ -423,9 +483,7 @@ export default function ExpedienteForm() {
     modo === "MODIFICACION" &&
     ["CAMBIO_DENOMINACION", "TRANSFERENCIA", "CESE"].includes(accion);   
 
-  const alEnviar = (data: any) => {
-    console.log("Datos limpios recolectados:", data);
-  };
+  
 
   const actualizarFormulario = (addr) => {
     // Aquí pon tus funciones set del formulario:
@@ -434,7 +492,7 @@ export default function ExpedienteForm() {
     if (typeof setEstUrbAAHH === "function") setEstUrbAAHH(addr.suburb || addr.neighbourhood || "");
   };
 
-  const procesarBusqueda = async (termino) => {
+  const procesarBusqueda2 = async (termino) => {
     setLoading(true);
     try {
       const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(termino + ", Lima, Peru")}&limit=1`);
@@ -446,6 +504,7 @@ export default function ExpedienteForm() {
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
+ 
 
   /*const eventHandlers = useMemo(() => ({
     dragend() {
@@ -456,14 +515,13 @@ export default function ExpedienteForm() {
       }
     },
   }), []);*/
-
-  
+ 
 
   const handleReverseGeocode = async (lat, lon) => {
     setLoading(true);
     try {
       const resp = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,        
       );
       const data = await resp.json();
       setPosition([lat, lon]);
@@ -481,8 +539,6 @@ export default function ExpedienteForm() {
       provincia: (addr.city || addr.county || "LIMA").toUpperCase(),
     });
   };
-
-
 
   // Función para verificar zonificación
   const verificarZonificacion = (coords, geojsonData) => {
@@ -514,7 +570,7 @@ export default function ExpedienteForm() {
 };
 
   // Manejador del evento al soltar el pin
-  const eventHandlers = useMemo(() => ({
+  const eventHandlers2 = useMemo(() => ({
     async dragend(e) {
       const coords = e.target.getLatLng();
       setPosition([coords.lat, coords.lng]);
@@ -526,184 +582,387 @@ export default function ExpedienteForm() {
       // 2. Dirección con Despiece
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1`
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.lat}&lon=${coords.lng}&addressdetails=1`,
+            {
+            headers: {
+              'User-Agent': 'MiAppMunicipal/1.0 (gustavo.alvarado@munisanmiguel.gob.pe)'
+            }
+          }
         );
         const data = await response.json();
         const addr = data.address;
-
-        // --- MAPEADO A TUS CAMPOS ---
         
         // A. Tipo de Vía y Nombre de Vía
-        // Nominatim a veces separa el tipo en 'road'. Intentaremos extraerlo:
-        if (addr.road) {
+        /*if (addr.road) {
           const roadParts = addr.road.split(' ');
           const posibleTipo = roadParts[0].toLowerCase();
           
-          // Mapeo simple de tipos comunes
-          if (posibleTipo.includes('avenida')) setValue("tipo_via", "Av.");
-          else if (posibleTipo.includes('jirón') || posibleTipo.includes('jiron')) setValue("tipo_via", "Jr.");
-          else if (posibleTipo.includes('calle')) setValue("tipo_via", "Ca.");
-          else if (posibleTipo.includes('pasaje')) setValue("tipo_via", "Pje.");
+          if (posibleTipo.includes('avenida')) setValue("declaracion.via_tipo", "Av.");
+          else if (posibleTipo.includes('jirón') || posibleTipo.includes('jiron')) setValue("declaracion.via_tipo", "Jr.");
+          else if (posibleTipo.includes('calle')) setValue("declaracion.via_tipo", "Ca.");
+          else if (posibleTipo.includes('pasaje')) setValue("declaracion.via_tipo", "Pje.");
           
-          setValue("nombre_via", addr.road.replace(/^(Avenida|Jr\.|Calle|Ca\.|Jr|Pasaje|Pje)\s+/i, ''));
+          setValue("declaracion.via_nombre", addr.road.replace(/^(Avenida|Jr\.|Calle|Ca\.|Jr|Pasaje|Pje)\s+/i, ''));
+        }*/
+        if (addr.road) {
+          const roadLower = addr.road.toLowerCase();
+          let tipo = "Ca."; // Por defecto calle
+          
+          if (roadLower.includes('avenida')) tipo = "Av.";
+          else if (roadLower.includes('jiron') || roadLower.includes('jirón')) tipo = "Jr.";
+          else if (roadLower.includes('pasaje')) tipo = "Pje.";
+          else if (roadLower.includes('carretera')) tipo = "Carr.";
+
+          setValue("declaracion.via_tipo", tipo);
+          // Limpiamos el nombre: quitamos la palabra del tipo al inicio
+          const nombreLimpio = addr.road.replace(/^(Avenida|Jr\.|Jirón|Calle|Ca\.|Jr|Pasaje|Pje|Prolongación)\s+/i, '');
+          setValue("declaracion.via_nombre", nombreLimpio);
         }
 
-        // B. Número
-        setValue("numero", addr.house_number || "S/N");
+        setValue("declaracion.numero", addr.house_number || "S/N");
 
         // C. Urbanización / AA.HH. / Sector
-        // Nominatim usa varios campos para esto dependiendo de la zona
-        const urbanizacion = addr.suburb || addr.neighbourhood || addr.residential || "";
-        setValue("urbanizacion", urbanizacion);
+        const urbanizacion = addr.suburb || addr.neighbourhood || addr.residential || addr.quarter || addr.hamlet || "";
+        setValue("declaracion.urb_aa_hh_otros", urbanizacion);
 
         // D. Provincia / Distrito
-        const distrito = addr.city_district || addr.suburb || "";
-        const provincia = addr.city || addr.county || "Lima";
-        setValue("ubicacion_geografica", `${provincia} / ${distrito}`);
-
-        // Nota: Int., Mz., Lt., y Otros normalmente no vienen en GPS, 
-        // el usuario deberá completarlos manualmente si es necesario.
-
+        const distrito = addr.city_district || addr.city || "";
+        const provincia = addr.city || addr.county || "";
+        setValue("declaracion.provincia", `${provincia} / ${distrito}` );
       } catch (error) {
         console.error("Error al geocodificar:", error);
+        Toast.fire({ icon: "warning", title: "No pudimos obtener la dirección exacta, por favor complétela manualmente." });
       }
     },
   }), [datosGeoJSON, setValue]);
 
-  // Base de datos de ejemplo
-  const [dbPersonas] = React.useState([
-    { id: 52, nombre: 'TALITEK E.I.R.L.', ruc: '20612127531', correo: 'talitek001@gmail.com', tipo_persona: 'JURIDICA' },
-    { id: 62, nombre: 'RIDEK LOGISTICA Y CARGA S.A.C.', ruc: '20614008041', correo: 'ridekperu@gmail.com', tipo_persona: 'JURIDICA' },
-    { id: 50, nombre: 'Estudio Legal Prado & Asociados SAC', ruc: '20100002019', correo: 'contacto@estudio-legal-prado-asociados.com', tipo_persona: 'JURIDICA' },
-    { id: 61, nombre: 'QUISPE AUCAPIÑA GABRIELA', ruc: '10726910702', correo: 'gabrielaquispea5@gmail.com', tipo_persona: 'NATURAL' },
-  ]);
+  //Mapbox
+  const eventHandlers = useMemo(() => ({
+    async dragend(e) {
+      // marcar manual
+      setMetodoUbica('manual');
 
-  const [dbRepresentantes] = React.useState([
-    { id_representante: 23, id_persona: 52, nombre: 'JONADAB INGA ESPINOZA', tipo_documento: 'DNI', numero_documento: '47361628', sunarp_partida_asiento: 'PARTIDA 13000015 - ASIENTO B1015' },
-    { id_representante: 24, id_persona: 52, nombre: 'RAQUEL ABARCA CARRILLO', tipo_documento: 'DNI', numero_documento: '44123516', sunarp_partida_asiento: 'PARTIDA 13000015 - ASIENTO B1015' }
-  ]);
+      const coords = e.target.getLatLng();
+      setPosition([coords.lat, coords.lng]);
 
-    // Buscamos el objeto completo del solicitante seleccionado para saber su tipo
-  const solicitanteData = dbPersonas.find(p => p.id === idSolicitante);
-  const tipoPersona = solicitanteData?.tipo_persona; // 'JURIDICA' o 'NATURAL'
+      setValue("declaracion.geom_x", coords.lng, { shouldValidate: true });
+      setValue("declaracion.geom_y", coords.lat, { shouldValidate: true });
 
-  // El representante es obligatorio si es Jurídica
-  // O es habilitado si es Natural y marca el checkbox de apoderado
-  const esJuridica = tipoPersona === 'JURIDICA';
-  const mostrarRepresentante = esJuridica || tieneApoderado;
+      // 1. Zonificación (Sigue usando tu GeoJSON oficial)
+      const zona = verificarZonificacion(coords, datosGeoJSON);
+      setValue("declaracion.zonificacion", zona);
 
+      // 2. Dirección con Mapbox API
+      const ACCESS_TOKEN = "pk.eyJ1IjoiamluZ2Flc3Bpbm96YSIsImEiOiJjbWx5Z2J3amIweWIxM2RxN2VrMnA2ZGN2In0.tdRYlecKEahnD97jtnlfaA";
+      // Usamos el endpoint 'mapbox.places' para geocodificación inversa
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${coords.lng},${coords.lat}.json?access_token=${ACCESS_TOKEN}&types=address&language=es`;
 
-  //Base de datos ejemplo de Representantes
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
 
-  const sugerenciasFiltradasSolicitante = dbPersonas.filter(p => {
-    const query = queryNameSolicitante.toLowerCase();
-    return p.nombre.toLowerCase().includes(query) || p.ruc.includes(query);
-  });
+        if (data.features && data.features.length > 0) {
+          const place = data.features[0];
+          
+          // Mapbox separa el nombre de la calle del número de casa
+          // place.text -> Nombre de la vía (Ej: "Avenida Javier Prado")
+          // place.address -> Número (Ej: "450")
+          
+          const fullStreet = place.text || "";
+          
+          // A. Tipo y Nombre de Vía
+          if (fullStreet) {
+            if (/^Avenida/i.test(fullStreet)) setValue("declaracion.via_tipo", "Av.");
+            else if (/^Jirón|Jiron/i.test(fullStreet)) setValue("declaracion.via_tipo", "Jr.");
+            else if (/^Calle/i.test(fullStreet)) setValue("declaracion.via_tipo", "Ca.");
+            else if (/^Pasaje/i.test(fullStreet)) setValue("declaracion.via_tipo", "Pje.");
+            
+            const nombreLimpio = fullStreet.replace(/^(Avenida|Jirón|Jiron|Calle|Pasaje)\s+/i, '');
+            setValue("declaracion.via_nombre", nombreLimpio);
+          }
+          setValue("declaracion.numero", place.address || "S/N");
 
-  const sugerenciasFiltradasRepresentante = dbRepresentantes.filter(p => {
-    // Primero: ¿Hay un texto de búsqueda? (Evitamos el error del toLowerCase)
-    const query = (queryNameRepresentante || "").toLowerCase();
+          const context = place.context || [];
+          const urbanizacion = 
+            context.find(c => c.id.includes('neighborhood'))?.text || 
+            context.find(c => c.id.includes('locality'))?.text || 
+            "";
+          const distrito = context.find(c => c.id.includes('place'))?.text || "";
+          const provincia = context.find(c => c.id.includes('region'))?.text || "";
+          const provinciaLimpia = provincia.replace(/provincia de\s+/i, "").trim();
+
+          setValue("declaracion.urb_aa_hh_otros", urbanizacion);
+          setValue("declaracion.provincia", `${provinciaLimpia} / ${distrito}`);
+        }
+      } catch (error) {
+        console.error("Error con Mapbox Geocoding:", error);
+      }
+    },
+  }), [datosGeoJSON, setValue]);
+
+  // Busqueda de dirección
+  const procesarBusqueda = async (termino) => {
+    if (!termino) return;
     
-    // Segundo: ¿El representante pertenece a la empresa/persona seleccionada?
-    const esDeLaMismaEmpresa = p.id_persona === idSolicitante;
+    setLoading(true);
+    const ACCESS_TOKEN = "pk.eyJ1IjoiamluZ2Flc3Bpbm96YSIsImEiOiJjbWx5Z2J3amIweWIxM2RxN2VrMnA2ZGN2In0.tdRYlecKEahnD97jtnlfaA";
+    
+    // Añadimos proximidad o filtros para que priorice resultados en Lima
+    // bbox ayuda a que no busque en otros países (long_min, lat_min, long_max, lat_max)
+    const bbox = "-77.20, -12.30, -76.60, -11.70"; // Aproximadamente Lima Metropolitana
+    
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(termino)}.json?access_token=${ACCESS_TOKEN}&country=pe&bbox=${bbox}&language=es&limit=1`;
 
-    // Tercero: ¿Coincide con el nombre o documento?
-    const nombreRep = (p.nombre || "").toLowerCase();
-    const docRep = p.numero_documento || "";
-    const coincideConBusqueda = nombreRep.includes(query) || docRep.includes(query);
+    try {
+      const resp = await fetch(url);
+      const data = await resp.json();
 
-    // Solo retornamos si cumple AMBAS condiciones: es de la empresa Y coincide la búsqueda
-    return esDeLaMismaEmpresa && coincideConBusqueda;
-    //const queryRepresentante = queryNameRepresentante.toLowerCase();
-    //return p.nombre.toLowerCase().includes(queryRepresentante) || p.numero_documento.includes(queryRepresentante)
-  })
+      if (data.features && data.features.length > 0) {
+        const feature = data.features[0];
+        const [lng, lat] = feature.geometry.coordinates;
 
-  const juridicas = useMemo(
-    () => rows.filter((p) => p.tipo_persona === "JURIDICA" || p.tipo_persona === "NATURAL"),
-    [rows]
-  );
+        // 1. Mover el mapa y el pin
+        setMetodoUbica('busqueda');
+        setPosition([lat, lng]);
+
+        setValue("declaracion.geom_x", lng, { shouldValidate: true });
+        setValue("declaracion.geom_y", lat, { shouldValidate: true });
+
+        // 2. Extraer datos del contexto (Igual que en el dragend)
+        const context = feature.context || [];
+        
+        const fullStreet = feature.text || "";
+        const numero = feature.address || "S/N";
+        
+        const urbanizacion = 
+          context.find(c => c.id.includes('neighborhood'))?.text || 
+          context.find(c => c.id.includes('locality'))?.text || "";
+
+        const distrito = context.find(c => c.id.includes('place'))?.text || "";
+        
+        const provinciaRaw = context.find(c => c.id.includes('region'))?.text || "";
+        const provinciaLimpia = provinciaRaw.replace(/provincia de\s+/i, "").trim();
+
+        // 3. Actualizar Formulario (Siguiendo tu lógica de limpieza)
+        // Vía
+        if (fullStreet) {
+          let tipo = "Ca.";
+          if (/^Avenida/i.test(fullStreet)) tipo = "Av.";
+          else if (/^Jirón|Jiron/i.test(fullStreet)) tipo = "Jr.";
+          else if (/^Pasaje/i.test(fullStreet)) tipo = "Pje.";
+          
+          const nombreLimpio = fullStreet.replace(/^(Avenida|Jirón|Jiron|Calle|Pasaje)\s+/i, '');
+          
+          setValue("declaracion.via_tipo", tipo);
+          setValue("declaracion.via_nombre", nombreLimpio);
+        }
+
+        setValue("declaracion.numero", numero);
+        setValue("declaracion.urb_aa_hh_otros", urbanizacion);
+        setValue("declaracion.provincia", `${provinciaLimpia} / ${distrito}`);
+
+        // 4. IMPORTANTE: Validar Zonificación con las nuevas coordenadas
+        const zona = verificarZonificacion({ lat, lng }, datosGeoJSON);
+        setValue("declaracion.zonificacion", zona);
+
+      } else {
+        console.warn("No se encontraron resultados para la búsqueda.");
+      }
+    } catch (e) {
+      console.error("Error en búsqueda Mapbox:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Buscar giros
+  const handleBuscarGiros = async (termino: string) => {
+    setBuscandoGiro(true);
+    try {
+      const data = await girosApi.buscarParaModal(termino);
+      setGirosDb(data);
+    } catch (error) {
+      console.error("Error cargando giros", error);
+    } finally {
+      setBuscandoGiro(false);
+    }
+  };
+
+  /* Elegir Giros */
+  const handleGiroSelect = (giro, compatibilidad) => {
+    // 1. Extraemos la zonificación actual para el mensaje (puedes usar watch o una variable local)
+    //const zonificacionActual = watch("declaracion.zonificacion") || "No detectada";
+    const girosActuales = watch("giros_seleccionados") || [];
+
+    // 1. Evitar duplicados
+    const yaExiste = girosActuales.some(g => g.id_giro === giro.id_giro);
+    if (yaExiste) {
+      alert("Este giro ya ha sido seleccionado.");
+      return;
+    }
+
+    // 2. Seteamos los valores principales de una sola vez
+    // Es buena práctica agrupar los setValues si usas react-hook-form
+    //setValue("declaracion.codigo_ciiu", giro.id_giro, { shouldValidate: true });
+    //setValue("declaracion.nombre_giro", giro.nombre, { shouldValidate: true });
+    //setValue("riesgo_base", giro.riesgo_base || "BAJO"); // Fallback por si viene vacío
+
+    // 3. Lógica de compatibilidad (Corregida: X = Permitido, O = No permitido)
+    // Usamos 'O' como fallback si no existe el registro de compatibilidad
+    const codigoEstado = compatibilidad?.estado_uso?.codigo || 'O'; 
+    const esPermitido = codigoEstado === 'X';
+
+    /*if (!esPermitido) {
+      // Si NO es 'X', marcamos como excepción
+      setValue("declaracion.chk_tolerancia", true);
+      
+      // Opcional: Podrías usar un Toast en lugar de un alert para una mejor UI
+      console.warn(`Giro no compatible: ${giro.nombre} en zona ${zonificacionActual}`);
+      
+      // Podrías abrir un campo de "Sustento de Excepción" aquí si tu formulario lo tiene
+    } else {
+      setValue("declaracion.chk_tolerancia", false);
+    }*/
+    // 3. Agregamos el nuevo objeto al array del formulario
+    appendGiro({
+      id_giro: giro.id_giro,
+      codigo: giro.codigo,
+      nombre: giro.nombre,
+      riesgo_base: giro.riesgo_base || "BAJO",
+      con_excepcion: !esPermitido,
+      // Guardamos la zonificación en la que se evaluó por seguridad
+      zonificacion_al_momento: watch("declaracion.zonificacion")
+    });
+    // 4. Limpieza y cierre
+    setIsGiroModalOpen(false);
+  };
+
+  // Lista solicitantes
+  const obtenerSolicitantes = async (query = "", pagina = 1, limite = 10) => {
+    let cancelado = false;
+
+    try {
+      setCargandoSolicitantes(true);
+      setErrorCargaSolicitantes("");
+
+      const response = await personasApi.list(query, pagina, limite);
+      
+      // Desestructuramos según tu API (asegúrate de que los nombres coincidan)
+      const { data: listado, total: cuentaTotal } = response;
+
+      if (!cancelado) {
+        // 2. Si la API devuelve null o undefined, enviamos un array vacío
+        setSolicitantesParaSeleccion(listado || []);
+        setTotalSolicitantesRegistrados(cuentaTotal || 0);
+      }
+    } catch (e: any) {
+      if (!cancelado) {
+        console.error("Error API Solicitantes:", e);
+        setErrorCargaSolicitantes(e?.message ?? "Error al consultar el catálogo de personas");
+        setSolicitantesParaSeleccion([]); // Limpiamos la lista en caso de error
+      }
+    } finally {
+      if (!cancelado) {
+        setCargandoSolicitantes(false);
+      }
+    }
+
+    return () => {
+      cancelado = true;
+    };
+  };
+  
+  // Lista representantes
+  const obtenerRepresentantes = async (idPersonaSolicitante: number) => {
+    let cancelado = false;
+
+    if (!idPersonaSolicitante) {
+      setRepresentantesParaSeleccion([]);
+      return () => { cancelado = true; };
+    }
+
+    try {
+      setCargandoRepresentantes(true);
+      setErrorCargaRepresentantes("");
+
+      const response = await representantesApi.getByPersona(idPersonaSolicitante);
+      
+      // Asumiendo que response es directamente el array Representantes[]
+      // o viene dentro de una propiedad data. Ajústalo según tu interceptor http.
+      const listado = Array.isArray(response) ? response : (response as any).data;
+
+      if (!cancelado) {
+        setRepresentantesParaSeleccion(listado || []);
+      }
+    } catch (e: any) {
+      if (!cancelado) {
+        console.error("Error API Representantes:", e);
+        setErrorCargaRepresentantes(e?.message ?? "Error al consultar representantes");
+        setRepresentantesParaSeleccion([]);
+      }
+    } finally {
+      if (!cancelado) {
+        setCargandoRepresentantes(false);
+      }
+    }
+
+    return () => {
+      cancelado = true;
+    };
+  };
 
   const handleSelectPersona = (persona: any) => {
-    setValue("id_persona", persona.id);
-    setValue("nombre_razon_social", persona.nombre);
+    setValue("id_persona", persona.id_persona);
+    setValue("nombre_razon_social", persona.nombre_razon_social);
+    setValue("tipo_persona", persona.tipo_persona);
+    setValorInput(persona.nombre_razon_social);
+
+    // Si es Jurídica, el apoderado se marca falso por defecto
+    if (persona.tipo_persona === 'JURIDICA') {
+      setValue("licencia.tiene_apoderado", false);
+    }
+
+    // Disparamos la carga de representantes para este nuevo ID
+    obtenerRepresentantes(persona.id_persona);
     
     // ¡IMPORTANTE!: Limpiamos el representante anterior al cambiar de solicitante
     setValue("licencia.id_representante", "");
     setValue("licencia.nombre_representante", "");
 
+    setDq("");
     setShowSuggestionsSolicitante(false);
   };
 
   const handleSelectRepresentante = (representante: any) => {
     setValue("licencia.id_representante", representante.id_representante);
-    setValue("licencia.nombre_representante", representante.nombre);
+    setValue("licencia.nombre_representante", representante.nombres);
     setShowSuggestionsRepresentante(false);
   }
 
-  /* Buscar Giros */
-  const handleGiroSelect = (giro, compatibilidad) => {
-    // 1. Guardamos los datos básicos del giro en el formulario
-    setValue("id_giro", giro.id_giro);
-    setValue("nombre_giro", giro.nombre);
-    setValue("riesgo_base", giro.riesgo_base);
+  useEffect(() => {
+    // Quitamos el IF restrictivo para que entre siempre
+    let cleanupFn: (() => void) | undefined;
 
-    // 2. Lógica de compatibilidad
-    const codigoEstado = compatibilidad?.estado_uso?.codigo || 'X'; // X = No permitido
-    
-    if (codigoEstado !== 'H') {
-      // Si no es H (Permitido), mostramos una alerta o activamos el check de excepción
-      alert(`Atención: El giro ${giro.nombre} no es compatible con la zona ${zonificacionActual}. Se registrará como excepción.`);
-      setValue("con_excepcion", true); // Marcamos el check de "Tolerancia/Excepción" automáticamente
-    } else {
-      setValue("con_excepcion", false);
-    }
+    const ejecutarBusqueda = async () => {
+      // Si dq es vacío, enviamos "" para que la API traiga el top 10
+      const res = await obtenerSolicitantes(dq || "", page, limit);
+      if (typeof res === 'function') {
+        cleanupFn = res;
+      }
+    };
 
-    // 3. Cerramos el modal
-    setIsGiroModalOpen(false);
-  };
+    ejecutarBusqueda();
+
+    return () => {
+      if (cleanupFn) cleanupFn();
+    };
+  }, [dq, page, limit]); // Se disparará al montar el componente y cada vez que dq cambie
 
   useEffect(() => {
     let cancelled = false;
 
-    const fetchGiros = async () => {
-      setLoadingGiros(true);
-      try {
-        // COMENTADO PARA DESPUÉS:
-        // const response = await fetch('/api/giros');
-        // const data = await response.json();
-        
-        // USANDO MOCK DATA PARA PRUEBA VISUAL:
-        setTimeout(() => { // Simulamos un delay de red
-          setGiros(girosEjemplo);
-          setLoadingGiros(false);
-        }, 800);
-      } catch (error) {
-        console.error("Error", error);
-        setLoadingGiros(false);
-      }
-    };
-
-   
-    (async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const { data, total } = await personasApi.list(dq, page, limit);
-        if (!cancelled) {
-          setRows(data);
-          setTotal(total);
-        }
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Error al cargar personas");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
     if (djFirmanteTipo === "SOLICITANTE") {
       setDjFirmanteNombre(nombreRazon || "");
-      setDjFirmanteDocTipo(tipoPersona === "NATURAL" ? docTipo : "DNI");
-      setDjFirmanteDocNumero(tipoPersona === "NATURAL" ? (docNumero || "") : "");
       setDjDeclaroPoder(false);
     } else {
       setDjFirmanteNombre(repNombre || "");
@@ -711,7 +970,6 @@ export default function ExpedienteForm() {
       setDjFirmanteDocNumero(repDocNumero || "");
       setDjDeclaroPoder(true);
     }
-    fetchGiros();
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -729,7 +987,7 @@ export default function ExpedienteForm() {
     document.addEventListener("mousedown", handleClickOutside);
     return () =>  document.removeEventListener("mousedown", handleClickOutside);
 
-  }, [djFirmanteTipo, nombreRazon, docTipo, docNumero, repNombre, repDocTipo, repDocNumero, tipoPersona, dq, page, limit]);
+  }, [djFirmanteTipo, nombreRazon, docTipo, docNumero, repNombre, repDocTipo, repDocNumero/*, tipoPersona, dq, page, limit*/]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -749,6 +1007,43 @@ export default function ExpedienteForm() {
     if (file) {
       if (file.size > 5 * 1024 * 1024) return alert("Máximo 5MB");
       setValue("licencia.doc_itse", file);
+    }
+  };
+
+  const alEnviar2 = (data: any) => {
+    console.log("Datos limpios recolectados:", data);
+  };
+
+  const alEnviar = async (data) => {
+    try {
+      setLoading(true);
+
+      // 1. Limpieza de datos (Opcional pero recomendado)
+      // Aseguramos que los montos sean números y las fechas tengan formato correcto
+      const payload = {
+        ...data,
+        pagos: data.pagos.map(p => ({
+          ...p,
+          monto: parseFloat(p.monto) // Asegurar que sea decimal
+        })),
+        // La fecha ya viene en string YYYY-MM-DD por el input date
+      };
+
+      const response = await expedientesApi.guardarSolicitudDDJJ(payload);
+      const result = response.data;
+
+      if (result.success) {
+        swalSuccess(`Licencia registrada con expediente ${result.numero_expediente}`);
+        // Redirigir o limpiar formulario
+      } else {
+        throw new Error(result.message || "Error al guardar");
+      }
+
+    } catch (error: any) {
+      console.error("Error en el registro:", error);
+      swalError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -839,7 +1134,7 @@ export default function ExpedienteForm() {
                             setValue('licencia.modalidad', m.id);
                             if (m.id === 'INDETERMINADA') {
                               setValue('licencia.fecha_inicio_plazo', '');
-                              setValue('licencia.fecha_fin_pazo', '');
+                              setValue('licencia.fecha_fin_plazo', '');
                             }
                           }}
                           className={`flex-1 py-2 px-3 rounded-lg border-2 font-bold text-[11px] transition-all
@@ -869,7 +1164,7 @@ export default function ExpedienteForm() {
                           <input 
                             type="date" 
                             className={inputClasses}
-                            {...register("licencia.fecha_fin_pazo")}
+                            {...register("licencia.fecha_fin_plazo")}
                           />
                         </div>
                       </div>
@@ -1029,79 +1324,27 @@ export default function ExpedienteForm() {
 
             <fieldset disabled={isModBasica} className={`space-y-4 ${isModBasica ? 'opacity-50' : ''}`}>
 
-              {/* 1. Identificación y Actividad */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
-                <div className="md:col-span-6 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Nombre Comercial</label>
-                  <input
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all font-bold"
-                    placeholder="Ej. Restaurante Sazón Peruana"
-                    {...register("declaracion.nombre_comercial")}
-                  />
+              {/* MAPA */}
+              <div className="flex flex-col gap-2 pt-2">
+                <div className="flex items-center justify-between ml-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Geolocalización del Establecimiento</label>
+                  <span className="text-[9px] font-bold text-[#0f766e] italic">Haga clic en el mapa para ubicar el local</span>
                 </div>
 
-                <div className="md:col-span-6 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Actividad Específica</label>
-                  <input
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e] transition-all"
-                    placeholder="Detalle la actividad principal..."
-                    {...register("declaracion.actividad")}
-                  />
-                </div>
+                {/* BLOQUE BUSCADOR */}
+                <SlimSearchBlock onSearch={procesarBusqueda} loading={loading} />
 
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
-                <div className="md:col-span-2 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Código CIIU</label>
-                  <input
-                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all text-center font-mono"
-                    placeholder="5610"
-                    {...register("declaracion.codigo_ciiu")}
-                  />
-                </div>
-
-                <div className="md:col-span-10 flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Giro(s) del Negocio*</label>
-                  <div className="flex gap-2">
-                    <input
-                      className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none"
-                      placeholder="Ej. Venta de abarrotes..."
-                      {...register("declaracion.nombre_giro")}
-                    />
-                    <button
-                      type="button"
-                      className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20"
-                      onClick={() => setIsGiroModalOpen(true)}
-                    >
-                      <Plus size={14} /> Agregar
-                    </button>
-
-                    {/* Al final de tu return, antes de cerrar el div principal */}
-                    <ModalSeleccionGiro 
-                      isOpen={isGiroModalOpen}
-                      onClose={() => setIsGiroModalOpen(false)}
-                      zonificacionDetectada={watch("declaracion.zonificacion")} // Escucha en tiempo real lo que detectó el mapa
-                      girosDisponibles={girosEjemplo} // Tu array de prueba
-                      onSelect={handleGiroSelect}
-                      loading={false} 
-                    />
-                  </div>
-                </div>
-
-                {/* Chips de giros */}
-                {estGiros.length > 0 && (
-                  <div className="md:col-span-12 flex flex-wrap gap-2 pt-1">
-                    {estGiros.map((g, i) => (
-                      <span key={i} className="inline-flex items-center gap-2 bg-[#0f766e]/5 text-[#0f766e] border border-[#0f766e]/20 px-2.5 py-1 rounded-md text-[10px] font-black uppercase animate-in zoom-in-95">
-                        {g}
-                        <button type="button" onClick={() => setEstGiros(estGiros.filter((_, idx) => idx !== i))} className="hover:text-rose-600 transition-colors">
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* Nuevo componente de Mapa Optimizado */}
+                <MapaZonificacion 
+                  position={position}
+                  setPosition={setPosition}
+                  datosGeoJSON={datosGeoJSON}
+                  lineaMapa={lineaMapa}
+                  eventHandlers={eventHandlers}
+                  iconMaker={metodoUbica}
+                  markerRef={markerRef}
+                />
+                
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
@@ -1133,29 +1376,6 @@ export default function ExpedienteForm() {
                   </div>
                 </div>
 
-              </div>
-
-              {/* MAPA */}
-              <div className="flex flex-col gap-2 pt-2">
-                <div className="flex items-center justify-between ml-1">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Geolocalización del Establecimiento</label>
-                  <span className="text-[9px] font-bold text-[#0f766e] italic">Haga clic en el mapa para ubicar el local</span>
-                </div>
-
-                {/* BLOQUE BUSCADOR */}
-                <SlimSearchBlock onSearch={procesarBusqueda} loading={loading} />
-
-                {/* Nuevo componente de Mapa Optimizado */}
-                <MapaZonificacion 
-                  position={position}
-                  setPosition={setPosition}
-                  datosGeoJSON={datosGeoJSON}
-                  lineaMapa={lineaMapa}
-                  eventHandlers={eventHandlers}
-                  
-                  markerRef={markerRef}
-                />
-                
               </div>
 
               {/* 2. Ubicación Física */}
@@ -1195,7 +1415,7 @@ export default function ExpedienteForm() {
                   <div className="md:col-span-2">
                     <label className={labelClasses}>Área Total (m²)</label>
                     <div className="relative">
-                      <input type="number" className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 pr-8 text-xs font-bold text-[#0f766e] outline-none" 
+                      <input type="number" step="0.01" className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 pr-8 text-xs font-bold text-[#0f766e] outline-none" 
                         {...register("declaracion.area_total_m2")} />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">m²</span>
                     </div>
@@ -1203,6 +1423,103 @@ export default function ExpedienteForm() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
+                <div className="md:col-span-2 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Código CIIU</label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all text-center font-mono"
+                    placeholder="5610"
+                    {...register("declaracion.codigo_ciiu")}
+                  />
+                </div>
+
+                <div className="md:col-span-10 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Giro(s) del Negocio*</label>
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none"
+                      placeholder="Ej. Venta de abarrotes..."
+                      {...register("declaracion.nombre_giro")}
+                    />
+                    <button
+                      type="button"
+                      className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20"
+                      onClick={() => setIsGiroModalOpen(true)}
+                    >
+                      <Plus size={14} /> Agregar
+                    </button>
+
+                    {/* Al final de tu return, antes de cerrar el div principal */}
+                    <ModalSeleccionGiro 
+                      isOpen={isGiroModalOpen}
+                      onClose={() => setIsGiroModalOpen(false)}
+                      zonificacionDetectada={watch("declaracion.zonificacion")}
+                      girosDisponibles={girosDb}
+                      onSelect={handleGiroSelect}
+                      loading={buscandoGiro} 
+                      onSearch={handleBuscarGiros}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Chips de giros */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-700">
+                  Giros Seleccionados
+                </label>
+                
+                {fieldsGiros.map((item, index) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-[#0f766e]">CIIU: {item.codigo}</span>
+                        {item.con_excepcion && (
+                          <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded font-black">
+                            CON EXCEPCIÓN
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] font-bold text-slate-800 uppercase">{item.nombre}</p>
+                    </div>
+                    
+                    <button 
+                      type="button"
+                      onClick={() => removeGiro(index)} // Elimina del formulario
+                      className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-full transition-colors"
+                    >
+                      <XCircle size={18} />
+                    </button>
+                  </div>
+                ))}
+
+                {fieldsGiros.length === 0 && (
+                  <p className="text-[10px] text-slate-400 italic">No hay giros seleccionados.</p>
+                )}
+              </div>
+
+              {/* 1. Identificación y Actividad */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-end">
+                <div className="md:col-span-6 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Nombre Comercial</label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs focus:border-[#0f766e] outline-none transition-all font-bold"
+                    placeholder="Ej. Restaurante Sazón Peruana"
+                    {...register("declaracion.nombre_comercial")}
+                  />
+                </div>
+
+                <div className="md:col-span-6 flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight ml-1">Actividad Específica</label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e] transition-all"
+                    placeholder="Detalle la actividad principal..."
+                    {...register("declaracion.actividad")}
+                  />
+                </div>
+
+              </div>
+              
               {/* 3. Autorización Sectorial */}
               <div className={`pt-2 px-1 rounded-xl transition-all duration-300 ${isAutoridadSectorial ? 'bg-teal-50/30 p-4 border border-[#0f766e]/10' : ''}`}>
                 <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
@@ -1672,39 +1989,60 @@ export default function ExpedienteForm() {
                       onOpenChange={setOpenPersona}
                       editingPersona={editingPersona}
                       onSuccess={(personaCreada) => {
+                        console.log(personaCreada);
                         // Seteamos los valores en Hook Form
                         setValue("id_persona", personaCreada.id_persona);
                         setValue("nombre_razon_social", personaCreada.nombre_razon_social);
-                        // Si el modal no limpia el apoderado, lo hacemos aquí por seguridad
+                        setValue("tipo_persona", personaCreada.tipo_persona);
                         setValue("licencia.tiene_apoderado", false);
+
+                        // 2. ACTUALIZAMOS EL ESTADO LOCAL DEL INPUT (para la UI)
+                        // Este es el paso que te falta para que el texto aparezca en pantalla
+                        setValorInput(personaCreada.nombre_razon_social);
+
+                        // 3. Cerramos sugerencias por si estaban abiertas
+                        setShowSuggestionsSolicitante(false);
+
+                        // 4. (Opcional) Si quieres que se carguen los representantes de esta nueva persona:
+                        obtenerRepresentantes(personaCreada.id_persona);
+
                       }}
                     />
                   </div>
                   
                   <div className="relative">
-                    <input 
-                      className={inputStyle}
-                      placeholder="Escriba el nombre o RUC del solicitante"
-                      {...register("nombre_razon_social")}
-                      onFocus={() => setShowSuggestionsSolicitante(true)}
-                      autoComplete="off"
-                      onChange={(e) => {
-                        setValue("nombre_razon_social", e.target.value);
-                        if (watch("id_persona")) {
-                          setValue("id_persona", null);
-                          setValue("licencia.tiene_apoderado", false);
-                        }
-                        setShowSuggestionsSolicitante(true);
-                      }} 
+                    <BuscadorSolicitante 
+                      setValue={setValue}
+                      getValues={getValues}
+                      setShowSuggestions={setShowSuggestionsSolicitante}
+                      onSearch={(termino: string) => setDq(termino)}
+                      defaultValue={valorInput} // valorInput se actualiza en handleSelectPersona
                     />
 
-                    {/* Tu Lista Desplegable Solicitante */}
-                    {showSuggestionsSolicitante && sugerenciasFiltradasSolicitante.length > 0 && (
+                    {/* Tu Lista Desplegable Solicitante sugerenciasFiltradasSolicitante */}
+                    {showSuggestionsSolicitante && !watch("id_persona") && (
                       <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                         <div className="max-h-52 overflow-y-auto bg-white">
-                          {sugerenciasFiltradasSolicitante.map((persona) => (
+                          
+                          {/* 2. Estado: CARGANDO (Feedback inmediato al hacer click o escribir) */}
+                          {cargandoSolicitantes && (
+                            <div className="flex items-center justify-center py-4 bg-slate-50/50">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                              <span className="text-[10px] text-slate-500 font-medium">Buscando en registros...</span>
+                            </div>
+                          )}
+
+                          {/* 3. Feedback de cantidad (Solo si ya terminó de cargar y hay resultados) */}
+                          {!cargandoSolicitantes && totalSolicitantesRegistrados > 0 && (
+                            <div className="px-4 py-1 bg-slate-100 text-[8px] text-slate-400 font-bold uppercase sticky top-0 z-10">
+                              Se encontraron {totalSolicitantesRegistrados} resultados
+                            </div>
+                          )}
+
+                          {/* 4. Lista de Resultados */}
+                          {!cargandoSolicitantes && solicitantesParaSeleccion.map((persona) => (
                             <div 
-                              key={persona.id}
+                              key={persona.id_persona}
                               onClick={() => {
                                 handleSelectPersona(persona);
                                 setShowSuggestionsSolicitante(false);
@@ -1712,18 +2050,35 @@ export default function ExpedienteForm() {
                               className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer flex justify-between items-center group border-b border-slate-50 last:border-none"
                             >
                               <div>
-                                <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 uppercase">{persona.nombre}</div>
+                                <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 uppercase">
+                                  {persona.nombre_razon_social}
+                                </div>
                                 <div className="text-[9px] text-slate-500 font-medium">{persona.ruc}</div>
                               </div>
+                              <i className="fi fi-rr-angle-small-right text-slate-300 group-hover:text-blue-400"></i>
                             </div>
                           ))}
+
+                          {/* 5. Estado: SIN RESULTADOS (Solo si terminó de cargar y el array está vacío) */}
+                          {!cargandoSolicitantes && solicitantesParaSeleccion.length === 0 && !errorCargaSolicitantes && (
+                            <div className="px-4 py-6 text-center">
+                              <p className="text-[10px] text-slate-400 font-medium">No se encontraron coincidencias</p>
+                            </div>
+                          )}
+
+                          {/* 6. Feedback de Error */}
+                          {errorCargaSolicitantes && (
+                            <div className="px-4 py-3 bg-red-50 text-[9px] text-red-500 border-t border-red-100">
+                              {errorCargaSolicitantes}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* CHECKBOX DE APODERADO (Solo para Personas Naturales) */}
-                  {idSolicitante && tipoPersona === 'NATURAL' && (
+                  {watch("id_persona") && watch("tipo_persona") === 'NATURAL' && (
                     <div className="mt-2 ml-1 flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100 animate-in slide-in-from-top-1">
                       <Switch 
                         id="chkApoderado"
@@ -1743,18 +2098,18 @@ export default function ExpedienteForm() {
                 {/* 2. LADO DERECHO: REPRESENTANTE */}
                 <div 
                   className={`relative transition-all duration-500 ${
-                    !mostrarRepresentante 
-                    ? 'opacity-30 grayscale pointer-events-none scale-[0.98]' 
-                    : 'opacity-100 scale-100'
+                    !(getValues("tipo_persona") === 'JURIDICA' || getValues("licencia.tiene_apoderado"))
+                      ? 'opacity-30 grayscale pointer-events-none scale-[0.98]' 
+                      : 'opacity-100 scale-100'
                   }`} 
                   ref={representanteRef}
                 >
                   <div className="flex items-center gap-2 mb-1.5">
                     <label className={`text-[10px] font-black uppercase tracking-tight ml-0.5 text-slate-500`}>
-                      {esJuridica ? 'Representante Legal' : 'Apoderado'}
+                      {getValues("tipo_persona") === 'JURIDICA' ? 'Representante Legal' : 'Apoderado'}
                     </label>
                     
-                    {mostrarRepresentante && (
+                    {(getValues("tipo_persona") === 'JURIDICA' || getValues("licencia.tiene_apoderado")) && (
                       <button 
                         type="button"
                         onClick={() => setOpenRep(true)}                       
@@ -1768,24 +2123,39 @@ export default function ExpedienteForm() {
                       open={openRep}
                       onOpenChange={setOpenRep}
                       editingRep={null}
-                      juridicas={juridicas}
-                      selectedPersonaId={idSolicitante}
-                      onSuccess={(repCreado) => {
-                        setValue("licencia.nombre_representante", repCreado.nombre);
-                        setValue("licencia.id_representante", repCreado.id_representante);
+                      juridicas={[]}
+                      solicitanteDirecto={{
+                        id_persona: Number(getValues("id_persona")),
+                        nombre_razon_social: getValues("nombre_razon_social"),
+                        tipo_persona: getValues("tipo_persona")
                       }}
-                    />
+                      onSuccess={(repCreado) => {
+                        console.log("Datos recibidos del modal:", repCreado);
 
-                    
+                        setValue("licencia.nombre_representante", repCreado.nombres);
+                        setValue("licencia.id_representante", repCreado.id_representante);
+                        obtenerRepresentantes(Number(getValues("id_persona")));
+                      }}
+                    />                   
 
                   </div>
 
                   <div className="relative">
                     <input
-                      disabled={!mostrarRepresentante}
-                      className={`${inputStyle} ${!mostrarRepresentante ? 'bg-slate-50 border-transparent shadow-none' : 'bg-white'}`}
-                      placeholder={esJuridica ? "Buscar representante legal..." : "Buscar apoderado..."}
+                      autoComplete="off"
+                      disabled={!(getValues("tipo_persona") === 'JURIDICA' || getValues("licencia.tiene_apoderado"))}
+                      className={`${inputStyle} ${
+                        !(getValues("tipo_persona") === 'JURIDICA' || getValues("licencia.tiene_apoderado")) 
+                          ? 'bg-slate-50 border-transparent shadow-none cursor-not-allowed' 
+                          : 'bg-white'
+                      }`}
+                      placeholder={
+                        getValues("tipo_persona") === 'JURIDICA' 
+                          ? "Buscar representante legal..." 
+                          : "Buscar apoderado..."
+                      }
                       {...register("licencia.nombre_representante")}
+                      value={nombreRepresentante || ""}
                       onFocus={() => setShowSuggestionsRepresentante(true)}
                       onChange={(e) => {
                         setValue("licencia.nombre_representante", e.target.value);
@@ -1798,9 +2168,17 @@ export default function ExpedienteForm() {
                     {showSuggestionsRepresentante && (
                       <div className="absolute left-0 right-0 z-[100] mt-1 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
                         <div className="max-h-52 overflow-y-auto bg-white">
-                          {sugerenciasFiltradasRepresentante.length > 0 ? (
-                            // LISTA DE SUGERENCIAS ENCONTRADAS
-                            sugerenciasFiltradasRepresentante.map((rep) => (
+                          
+                          {/* 1. Feedback de carga (opcional, por si la API aún responde) */}
+                          {cargandoRepresentantes && (
+                            <div className="px-4 py-3 text-center text-[10px] text-slate-400 font-bold uppercase animate-pulse">
+                              Buscando representantes...
+                            </div>
+                          )}
+
+                          {/* 2. Listado directo desde el array cargado */}
+                          {!cargandoRepresentantes && representantesParaSeleccion.length > 0 ? (
+                            representantesParaSeleccion.map((rep) => (
                               <div
                                 key={rep.id_representante}
                                 onClick={() => {
@@ -1811,7 +2189,7 @@ export default function ExpedienteForm() {
                               >
                                 <div>
                                   <div className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors uppercase">
-                                    {rep.nombre}
+                                    {rep.nombres}
                                   </div>
                                   <div className="text-[9px] text-slate-500 font-medium">
                                     Doc: <span className="text-blue-600">{rep.numero_documento}</span>
@@ -1823,17 +2201,18 @@ export default function ExpedienteForm() {
                               </div>
                             ))
                           ) : (
-                            // MENSAJE CUANDO NO HAY RESULTADOS VINCULADOS
-                            <div className="px-4 py-6 text-center animate-in fade-in duration-300">
-                              <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">
-                                Sin resultados
+                            /* 3. Mensaje si no hay nada cargado aún */
+                            !cargandoRepresentantes && (
+                              <div className="px-4 py-6 text-center animate-in fade-in duration-300">
+                                <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">
+                                  Sin registros vinculados
+                                </div>
+                                <p className="text-[10px] text-slate-500 italic leading-tight">
+                                  No se encontraron representantes. <br />
+                                  Use el botón <span className="text-blue-600 font-bold"> [+ NUEVO] </span> para registrar uno.
+                                </p>
                               </div>
-                              <p className="text-[10px] text-slate-500 italic leading-tight">
-                                No se encontraron representantes vinculados a este solicitante. 
-                                <br />
-                                Use el botón <span className="text-blue-600 font-bold"> [+ NUEVO] </span> para registrar uno.
-                              </p>
-                            </div>
+                            )
                           )}
                         </div>
                       </div>
@@ -1841,7 +2220,7 @@ export default function ExpedienteForm() {
                   </div>
                   
                   {/* Mensaje de estado cuando está bloqueado */}
-                  {!mostrarRepresentante && idSolicitante && (
+                  {/*!mostrarRepresentante && idSolicitante &&*/ (
                     <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-md w-fit">
                       <div className="w-1 h-1 bg-slate-400 rounded-full" />
                       <span className="text-[8px] text-slate-500 font-bold uppercase tracking-tight">
@@ -1938,6 +2317,83 @@ export default function ExpedienteForm() {
                   {...register("declaracion.observaciones")}
                 />
               </div>
+
+              <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                    Información de Pagos
+                  </h3>
+                </div>
+
+                {fieldsPagos.map((field, index) => (
+                  <div key={field.id} className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200 shadow-sm relative">
+                    
+                    {/* Nro de Recibo */}
+                    <div className="col-span-12 md:col-span-4">
+                      <Label className={labelClasses}>Nro. Recibo / Operación</Label>
+                      <input 
+                        {...register(`pagos.${index}.nro_recibo`)} 
+                        className={inputClasses} 
+                        placeholder="000-XXXXX" 
+                      />
+                    </div>
+
+                    {/* Fecha de Pago */}
+                    <div className="col-span-12 md:col-span-4">
+                      <Label className={labelClasses}>Fecha de Pago</Label>
+                      <input 
+                        type="date"
+                        {...register(`pagos.${index}.fecha_pago`)} 
+                        className={inputClasses} 
+                      />
+                    </div>
+
+                    {/* Monto e Icono de Quitar */}
+                    <div className="col-span-12 md:col-span-4 flex items-center gap-2">
+                      <div className="flex-1">
+                        <Label className={labelClasses}>Monto (S/.)</Label>
+                        <input 
+                          type="number"
+                          step="0.01"
+                          {...register(`pagos.${index}.monto`, { valueAsNumber: true })} 
+                          className={inputClasses} 
+                          placeholder="0.00"
+                        />
+                      </div>
+                      
+                      {/* Botón Quitar: Solo si hay más de un elemento o según tu preferencia */}
+                      <button
+                        type="button"
+                        onClick={() => removePago(index)}
+                        className="mb-0.5 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                        title="Quitar pago"
+                      >
+                        <X size={18} strokeWidth={3} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Botón Agregar Pago */}
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => appendPago({ concepto: "DERECHO DE TRÁMITE", nro_recibo: "", fecha_pago: "", monto: 0 })}
+                    className="flex items-center gap-1.5 text-[10px] font-black text-[#0f766e] hover:text-teal-800 transition-colors uppercase tracking-tight"
+                  >
+                    <Plus size={14} strokeWidth={3} />
+                    Agregar pago
+                  </button>
+                </div>
+              </div>
+
+
+
+
+
+
+
+
 
             </div>
           </SeccionCard>

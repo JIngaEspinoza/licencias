@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "../../types/components/ui/dialog"; // Ajusta la ruta según tu proyecto
+} from "../../types/components/ui/dialog"; 
 import { Search, Loader2, CheckCircle2, XCircle, Info } from "lucide-react";
 
 interface ModalSeleccionGiroProps {
@@ -14,6 +14,7 @@ interface ModalSeleccionGiroProps {
   zonificacionDetectada: string;
   girosDisponibles: any[];
   onSelect: (giro: any, compatibilidad: any) => void;
+  onSearch: (term: string) => void; // NUEVA PROP
   loading?: boolean;
 }
 
@@ -23,15 +24,27 @@ export const ModalSeleccionGiro = ({
   zonificacionDetectada,
   girosDisponibles,
   onSelect,
+  onSearch,
   loading = false
 }: ModalSeleccionGiroProps) => {
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- ESTILOS COMPARTIDOS (Basados en tu PersonaModal) ---
+  // --- LÓGICA DE DEBOUNCE PARA BÚSQUEDA EN BACKEND ---
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      // Solo disparamos la búsqueda al backend si el modal está abierto
+      if (isOpen) {
+        onSearch(searchTerm);
+      }
+    }, 400); // Espera 400ms tras dejar de escribir
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, isOpen]);
+
   const labelClasses = "text-[10px] font-black text-slate-800 uppercase tracking-tight mb-1.5 block ml-0.5";
   const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 placeholder:font-normal";
 
-  // --- LÓGICA DE FILTRADO ---
+  // Mantener el filter local por si girosDisponibles trae una pequeña lista inicial
   const girosFiltrados = useMemo(() => {
     return girosDisponibles.filter(giro =>
       giro.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -45,7 +58,6 @@ export const ModalSeleccionGiro = ({
         className="sm:max-w-[650px] p-0 border-none overflow-hidden bg-white shadow-2xl"
         onInteractOutside={(e) => e.preventDefault()}
       >
-        {/* HEADER ESTILO PERSONA_MODAL */}
         <DialogHeader className="p-5 text-white bg-[#0f766e]">
           <DialogTitle className="text-[13px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-2">
             🔍 Búsqueda de Actividad Económica
@@ -59,7 +71,6 @@ export const ModalSeleccionGiro = ({
         </DialogHeader>
 
         <div className="p-6">
-          {/* BUSCADOR COMPACTO */}
           <div className="flex flex-col gap-1.5 mb-6">
             <label className={labelClasses}>Filtrar actividad / Código CIIU</label>
             <div className="relative group shadow-sm">
@@ -71,25 +82,29 @@ export const ModalSeleccionGiro = ({
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
               <Search className="absolute left-3 top-3 text-slate-400" size={16} />
+              
+              {/* Indicador de carga pequeño en el input */}
+              {loading && (
+                <Loader2 className="absolute right-3 top-3 animate-spin text-[#0f766e]" size={16} />
+              )}
             </div>
           </div>
 
-          {/* LISTADO DE RESULTADOS */}
           <div className="flex flex-col gap-1">
             <label className={labelClasses}>Resultados y Compatibilidad</label>
             <div className="h-[350px] overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-slate-200">
-              {loading ? (
+              {loading && girosFiltrados.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400">
                   <Loader2 size={24} className="animate-spin mb-2 text-[#0f766e]" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Consultando Catastro...</span>
                 </div>
               ) : girosFiltrados.length > 0 ? (
                 girosFiltrados.map((giro) => {
-                  const compatibilidad = giro.giro_zonificacion.find(
+                  const compatibilidad = giro.giro_zonificacion?.find(
                     (gz: any) => gz.zonificacion.codigo === zonificacionDetectada
                   );
                   
-                  const esPermitido = compatibilidad?.estado_uso?.codigo === 'H';
+                  const esPermitido = compatibilidad?.estado_uso?.codigo === 'X';
 
                   return (
                     <button
@@ -115,7 +130,6 @@ export const ModalSeleccionGiro = ({
                         </h4>
                       </div>
 
-                      {/* BADGE DE ESTADO */}
                       <div className="ml-4 flex flex-col items-end min-w-[90px]">
                         {esPermitido ? (
                           <div className="flex items-center gap-1 text-emerald-600">
@@ -137,14 +151,15 @@ export const ModalSeleccionGiro = ({
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-slate-400 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
                   <Info size={24} className="mb-2 opacity-20" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">No se encontraron giros</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">
+                    {searchTerm ? "No se encontraron resultados" : "Escribe para buscar actividades"}
+                  </span>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
           <button
             onClick={onClose}

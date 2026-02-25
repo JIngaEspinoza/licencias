@@ -55,7 +55,8 @@ export const PersonaModal = ({
   // --- LÓGICA DE GUARDADO INTEGRADA ---
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-
+    e.stopPropagation();
+    
     const getOptionalString = (value: FormDataEntryValue | null) => {
       const trimmedValue = String(value || "").trim();
       return trimmedValue === "" ? undefined : trimmedValue;

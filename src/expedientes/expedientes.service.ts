@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -463,6 +463,103 @@ export class ExpedientesService {
     );
 
     doc.end();
+  }
+
+  async guardarSolicitudDDJJ(data: any) {
+    try {
+      // Función auxiliar para convertir strings a Date o null
+      const parseFecha = (fecha: any) => (fecha && String(fecha).trim() !== "") ? new Date(fecha) : null;
+
+      // 1. Limpieza de Licencia
+      const { 
+        nombre_representante: _repNom, 
+        id_representante,
+        fecha_recepcion,
+        fecha_inicio_plazo,
+        fecha_fin_plazo,
+        resolucion_fecha,
+        ...licenciaResto 
+      } = data.licencia;
+
+      // 2. Limpieza de Declaración
+      const { 
+        chk_tolerancia: _chkTol, 
+        aut_fecha,
+        fecha_aut_ministerio_cultura,
+        ...declaracionResto
+      } = data.declaracion;
+      
+      const nuevoExpediente = await this.prisma.expediente.create({
+        data: {
+          numero_expediente: data.numero_expediente,
+          id_persona: data.id_persona,
+          estado: data.estado || 'EN_EVALUACION',
+          fecha: parseFecha(data.fecha) || new Date(),
+          
+          // Relación 1:1 - Tabla Licencia
+          expediente_licencia: {
+            create: {
+              ...licenciaResto,
+              fecha_recepcion: parseFecha(fecha_recepcion)!, // Obligatoria
+              fecha_inicio_plazo: parseFecha(fecha_inicio_plazo),
+              fecha_fin_plazo: parseFecha(fecha_fin_plazo),
+              resolucion_fecha: parseFecha(resolucion_fecha),
+              representante: {
+                connect: { id_representante: id_representante }
+              }
+            }
+          },
+          
+          // Relación 1:1 - Tabla Declaracion
+          declaracion_jurada: {
+            create: {
+              ...declaracionResto,
+              aut_fecha: parseFecha(aut_fecha),
+              fecha_aut_ministerio_cultura: parseFecha(fecha_aut_ministerio_cultura),
+              area_total_m2: parseFloat(declaracionResto.area_total_m2)
+            }
+          },
+          
+          // Relación 1:N - Tabla Pagos
+          pago_tramite: {
+            create: data.pagos.map(({ id_expediente, ...pago }) => ({
+              ...pago,
+              fecha_pago: parseFecha(pago.fecha_pago)
+            }))
+          },
+          
+          // Relación 1:N - Tabla Giros Seleccionados (Limpieza estricta de campos UI)
+          declaracion_jurada_giro: {
+            create: data.giros_seleccionados.map((giro: any) => ({
+              id_giro_zonificacion: giro.id_giro,
+              es_excepcion: giro.con_excepcion,
+              zonificacion_al_momento: giro.zonificacion_al_momento
+            }))
+          }
+        },
+        include: {
+          expediente_licencia: true,
+          declaracion_jurada: true,
+          pago_tramite: true,
+          declaracion_jurada_giro: true
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Solicitud registrada correctamente',
+        numero_expediente: nuevoExpediente.numero_expediente,
+        data: nuevoExpediente
+      };
+
+    } catch (error) {
+      console.error('Error al guardar solicitud DDJJ:', error);
+      // Si es un error de validación de Prisma, lo lanzamos para ver el detalle en consola
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException('Ocurrió un error al registrar el expediente.');
+    }
   }
 
   create(createExpedienteDto: CreateExpedienteDto) {

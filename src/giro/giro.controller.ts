@@ -23,6 +23,11 @@ export class GiroController {
     return this.giroService.findAllWithoutPagination();
   }
 
+  @Get('buscarGirosModal')
+  async buscar(@Query('term') term: string) {
+    return this.giroService.buscarGirosParaModal(term);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.giroService.findOne(id);

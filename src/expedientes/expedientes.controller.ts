@@ -23,6 +23,11 @@ export class ExpedientesController {
     return this.expedientesService.generarPdfCarton(Number(id), res);
   }
 
+  @Post('guardar-solicitud')
+  async guardarSolicitudDDJJ(@Body() payload: any) { // Cambia 'any' por tu DTO si tienes uno
+    return await this.expedientesService.guardarSolicitudDDJJ(payload);
+  }
+
   @Post()
   create(@Body() createExpedienteDto: CreateExpedienteDto) {
     return this.expedientesService.create(createExpedienteDto);

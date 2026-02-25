@@ -258,6 +258,12 @@ export const expedientesApi = {
     auth: true
   }),
 
+  guardarSolicitudDDJJ: (payload: any) => 
+    http<any>(`${BASE_PATH}/guardar-solicitud`,{
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+
   list: (params = {}) => {
     const defaultParams = { page: 1, limit: 10 };
     const finalParams = { ...defaultParams, ...params };

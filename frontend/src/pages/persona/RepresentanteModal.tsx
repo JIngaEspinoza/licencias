@@ -13,7 +13,7 @@ import { Button } from "../../types/components/ui/button";
 import { swalError, swalSuccess } from "../../utils/swal";
 import { representantesApi } from "../../services/representantes";
 import { Toast } from "../../lib/toast";
-import { Search, Loader2, Building2, Check, ChevronsUpDown, X, User } from "lucide-react";
+import { Search, Loader2, Building2, ChevronsUpDown, X, User } from "lucide-react";
 
 // --- COMPONENTE INTERNO: BUSCADOR DE PERSONA/EMPRESA ---
 const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
@@ -47,7 +47,7 @@ const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
           ) : (
             <User size={14} className="text-blue-600" />
           )}
-          <span className="truncate">
+          <span className="truncate uppercase">
             {selectedPersona 
               ? `${selectedPersona.nombre_razon_social} — ${selectedPersona.ruc || selectedPersona.numero_documento}` 
               : "BUSCAR PERSONA O EMPRESA..."}
@@ -107,11 +107,6 @@ const EmpresaSearchSelector = ({ juridicas, value, onChange }: any) => {
                       </span>
                     </div>
                   </div>
-                  <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${
-                    p.tipo_persona === 'JURIDICA' ? 'border-amber-200 text-amber-600' : 'border-blue-200 text-blue-600'
-                  }`}>
-                    {p.tipo_persona}
-                  </span>
                 </button>
               ))
             ) : (
@@ -130,22 +125,28 @@ interface RepresentanteModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingRep: any;
-  juridicas: any[];
+  juridicas: any[]; // Se mantiene por compatibilidad con modulo gestion
   onSuccess?: (data: any) => void;
   setSelectedPersonaId?: (id: number | null) => void;
   selectedPersonaId?: number | null;
   setReps?: React.Dispatch<React.SetStateAction<any[]>>;
+  solicitanteDirecto?: { 
+    id_persona: number | null; 
+    nombre_razon_social: string | null; 
+    tipo_persona: string | null; 
+  };
 }
 
 export const RepresentanteModal = ({
   open,
   onOpenChange,
   editingRep,
-  juridicas,
+  juridicas = [],
   onSuccess,
   setSelectedPersonaId,
   selectedPersonaId,
-  setReps
+  setReps,
+  solicitanteDirecto
 }: RepresentanteModalProps) => {
   
   const [repSaving, setRepSaving] = useState(false);
@@ -154,13 +155,13 @@ export const RepresentanteModal = ({
   const [repDocNumero, setRepDocNumero] = useState("");
   const [isSearchingSunat, setIsSearchingSunat] = useState(false);
 
-  const personaActual = useMemo(() => 
-    juridicas.find(p => String(p.id_persona) === String(empresaId || selectedPersonaId)),
-    [juridicas, empresaId, selectedPersonaId]
-  );
+  // LÓGICA DE IDENTIDAD ACTUALIZADA
+  const personaActual = useMemo(() => {
+    if (solicitanteDirecto?.id_persona) return solicitanteDirecto;
+    return juridicas.find(p => String(p.id_persona) === String(empresaId || selectedPersonaId));
+  }, [juridicas, empresaId, selectedPersonaId, solicitanteDirecto]);
 
   const esJuridica = personaActual?.tipo_persona === "JURIDICA";
-  const maxLength = repDocTipo === "DNI" ? 8 : 9;
   const labelClasses = "text-[10px] font-black text-slate-800 uppercase tracking-tight mb-1.5 block ml-0.5";
   const inputClasses = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300";
 
@@ -171,12 +172,13 @@ export const RepresentanteModal = ({
         setRepDocTipo(editingRep.tipo_documento || "DNI");
         setRepDocNumero(editingRep.numero_documento || "");
       } else {
-        setEmpresaId(selectedPersonaId ? String(selectedPersonaId) : "");
+        const idBase = solicitanteDirecto?.id_persona || selectedPersonaId;
+        setEmpresaId(idBase ? String(idBase) : "");
         setRepDocNumero("");
         setRepDocTipo("DNI");
       }
     }
-  }, [editingRep, open, selectedPersonaId]);
+  }, [editingRep, open, selectedPersonaId, solicitanteDirecto]);
 
   const onSearchSunat = async () => {
     if (repDocNumero.length < 8) return;
@@ -186,8 +188,8 @@ export const RepresentanteModal = ({
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    if (!juridicas || juridicas.length === 0) return swalError("No hay registros cargados.");
-
+    e.stopPropagation();
+    
     const f = new FormData(e.currentTarget);
     const payload = {
       id_persona: Number(empresaId),
@@ -197,8 +199,8 @@ export const RepresentanteModal = ({
       sunarp_partida_asiento: String(f.get("sunarp")).trim(),
     };
 
-    if (!payload.id_persona) return swalError("Selecciona una persona o empresa vinculada");
-    if (!payload.nombres) return swalError("Ingresa nombres");
+    if (!payload.id_persona) return swalError("Debe estar vinculado a un solicitante");
+    if (!payload.nombres) return swalError("Ingresa nombres y apellidos");
     if (!payload.numero_documento) return swalError("Ingresa número de documento");
 
     setRepSaving(true);
@@ -210,9 +212,7 @@ export const RepresentanteModal = ({
       } else {
         const created = await representantesApi.create(payload);
         if (setSelectedPersonaId && !selectedPersonaId) setSelectedPersonaId(payload.id_persona);
-        if (setReps) {
-          setReps((prev) => [...prev, created]);
-        }
+        if (setReps) setReps((prev) => [...prev, created]);
         response = created;
         Toast.fire({ icon: "success", title: esJuridica ? "Representante creado" : "Apoderado creado" });
       }
@@ -220,7 +220,7 @@ export const RepresentanteModal = ({
       if (onSuccess) onSuccess(response);
       onOpenChange(false);
     } catch (err: any) {
-      swalError(err?.message ?? "Error al procesar");
+      swalError(err?.message ?? "Error al procesar el registro");
     } finally {
       setRepSaving(false);
     }
@@ -234,7 +234,7 @@ export const RepresentanteModal = ({
             {editingRep?.id_representante ? "📝 Editar" : "🤝 Nuevo"} {esJuridica ? "Representante" : "Apoderado"}
           </DialogTitle>
           <DialogDescription className="text-white/70 text-[10px] uppercase font-bold tracking-wider">
-            {esJuridica ? "Gestión de Representante Legal" : "Gestión de Apoderado (Persona Natural)"}
+            {esJuridica ? "Gestión de Representante Legal" : "Gestión de Apoderado para Persona Natural"}
           </DialogDescription>
         </DialogHeader>
 
@@ -243,7 +243,7 @@ export const RepresentanteModal = ({
             
             <div className="md:col-span-12">
               <Label className={labelClasses}>VINCULADO A:</Label>
-              {selectedPersonaId ? (
+              {personaActual?.id_persona ? (
                 <div className="w-full h-9 flex items-center justify-between px-3 rounded-lg border border-slate-200 bg-slate-50 text-[11px] font-black">
                   <div className="flex items-center gap-2 truncate text-slate-700">
                     {esJuridica ? <Building2 size={14} className="text-amber-600" /> : <User size={14} className="text-blue-600" />}
@@ -259,7 +259,7 @@ export const RepresentanteModal = ({
             </div>
 
             <div className="md:col-span-12 lg:col-span-8 flex flex-col gap-1.5">
-              <label className={labelClasses}>Buscador de Identidad</label>
+              <label className={labelClasses}>Identidad del {esJuridica ? 'Representante' : 'Apoderado'}</label>
               <div className="flex items-center h-9 w-full shadow-sm">
                 <select
                   className="w-20 h-full rounded-l-lg border border-slate-300 bg-slate-50 px-2 text-[11px] font-black focus:border-[#0f766e] outline-none border-r-0"
@@ -272,7 +272,7 @@ export const RepresentanteModal = ({
                 <input
                   className="flex-1 h-full border border-slate-300 bg-white px-3 text-[11px] font-black tracking-widest focus:border-[#0f766e] outline-none border-r-0"
                   placeholder={repDocTipo === "DNI" ? "8 DÍGITOS" : "9 DÍGITOS"}
-                  maxLength={maxLength}
+                  maxLength={repDocTipo === "DNI" ? 8 : 9}
                   value={repDocNumero}
                   onChange={(e) => setRepDocNumero(e.target.value.replace(/\D/g, ""))}
                 />
@@ -289,14 +289,14 @@ export const RepresentanteModal = ({
             </div>
 
             <div className="md:col-span-12">
-              <Label className={labelClasses}>Nombres y Apellidos del {esJuridica ? 'Representante' : 'Apoderado'}</Label>
+              <Label className={labelClasses}>Nombres y Apellidos Completos</Label>
               <Input name="nombres" defaultValue={editingRep?.nombres ?? ""} className={inputClasses} placeholder="EJ. JUAN PEREZ GOMEZ" required />
             </div>
 
             <div className="md:col-span-12">
               <Label className={labelClasses}>Poderes SUNARP (Partida / Asiento)</Label>
               <Input name="sunarp" defaultValue={editingRep?.sunarp_partida_asiento ?? ""} className={inputClasses} placeholder="Ej. Partida 1100XXXX - Asiento B000X" />
-              <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase italic">* Verifique la vigencia de poderes en SUNARP.</p>
+              <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase italic">* Verifique que los poderes estén vigentes.</p>
             </div>
           </div>
 

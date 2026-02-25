@@ -244,7 +244,7 @@ model DeclaracionJurada {
   codigo_ciiu                 String?   @db.VarChar(20)   // CODIGO CIIU  
   nombre_giro                 String?   @db.VarChar(20)   // NOMBRE GIRO
   zonificacion                String?   @db.VarChar(50)   // ZONIFICACION
-  chk_tolerancia              Boolean?  @default(false)   // CHECK DE TOLERANCIA DE ZONIFICACION
+  //chk_tolerancia              Boolean?  @default(false)   // CHECK DE TOLERANCIA DE ZONIFICACION
   via_tipo                    String?   @db.VarChar(20)   // VIA_TIPO
   via_nombre                  String?   @db.VarChar(100)  // VIA_NOMBRE
   numero                      String?   @db.VarChar(10)   // NUMERO
@@ -299,6 +299,8 @@ model DeclaracionJuradaGiro {
   id_dj_giro           Int @id @default(autoincrement())
   id_expediente        Int
   id_giro_zonificacion Int
+  es_excepcion         Boolean @default(false)
+  zonificacion_al_momento String? // Para guardar el código (ej. "CZ") que detectó el mapa al declarar
 
   expediente        Expediente        @relation(fields: [id_expediente], references: [id_expediente], map: "fk_djg_expediente")
   giro_zonificacion GiroZonificacion  @relation(fields: [id_giro_zonificacion], references: [id_giro_zonificacion], map: "fk_djg_gz")

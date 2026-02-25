@@ -1,5 +1,17 @@
 import { http, httpList, toQuery } from "../lib/http";
 
+export type GiroModal = {
+  id_giro: number;
+  codigo: string;
+  nombre: string;
+  riesgo_base: string;
+  giro_zonificacion: {
+    id_zonificacion: number;
+    zonificacion: { codigo: string };
+    estado_uso: { codigo: string; descripcion: string };
+  }[];
+};
+
 export type Giro = {
   id_giro: number;
   codigo: string;
@@ -25,4 +37,8 @@ export const girosApi = {
   remove: (id: number) => http<void>(`${BASE_PATH}/${id}`, { method: "DELETE" }),
 
   listWithoutPagination: () => http<Giro[]>(`${BASE_PATH}/list`, { method: "GET", auth: true }),
+
+  buscarParaModal: (term: string) => 
+    http<GiroModal[]>(`${BASE_PATH}/buscarGirosModal${toQuery({ term })}`, { method: "GET", auth: true })
+  
 };

@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, useMap, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, GeoJSON, Popup } from 'react-leaflet';
 import { LocateFixed } from 'lucide-react';
 
 // Componente para mover la vista (lo que ya tenías)
@@ -28,13 +28,33 @@ const customIcon = new L.Icon({
   iconAnchor: [12, 41],
 });
 
+// Icono Azul (Estándar para ajuste manual)
+const iconoAzul = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+// Icono Verde (Para resultados del buscador)
+const iconoVerde = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 export const MapaZonificacion = memo(({ 
   position, 
   setPosition, 
   datosGeoJSON, 
   lineaMapa, 
   eventHandlers, 
-  
+  iconMaker,
   markerRef,
    // Pasa tu objeto de colores como prop
 }) => {
@@ -67,12 +87,18 @@ export const MapaZonificacion = memo(({
         <ChangeView center={position} />
         
         <Marker 
-          draggable={true} 
-          eventHandlers={eventHandlers} 
-          position={position} 
-          icon={customIcon} 
+          draggable={true}
+          eventHandlers={eventHandlers}
+          position={position}
+          icon={iconMaker === 'busqueda' ? iconoVerde : iconoAzul} 
           ref={markerRef}
-        />
+        >
+          <Popup>
+            {iconMaker === 'busqueda' 
+              ? "📍 Dirección encontrada mediante búsqueda" 
+              : "🖐️ Ubicación ajustada manualmente"}
+          </Popup>
+        </Marker>
 
         {/* 2. GeoJSON memorizado dentro del render de Leaflet */}
         <GeoJSON data={datosGeoJSON} style={geojsonStyle} />

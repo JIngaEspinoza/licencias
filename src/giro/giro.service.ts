@@ -8,14 +8,29 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class GiroService {
   constructor(private readonly prisma: PrismaService){}
+
+  private selectGiroCompleto() {
+    return {
+      select: {
+        id_giro: true,
+        codigo: true,
+        nombre: true,
+        riesgo_base: true,
+        giro_zonificacion: {
+          select: {
+            id_zonificacion: true,
+            zonificacion: { select: { codigo: true } },
+            estado_uso: { select: { codigo: true, descripcion: true } },
+          },
+        },
+      },
+    };
+  }
   
   async create(dto: CreateGiroDto) {
     return this.prisma.giro.create({data : dto});
   }
 
-  /*async findAll() {
-    return this.prisma.giro.findMany({ orderBy: { codigo: 'asc' } });
-  }*/
   async findAll(query: FindGirosDto) {
     const page = Math.max(1, query.page || 1);
     const limit = Math.max(1, Math.min(100, query.limit || 10));
@@ -89,5 +104,26 @@ export class GiroService {
   async findAllWithoutPagination(){
     return this.prisma.giro.findMany({ orderBy: { id_giro: 'asc' } });
   }
+
+  async buscarGirosParaModal(termino?: string) {
+    console.log(termino);
+    return this.prisma.giro.findMany({
+      // Inyectamos el molde aquí
+      ...this.selectGiroCompleto(), 
+      
+      // Aplicamos la lógica de búsqueda para miles de registros      
+      where: termino ? {
+        OR: [
+          { nombre: { contains: termino, mode: 'insensitive' } },
+          { codigo: { contains: termino, mode: 'insensitive' } }
+        ]
+      } : {},
+      
+      // Importante para no saturar el Front con miles de datos de golpe
+      take: 50, 
+      orderBy: { nombre: 'asc' }
+    });
+  }
+
 
 }
