@@ -1010,11 +1010,11 @@ export default function ExpedienteForm() {
     }
   };
 
-  const alEnviar2 = (data: any) => {
+  const alEnviar = (data: any) => {
     console.log("Datos limpios recolectados:", data);
   };
 
-  const alEnviar = async (data) => {
+  const alEnviar2 = async (data) => {
     try {
       setLoading(true);
 
