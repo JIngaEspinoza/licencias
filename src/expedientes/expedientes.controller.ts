@@ -17,11 +17,24 @@ export class ExpedientesController {
     return this.expedientesService.generarPdf(Number(id), res);
   }
 
+  @Get(':id/pdfddjj')
+  async generarPdfddjj(@Param('id') id: string, @Res() res: Response) {
+    const pdfBytes = await this.expedientesService.generaPdfddjj(Number(id));
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': 'inline; filename=ddjj.pdf',
+      'Content-Length': pdfBytes.length,
+    });
+    
+    res.send(Buffer.from(pdfBytes));
+  }
+
   @Get(':id/pdfCarton')
   async generarPdfCarton(@Param('id') id: string, @Res() res: Response) {
     console.log("Controller=>", id);
     return this.expedientesService.generarPdfCarton(Number(id), res);
-  }
+  }  
 
   @Post('guardar-solicitud')
   async guardarSolicitudDDJJ(@Body() payload: any) { // Cambia 'any' por tu DTO si tienes uno

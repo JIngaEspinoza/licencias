@@ -734,6 +734,7 @@ export default function ExpedienteForm() {
     setBuscandoGiro(true);
     try {
       const data = await girosApi.buscarParaModal(termino);
+      console.log(data);
       setGirosDb(data);
     } catch (error) {
       console.error("Error cargando giros", error);
@@ -778,16 +779,27 @@ export default function ExpedienteForm() {
       setValue("declaracion.chk_tolerancia", false);
     }*/
     // 3. Agregamos el nuevo objeto al array del formulario
-    appendGiro({
+    const nuevoGiro = {
       id_giro: giro.id_giro,
       codigo: giro.codigo,
       nombre: giro.nombre,
       riesgo_base: giro.riesgo_base || "BAJO",
+      id_giro_zonificacion: compatibilidad?.id_giro_zonificacion || null,
       con_excepcion: !esPermitido,
-      // Guardamos la zonificación en la que se evaluó por seguridad
       zonificacion_al_momento: watch("declaracion.zonificacion")
-    });
-    // 4. Limpieza y cierre
+    };
+    console.log(nuevoGiro)
+
+    /*appendGiro({
+      id_giro: giro.id_giro,
+      codigo: giro.codigo,
+      nombre: giro.nombre,
+      riesgo_base: giro.riesgo_base || "BAJO",
+      id_giro_zonificacion: compatibilidad?.id_giro_zonificacion || null,
+      con_excepcion: !esPermitido,
+      zonificacion_al_momento: watch("declaracion.zonificacion")
+    });*/
+
     setIsGiroModalOpen(false);
   };
 

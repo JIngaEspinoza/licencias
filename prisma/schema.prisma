@@ -215,7 +215,7 @@ model ExpedienteLicencia {
   cesionario             Boolean   @default(false)
   ces_nrolicencia        String?   @db.VarChar(50)
   mercado                Boolean   @default(false)
-  tipo_accion_tramite    String?   @db.VarChar(20)    // CAMBIO_DENOMINACION | TRANSFERENCIA | CESE_ACTIVIDAD, OTROS (TIPO_TRAMITE=MODIFICACIONES)
+  tipo_accion_tramite    String?   @db.VarChar(20)    // CAMBIO_DENOMINACION | TRANSFERENCIA | CESE, OTROS (TIPO_TRAMITE=MODIFICACIONES)
   numero_resolucion      String?   @db.VarChar(50)    // NUMERO_REOSLUCION
   resolucion_fecha       DateTime? @db.Date           // FECHA_RESOLUCION
   numero_certificado     String?   @db.VarChar(50)    // NUMERO_CERTIFICADO

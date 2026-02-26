@@ -18,6 +18,7 @@ export class GiroService {
         riesgo_base: true,
         giro_zonificacion: {
           select: {
+            id_giro_zonificacion: true,
             id_zonificacion: true,
             zonificacion: { select: { codigo: true } },
             estado_uso: { select: { codigo: true, descripcion: true } },

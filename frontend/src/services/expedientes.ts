@@ -248,6 +248,11 @@ export const expedientesApi = {
     httpList<Expedientes>(`${BASE_PATH}${toQuery({ q, page, limit })}`, page, limit),
   */
 
+  getPdfDDJJ: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdfddjj`, {
+    responseType: "blob",
+    auth: true
+  }),
+
   getPdf: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdf`, {
     responseType: "blob",
     auth: true

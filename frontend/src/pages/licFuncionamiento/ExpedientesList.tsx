@@ -301,8 +301,23 @@ export default function ExpedientesList() {
   // Acciones de fila (placeholders)
   //const verExpediente = (row: Expedientes) => alert(`Ver expediente ${row.numero_expediente}`);
 
-  const verExpediente = (row: Expedientes) => {
-    setSelectedExpediente(row.numero_expediente);
+  const verExpediente = async (row: Expedientes) => {
+    try {
+      const blob = await expedientesApi.getPdfDDJJ(row.id_expediente);
+      if (!(blob instanceof Blob)) {
+        throw new Error("La respuesta no es un Blob válido");
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, "_blank");
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 10000);
+      
+    } catch (error) {
+      console.error("Error al imprimir la declaración jurada:", error);
+    }
   };
   
 
