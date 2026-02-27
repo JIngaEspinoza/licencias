@@ -20,6 +20,29 @@ export class PagoTramiteService {
   async findAll() {
     return this.prisma.pagoTramite.findMany({ orderBy: { id_pago: 'desc' } });
   }
+  async findByExpediente(id_expediente: number) {
+    const pago = await this.prisma.pagoTramite.findMany({
+      where: {
+        id_expediente: id_expediente,
+      },
+      // Si quieres incluir datos del expediente para validar
+      include: {
+        expediente: {
+          select: {
+            numero_expediente: true,
+          },
+        },
+      },
+    });
+
+    
+
+    if (!pago) {
+      throw new NotFoundException(`No se encontró un pago para el expediente #${id_expediente}`);
+    }
+
+    return pago;
+  }
 
   async findOne(id: number) {
     const pagoTramite = await this.prisma.pagoTramite.findUnique({ where: { id_pago: id } });

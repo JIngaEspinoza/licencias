@@ -28,7 +28,7 @@ import {
   PopoverTrigger,
 } from "../../types/components/ui/popover";
 
-import ValidationPanel from "./ExpedientePagosAnexos";
+import { ModalPagos } from './ModalPagos';
 
 const StatusSteps = ({ pasoActual, esObservado = false }) => {
   const steps = [
@@ -95,6 +95,10 @@ export default function ExpedientesList() {
   const [q, setQ] = useState("");
   const dq = useDebounce(q, 400);
 
+  // ===== Modal de Pagos =====
+  const [isPagosOpen, setIsPagosOpen] = useState(false);
+  const [selectedExpediente, setSelectedExpediente] = useState<number | null>(null);
+
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [rows, setRows] = useState<Expedientes[]>([]);
@@ -112,7 +116,7 @@ export default function ExpedientesList() {
   // ===== Modal Nueva DJ (completa) =====
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [selectedExpediente, setSelectedExpediente] = useState(null);
+  //const [selectedExpediente, setSelectedExpediente] = useState(true);
 
   const [newForm, setNewForm] = useState<NuevaDJCompletaInput>({
     id_persona: 0,
@@ -322,7 +326,12 @@ export default function ExpedientesList() {
   
 
   const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
-  const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
+  //const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
+  const abrirPagos = (row: Expedientes) => {
+    setSelectedExpediente(row.id_expediente);
+    setIsPagosOpen(true);
+  };
+
   //const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
   const abrirEventos = async (row: Expedientes) => {
     try {
@@ -590,16 +599,16 @@ export default function ExpedientesList() {
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-2">
                       {/* Acciones Primarias */}
-                      <Button size="sm" onClick={() => verExpediente(row)} variant="ghost" className="text-blue-600">
-                        <Eye className="w-4 h-4 mr-1"/> Ver
-                      </Button>
-                      
-                      <Button size="sm" onClick={() => abrirAnexos(row)} variant="ghost" className="text-indigo-600">
-                        <Paperclip className="w-4 h-4 mr-1"/> Anexos
+                      <Button size="sm" onClick={() => verExpediente(row)} variant="ghost" className="text-red-600">
+                        <FileText className="w-4 h-4 mr-1"/> DDJJ
                       </Button>
 
                       <Button size="sm" onClick={() => abrirPagos(row)} variant="ghost" className="text-green-600">
                         <CreditCard className="w-4 h-4 mr-1"/> Pagos
+                      </Button>
+
+                      <Button size="sm" onClick={() => abrirAnexos(row)} variant="ghost" className="text-indigo-600">
+                        <Paperclip className="w-4 h-4 mr-1"/> Anexos
                       </Button>
 
                       {/* Menú de Tres Puntitos */}
@@ -631,12 +640,11 @@ export default function ExpedientesList() {
           </table>
         </div>
 
-        {selectedExpediente && (
-          <ValidationPanel
-            expediente={selectedExpediente} 
-            onClose={() => setSelectedExpediente(null)}
-          />
-        )}
+        <ModalPagos 
+          isOpen={isPagosOpen} 
+          onClose={() => setIsPagosOpen(false)} 
+          idExpediente={selectedExpediente} 
+        />
 
         <Pagination
           page={page}

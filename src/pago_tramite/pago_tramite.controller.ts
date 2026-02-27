@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, ParseIntPipe, Delete } from '@nestjs/common';
 import { PagoTramiteService } from './pago_tramite.service';
 import { CreatePagoTramiteDto } from './dto/create-pago_tramite.dto';
 import { UpdatePagoTramiteDto } from './dto/update-pago_tramite.dto';
@@ -20,6 +20,11 @@ export class PagoTramiteController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.pagoTramiteService.findOne(+id);
+  }
+
+  @Get(':id/pago')
+  async getPagoByExpediente(@Param('id', ParseIntPipe) id: number) {
+    return this.pagoTramiteService.findByExpediente(id);
   }
 
   @Patch(':id')

@@ -19,133 +19,6 @@ export type CrearDesdeDemoResponse = { ok: boolean; id_expediente?: number };
 
 import { NuevaDJTransaccionalRequest } from "@/types/declaracionJurada";
 
-/*
-export type NuevaDJTransaccionalRequest = {
-  // Expediente
-  expediente: {
-    numero_expediente: string;
-    fecha: string;               // YYYY-MM-DD
-    estado?: string | null;
-    id_persona?: number | null;  // si ya existe, opcional
-  };
-
-  // Persona (si necesitas crearla/actualizarla desde el formulario)
-  persona_upsert?: {
-    tipo_persona: "NATURAL" | "JURIDICA";
-    nombre_razon_social: string;
-    tipo_documento?: string | null;
-    numero_documento?: string | null;
-    ruc?: string | null;
-    telefono?: string | null;
-    correo?: string | null;
-    via_tipo?: string | null;
-    via_nombre?: string | null;
-    numero?: string | null;
-    interior?: string | null;
-    mz?: string | null;
-    lt?: string | null;
-    otros?: string | null;
-    urb_aa_hh_otros?: string | null;
-    distrito?: string | null;
-    provincia?: string | null;
-    // Si quieres guardar vigencia de poder a nivel persona:
-    vigencia_poder?: boolean | null;
-    vigencia_poder_archivo?: string | null;
-  };
-
-  // Representante (si persona jurídica)
-  representante_upsert?: {
-    nombres?: string | null;
-    tipo_documento?: string | null;
-    numero_documento?: string | null;
-    sunarp_partida_asiento?: string | null;
-  };
-
-  // ExpedienteLicencia
-  expediente_licencia: {
-    id_representante?: number | null; // si ya existe en BD y lo conoces
-    numero_licencia_origen?: string | null;
-    fecha_recepcion: string;          // YYYY-MM-DD
-    tipo_tramite?: string | null;     // "NUEVA" | cambios...
-    modalidad?: string | null;        // "INDETERMINADA" | "TEMPORAL"
-    fecha_inicio_plazo?: string | null;
-    fecha_fin_plazo?: string | null;
-    numero_resolucion?: string | null;
-    resolucion_fecha?: string | null;
-    nueva_denominacion?: string | null;
-    numero_certificado?: string | null;
-    qr_certificado?: string | null;
-    detalle_otros?: string | null;
-  };
-
-  // DeclaracionJurada
-  declaracion_jurada: {
-    fecha?: string | null;
-    aceptacion?: boolean;
-    nombre_comercial?: string | null;
-    codigo_ciiu?: string | null;
-    actividad?: string | null;
-    zonificacion?: string | null;
-    via_tipo?: string | null;
-    via_nombre?: string | null;
-    numero?: string | null;
-    interior?: string | null;
-    mz?: string | null;
-    lt?: string | null;
-    otros?: string | null;
-    urb_aa_hh_otros?: string | null;
-    provincia?: string | null;
-    tiene_aut_sectorial?: boolean;
-    aut_entidad?: string | null;
-    aut_denominacion?: string | null;
-    aut_fecha?: string | null;
-    aut_numero?: string | null;
-    monumento?: boolean;
-    aut_ministerio_cultura?: boolean;
-    num_aut_ministerio_cultura?: string | null;
-    fecha_aut_ministerio_cultura?: string | null;
-    area_total_m2?: number | null;
-    firmante_tipo?: string | null;
-    firmante_nombre?: string | null;
-    firmante_doc_tipo?: string | null;
-    firmante_doc_numero?: string | null;
-    vigencia_poder?: boolean;
-    condiciones_seguridad?: boolean;
-    titulo_profesional?: boolean;
-    observaciones?: string | null;
-  };
-
-  // SeguridadItse
-  seguridad_itse?: {
-    nivel?: string | null;                 // BAJO|MEDIO|ALTO|MUY_ALTO
-    condiciones_seguridad?: boolean;
-    modal_itse?: string | null;            // PREVIA | POSTERIOR
-    numero_itse?: string | null;
-    archivo_itse?: string | null;
-    editable?: boolean;
-    calificador_nombre?: string | null;
-    fecha?: string | null;
-  };
-
-  // Opciones (ExpedienteOpciones[])
-  opciones?: { codigo: string; valor_json?: any }[];
-
-  // Giros (para DeclaracionJuradaGiro — el backend debe resolver id_giro_zonificacion)
-  giros_nombres?: string[];
-
-  // Anexos
-  anexos?: { nombre?: string | null; ruta: string; extension?: string | null }[];
-};
-*/
-
-
-/*export type Persona = {
-  id_persona: number;
-  tipo_persona?: string | null;
-  nombre_razon_social: string;
-  ruc?: string | null;
-};*/
-
 export type Persona = {
   id_persona: number;
   tipo_persona: string;
@@ -164,6 +37,8 @@ export type Expediente = {
   codigo_qr?: string | null;
   persona?: Persona; // incluir con include en tu backend
 };
+
+
 
 export type Paged<T> = {
   data: T[];
@@ -257,7 +132,6 @@ export const expedientesApi = {
     responseType: "blob",
     auth: true
   }),
-
   getPdfCarton: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdfCarton`, {
     responseType: "blob",
     auth: true
