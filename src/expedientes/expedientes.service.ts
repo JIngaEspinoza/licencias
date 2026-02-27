@@ -8,7 +8,7 @@ import { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.reques
 import { Response } from 'express';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, parse } from 'path';
 
 @Injectable()
 export class ExpedientesService {
@@ -29,7 +29,7 @@ export class ExpedientesService {
     const tipo_persona = data_solicitante?.tipo_persona;
     const nombre_razon_social = data_solicitante?.nombre_razon_social || '';
     const tipo_documento = data_solicitante?.tipo_documento;
-    const numero_documento = data_solicitante?.numero_documento;
+    const numero_documento = data_solicitante?.numero_documento || '';
     const ruc = data_solicitante?.ruc || '';
     const telefono = data_solicitante?.telefono || '';
     const correo = data_solicitante?.correo || '';
@@ -62,6 +62,10 @@ export class ExpedientesService {
       }
     });
 
+    const esJuridica = tipo_persona === 'JURIDICA';
+    const tieneApoderado = tipo_persona === 'NATURAL' && data_licencia?.tiene_apoderado === true;
+    const debeMostrarRepresentante = esJuridica || tieneApoderado;
+
     const tiene_apoderado = data_licencia?.tiene_apoderado;
     const fecha_recepcion = data_licencia?.fecha_recepcion;
     const tipo_tramite = data_licencia?.tipo_tramite;
@@ -77,6 +81,7 @@ export class ExpedientesService {
     const numero_licencia_origen = data_licencia?.numero_licencia_origen;
     const nueva_denominacion = data_licencia?.nueva_denominacion;
     const detalle_otros = data_licencia?.detalle_otros;
+    const nivel_riesgo = data_licencia?.nivel_riesgo;
 
     let data_representante: any | null = null;
     if (data_licencia?.id_representante) {
@@ -94,13 +99,50 @@ export class ExpedientesService {
       where: { id_expediente : id}
     });
 
-    const nombre_comercial = data_declaracionJurada?.nombre_comercial;
-
+    const nombre_comercial = data_declaracionJurada?.nombre_comercial || '';
+    const autorizacion_sectorial = data_declaracionJurada?.tiene_aut_sectorial|| '';
+    const aut_entidad = data_declaracionJurada?.aut_entidad || '';
+    const aut_denominacion = data_declaracionJurada?.aut_denominacion || '';
+    const aut_fecha = data_declaracionJurada?.aut_fecha;
+    const aut_numero = data_declaracionJurada?.aut_numero || '';
+    const area_total_m2 = data_declaracionJurada?.area_total_m2 || 0.0;
+    const vigencia_poder = data_declaracionJurada?.vigencia_poder;
+    const condiciones_seguridad = data_declaracionJurada?.condiciones_seguridad;
+    const titulo_profesional = data_declaracionJurada?.titulo_profesional;
+    const observaciones = data_declaracionJurada?.observaciones || '';
+    
     const data_giros = await this.prisma.declaracionJuradaGiro.findMany({
-      where: {id_expediente : id }
+      where: {id_expediente : id },
+      include: {
+        // 1. Relación normal (trae el giro y su estado de uso)
+        giro_zonificacion: {
+          include: {
+            giro: true,
+            estado_uso: true
+          }
+        },
+        // 2. Relación de excepción (trae el giro directamente)
+        giro: true 
+      }
     });
 
-    
+    const girosFormateados = data_giros.map(item => {
+      return {
+        // Si hay giro_zonificacion, sacamos el nombre de ahí. Si no, del giro referencial.
+        nombre: item.giro_zonificacion?.giro?.nombre || item.giro?.nombre || 'Giro no especificado',
+        
+        // Si hay giro_zonificacion, sacamos el código. Si no, del giro referencial.
+        codigo: item.giro_zonificacion?.giro?.codigo || item.giro?.codigo || '',
+        
+        // El riesgo se puede sacar de cualquier fuente disponible
+        riesgo: item.giro_zonificacion?.giro?.riesgo_base || item.giro?.riesgo_base || 'BAJO',
+        
+        esExcepcion: item.es_excepcion,
+        zona: item.zonificacion_al_momento
+      };
+    });
+
+    //console.log(data_giros);
 
     const data_pago = await this.prisma.pagoTramite.findMany({
       where : {
@@ -124,6 +166,8 @@ export class ExpedientesService {
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const italicFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+    const boldItalicFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic);
     
     // Obtienes ambas páginas
     const pages = pdfDoc.getPages();
@@ -200,6 +244,10 @@ export class ExpedientesService {
       font: boldFont
     });
 
+    if (tipo_persona == 'NATURAL') {
+      hoja1.drawText(numero_documento, { x: 70, y: 440, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+    }
+
     if (tipo_persona == 'JURIDICA') {
       hoja1.drawText(ruc, { x: 175, y: 440, size: 10, font: boldFont, color: rgb(0, 0, 0) });
     }
@@ -231,15 +279,124 @@ export class ExpedientesService {
       font: boldFont
     });
 
+    let yPos = 289; // Coordenada inicial según tu formato
 
+    /*girosFormateados.forEach((giro) => {
+      const textoAMostrar = `${giro.codigo} - ${giro.nombre}`;
+      
+      this.drawTextCentrado(hoja1, textoAMostrar, {
+        xInicio: 35,
+        anchoRecuadro: 500,
+        y: yPos,
+        size: 9,
+        font: giro.esExcepcion ? italicFont : regularFont,
+      });
 
+      if (giro.esExcepcion) {
+        hoja1.drawText("(T)", { x: 550, y: yPos, size: 7, font: boldFont }); 
+      }
 
-    
+      yPos -= 10;
+    });*/
+
+    const COL_X = {
+      codigo: 70,      // Inicio de la tabla
+      giro: 171,       // Donde empieza la columna Giro/s
+      actividad: 350,  // Donde empieza la columna Actividad
+      zonificacion: 450 // Columna final
+    };
+
+    girosFormateados.forEach((giro) => {
+      const fuenteAUsar = giro.esExcepcion ? italicFont : regularFont;
+      const size = 8; // Un tamaño ligeramente menor ayuda a que quepa en las celdas
+
+      // 1. CÓDIGO CIIU
+      hoja1.drawText(giro.codigo || '', {
+        x: COL_X.codigo,
+        y: yPos,
+        size: size,
+        font: fuenteAUsar,
+      });
+
+      // 2. NOMBRE DEL GIRO (Con control de ancho para que no invada 'Actividad')
+      hoja1.drawText(giro.nombre, {
+        x: COL_X.giro,
+        y: yPos,
+        size: size,
+        font: fuenteAUsar,
+        maxWidth: 190, // Límite para que no choque con la siguiente columna
+      });
+
+      // 3. ACTIVIDAD (Si la tienes en tu modelo)
+      hoja1.drawText(/*giro.actividad ||*/ '---', {
+        x: COL_X.actividad,
+        y: yPos,
+        size: size,
+        font: fuenteAUsar,
+      });
+
+      // 4. ZONIFICACIÓN + MARCA DE TOLERANCIA
+      const textoZona = `${giro.zona || ''} ${giro.esExcepcion ? '(T)' : ''}`;
+      hoja1.drawText(textoZona, {
+        x: COL_X.zonificacion,
+        y: yPos,
+        size: size,
+        font: giro.esExcepcion ? boldItalicFont : regularFont, // Resaltamos la (T)
+      });
+
+      yPos -= 8;
+    });
+
+    const direccionLabel = this.formatearDireccion(data_declaracionJurada);
+    this.drawTextCentradoMejorado(hoja1, direccionLabel, {
+      xInicio: 35,          // Alineado con el margen del nombre comercial
+      anchoRecuadro: 525,   // Mismo ancho que el nombre comercial para centrar en toda la hoja
+      y: 235,               // Tu coordenada vertical actual
+      size: 9,              // Tamaño de fuente para dirección
+      font: boldFont     // Fuente normal para datos de ubicación
+    });
+
+    if(autorizacion_sectorial){
+      // Entidad
+      hoja1.drawText(aut_entidad, { x: 32, y: 185, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+      hoja1.drawText(aut_denominacion, { x: 220, y: 185, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+      hoja1.drawText(this.formatearFecha(aut_fecha), { x: 375, y: 185, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+      hoja1.drawText(aut_numero, { x: 500, y: 185, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+    }
+
+    hoja1.drawText(`${area_total_m2 || '0.00'} m2`, { x: 170, y: 150, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+    this.drawTextCentradoMejorado(hoja2, observaciones, {
+      xInicio: 30,
+      anchoRecuadro: 525,
+      y: 565,
+      size: 9,
+      font: boldFont
+    });
 
     // --- TRABAJANDO EN LA HOJA 2 ---
-    // Aquí solemos marcar los checks de la Declaración Jurada
-    // Supongamos que la coordenada del primer check de la hoja 2 es x:55, y:600
-    hoja2.drawText('X', { x: 55, y: 600, size: 12 });
+    // Vigencia de poder
+    if (vigencia_poder) hoja2.drawText('X', { x: 537, y: 675, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+    if (condiciones_seguridad) hoja2.drawText('X', { x: 537, y: 655, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+    if (titulo_profesional) hoja2.drawText('X', { x: 537, y: 634, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+
+    let nombreAMostrar: string;
+    let documentoaMostrar: string;
+
+    if (debeMostrarRepresentante) {
+      nombreAMostrar = (nombre_representante).toString().toUpperCase();
+      documentoaMostrar = (numero_documento_representante).toString();
+    }else {
+      nombreAMostrar = nombre_razon_social.toUpperCase();
+      documentoaMostrar = numero_documento.toUpperCase();
+    }
+
+    hoja2.drawText(`/CE: ${documentoaMostrar}`, { x: 223, y: 485, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+    hoja2.drawText(nombreAMostrar, { x: 280, y: 475, size: 10, font: boldFont, color: rgb(0, 0, 0) });
+
+    if (nivel_riesgo=='BAJO') hoja2.drawText('X', { x: 35, y: 417, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+    if (nivel_riesgo=='MEDIO') hoja2.drawText('X', { x: 178, y: 417, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+    if (nivel_riesgo=='ALTO') hoja2.drawText('X', { x: 320, y: 417, size: 12, font: boldFont, color: rgb(0, 0, 0) });
+    if (nivel_riesgo=='MUY_ALTO')  hoja2.drawText('X', { x: 462, y: 417, size: 12, font: boldFont, color: rgb(0, 0, 0) });
 
     // ESTO ES SOLO PARA DISEÑO, LUEGO LO BORRAS
     const dibujarRegla = (pagina) => {
@@ -255,7 +412,6 @@ export class ExpedientesService {
     dibujarRegla(hoja1); // Activa guía en hoja 1
     dibujarRegla(hoja2); // Activa guía en hoja 2
 
-    // 3. LA MAGIA: Al salvar, el resultado YA VIENE JUNTO
     const pdfFinalBytes = await pdfDoc.save();
     return pdfFinalBytes;
     
@@ -305,6 +461,67 @@ export class ExpedientesService {
       font: opciones.font,
       color: opciones.color || rgb(0, 0, 0),
     });
+  }
+
+  private drawTextCentradoMejorado(
+    pagina: any,
+    texto: string | null | undefined,
+    opciones: {
+      xInicio: number;
+      anchoRecuadro: number;
+      y: number;
+      size: number;
+      font: any;
+      color?: any;
+    }
+  ) {
+    const txt = texto || '';
+    let currentSize = opciones.size;
+    let anchoTexto = opciones.font.widthOfTextAtSize(txt, currentSize);
+
+    // 1. Si el texto cabe en una línea, lo centramos normal
+    if (anchoTexto <= opciones.anchoRecuadro) {
+      const xCentrada = opciones.xInicio + (opciones.anchoRecuadro - anchoTexto) / 2;
+      pagina.drawText(txt, {
+        x: xCentrada,
+        y: opciones.y,
+        size: currentSize,
+        font: opciones.font,
+        color: opciones.color || rgb(0, 0, 0),
+      });
+    } 
+    // 2. Si es muy largo, lo dibujamos con MULTILÍNEA (maxWidth)
+    else {
+      // Aquí no centramos manualmente con X, dejamos que maxWidth haga el trabajo
+      // Pero calculamos la X para que empiece en el margen izquierdo del recuadro
+      pagina.drawText(txt, {
+        x: opciones.xInicio + 5, // Un pequeño margen de 5
+        y: opciones.y + 5,       // Subimos un poco la Y porque habrá 2 líneas
+        size: opciones.size - 1, // Bajamos solo 1 punto, no tanto como el while
+        font: opciones.font,
+        color: opciones.color || rgb(0, 0, 0),
+        maxWidth: opciones.anchoRecuadro - 10, // Fuerza el salto de línea
+        lineHeight: opciones.size, 
+      });
+    }
+  }
+
+  private formatearDireccion(d: any): string {
+    if (!d) return '---';
+    
+    const partes = [
+      d.via_tipo && d.via_nombre ? `${d.via_tipo} ${d.via_nombre}` : null,
+      d.numero ? `NRO. ${d.numero}` : null,
+      d.interior ? `INT. ${d.interior}` : null,
+      d.mz ? `MZ. ${d.mz}` : null,
+      d.lt ? `LT. ${d.lt}` : null,
+      d.urb_aa_hh_otros,
+      d.otros, 
+      d.provincia
+    ];
+
+    // Filtramos los nulos/vacíos y unimos
+    return partes.filter(p => p && p.trim() !== '').join(', ').toUpperCase();
   }
 
   async generaPdfddjjTemp(id: number, res: Response) {
