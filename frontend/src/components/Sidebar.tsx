@@ -89,7 +89,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             {isAutOpen && (
               <div className="mt-1 ml-6 space-y-1 border-l border-white/20">
                 {autTempLinks.map(link => (
-                  <NavLink key={link.to} to={link.to} onClick={onClose} className={({ isActive }) => 
+                  <NavLink key={link.to} to={link.to}  className={({ isActive }) => 
                     `block py-2 px-6 text-sm transition-colors ${isActive ? 'text-white font-bold' : 'text-white/60 hover:text-white'}`
                   }>
                     {link.label}
@@ -113,7 +113,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             {isGestionOpen && (
               <div className="mt-1 ml-6 space-y-1 border-l border-white/20">
                 {gestionLinks.map(link => (
-                  <NavLink key={link.to} to={link.to} onClick={onClose} className={({ isActive }) => 
+                  <NavLink key={link.to} to={link.to} className={({ isActive }) => 
                      `block py-2 px-6 text-sm transition-colors ${isActive ? 'text-white font-bold' : 'text-white/60 hover:text-white'}`
                   }>
                     {link.label}
