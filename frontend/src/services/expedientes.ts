@@ -128,10 +128,11 @@ export const expedientesApi = {
     auth: true
   }),
 
-  getPdf: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdf`, {
+  getPdfResolucion: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdfResolucion`, {
     responseType: "blob",
     auth: true
   }),
+
   getPdfCarton: (id: number) => http<Blob>(`${BASE_PATH}/${id}/pdfCarton`, {
     responseType: "blob",
     auth: true
@@ -139,6 +140,12 @@ export const expedientesApi = {
 
   guardarSolicitudDDJJ: (payload: any) => 
     http<any>(`${BASE_PATH}/guardar-solicitud`,{
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+
+  generaResolucion: (payload: any) =>
+    http<any>(`${BASE_PATH}/generar-resolucion`,{
       method: "POST",
       body: JSON.stringify(payload)
     }),

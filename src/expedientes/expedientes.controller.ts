@@ -11,10 +11,10 @@ import type { Response } from 'express';
 export class ExpedientesController {
   constructor(private readonly expedientesService: ExpedientesService) {}
 
-  @Get(':id/pdf')
+  @Get(':id/pdfResolucion')
   async generarPdf(@Param('id') id: string, @Res() res: Response) {
     console.log("Controller=>", id);
-    return this.expedientesService.generarPdf(Number(id), res);
+    return this.expedientesService.generarPdfResolucion(Number(id), res);
   }
 
   @Get(':id/pdfddjj')
@@ -39,6 +39,11 @@ export class ExpedientesController {
   @Post('guardar-solicitud')
   async guardarSolicitudDDJJ(@Body() payload: any) { // Cambia 'any' por tu DTO si tienes uno
     return await this.expedientesService.guardarSolicitudDDJJ(payload);
+  }
+
+  @Post('generar-resolucion')
+  async generarResolucion(@Body() payload: any) {
+    return await this.expedientesService.generarResolucion(payload);
   }
 
   @Post()

@@ -9,6 +9,7 @@ import { Response } from 'express';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { readFileSync, existsSync } from 'fs';
 import { join, parse } from 'path';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ExpedientesService {
@@ -98,6 +99,8 @@ export class ExpedientesService {
     const data_declaracionJurada = await this.prisma.declaracionJurada.findFirst({
       where: { id_expediente : id}
     });
+
+    console.log(data_declaracionJurada);
 
     const nombre_comercial = data_declaracionJurada?.nombre_comercial || '';
     const autorizacion_sectorial = data_declaracionJurada?.tiene_aut_sectorial|| '';
@@ -506,24 +509,6 @@ export class ExpedientesService {
     }
   }
 
-  private formatearDireccion(d: any): string {
-    if (!d) return '---';
-    
-    const partes = [
-      d.via_tipo && d.via_nombre ? `${d.via_tipo} ${d.via_nombre}` : null,
-      d.numero ? `NRO. ${d.numero}` : null,
-      d.interior ? `INT. ${d.interior}` : null,
-      d.mz ? `MZ. ${d.mz}` : null,
-      d.lt ? `LT. ${d.lt}` : null,
-      d.urb_aa_hh_otros,
-      d.otros, 
-      d.provincia
-    ];
-
-    // Filtramos los nulos/vacíos y unimos
-    return partes.filter(p => p && p.trim() !== '').join(', ').toUpperCase();
-  }
-
   async generaPdfddjjTemp(id: number, res: Response) {
     const data = await this.prisma.expediente.findUnique({
       where: { id_expediente: id },
@@ -637,12 +622,46 @@ export class ExpedientesService {
     doc.text(label, x + 15, y + 1);
   }
 
-  async generarPdf(id: number, res: Response) {
+  async generarPdfResolucion(id: number, res: Response) {
     const expediente = await this.prisma.expediente.findUnique({
       where: { id_expediente: id },
+      include: {
+        expediente_licencia: {
+          include: {
+            representante: true
+          }
+        },
+        pago_tramite: true,
+        persona: true,
+        declaracion_jurada: true,
+        declaracion_jurada_giro: {
+          include: {
+            giro: true
+          }
+        }
+      },
     });
 
+    // console.log(expediente);
+    // console.log(JSON.stringify(expediente, null, 2));
+
     if (!expediente) throw new Error('Expediente no encontrado');
+
+    const numero_resolucion = expediente.expediente_licencia[0]?.numero_resolucion;
+    const resolucion_fecha = this.formatearFechaLarga(expediente.expediente_licencia[0]?.resolucion_fecha);
+    const nombre_representante = expediente.expediente_licencia[0]?.representante?.nombres;
+    const tipo_documento_representante = expediente.expediente_licencia[0]?.representante?.tipo_documento;
+    const numero_documento_representante = expediente.expediente_licencia[0]?.representante?.numero_documento;
+    const tipo = expediente.expediente_licencia[0]?.tipo_tramite === 'NUEVA' ? 'LICENCIA DE FUNCIONAMIENTO': '';
+    const modalidad = expediente.expediente_licencia[0]?.modalidad;
+
+    const nombre_solicitante = expediente.persona.nombre_razon_social;
+    const tipo_documento_solicitante = expediente.persona.tipo_persona === 'JURIDICA' ? 'RUC': expediente.persona.tipo_documento;
+    const numero_documento_solicitante = expediente.persona.tipo_persona === 'JURIDICA' ? expediente.persona.ruc: expediente.persona.numero_documento;
+
+    const declaracion_jurada = expediente.declaracion_jurada[0];
+    //console.log(declaracion_jurada);
+    //console.log(this.formatearDireccion(declaracion_jurada));
 
     const PDFDocument = require('pdfkit');
     const path = require('path');
@@ -669,14 +688,10 @@ export class ExpedientesService {
     const MARGIN = 70;
     const PAGE_WIDTH = 595.28;
     const logoPath = path.join(process.cwd(), 'public', 'logo_con.png');
-
-    /* ===================================
-      🔷 PARTE 1: CONTENIDO (Se escribe UNA sola vez)
-    ===================================*/
     
     // Título de Resolución
     doc.font('Times-Roman').fontSize(10).text(
-      'RESOLUCIÓN DE SUBGERENCIA N° 0125-2026-SGLC-GDECI/MDSM',
+      `RESOLUCIÓN DE SUBGERENCIA N° ${numero_resolucion}`,
       MARGIN, // X: Empezamos en tu margen de 70
       130,    // Y: Bajamos un poco para que no choque con la línea
       { 
@@ -687,7 +702,7 @@ export class ExpedientesService {
     );
 
     doc.font('Times-Roman').fontSize(10).text(
-      'San Miguel, 11 de Febrero de 2026',
+      `San Miguel, ${resolucion_fecha}`,
       { align: 'right' }
     );
 
@@ -695,78 +710,144 @@ export class ExpedientesService {
 
     // Sección VISTO
     doc.font('Times-Bold').fontSize(11).text('VISTO:');
-    doc.font('Times-Roman').fontSize(10).text(
-      `El Expediente N° ${expediente.numero_expediente}, de fecha ${expediente.fecha}, presentado por {representante}, identificado con D.N.I. N° {dni}, en calidad de representante legal de {solicitante} con RUC N° {ruc}, señalando domicilio fiscal en Avenida {direccion_fiscal} - San Miguel, quien solicita LICENCIA DE FUNCIONAMIENTO INDETERMINADA;`,
-      { align: 'justify' }
-    );
+    const parrafoVisto = [
+      `El Expediente N° ${expediente.numero_expediente}, de fecha ${this.formatearFechaLarga(expediente.fecha)}, presentado por <b>${nombre_representante}</b>, identificado con ${tipo_documento_representante} N° <b>${numero_documento_representante}</b>, en calidad de representante legal de <b>${nombre_solicitante} </b> con ${tipo_documento_solicitante} N° <b>${numero_documento_solicitante}</b>, señalando domicilio fiscal en ${this.formatearDireccion(declaracion_jurada)}, quien solicita <b>${tipo}</b> <b>${modalidad}</b>;`
+    ];
+
+    parrafoVisto.forEach(p => {
+      this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
+    });
+
+    const procesarDatosGiros = (girosDJ: any[], tipo: 'nombres' | 'codigos' | 'ambos' = 'nombres') => {
+      const resultados = girosDJ.map((item) => {
+        let giroData: { nombre: string, codigo: string } | null = null;
+
+        // Prioridad 1: Giro por Zonificación
+        if (item.id_giro_zonificacion && item.giro_zonificacion?.giro) {
+          giroData = item.giro_zonificacion.giro;
+        } 
+        // Prioridad 2: Giro directo (Excepción/Fuera de zona)
+        else if (item.giro) {
+          giroData = item.giro;
+        }
+
+        return {
+          nombre: giroData?.nombre || "Giro no identificado",
+          codigo: giroData?.codigo || "---"
+        };
+      });
+
+      // Retornamos según el parámetro solicitado
+      if (tipo === 'nombres') return resultados.map(r => r.nombre);
+      if (tipo === 'codigos') return resultados.map(r => r.codigo);
+      
+      return resultados; // Retorna el objeto completo si pides 'ambos'
+    };
+
+    const obtenerZonificacion = (girosDJ: any[]) => {
+      const registro = girosDJ.find(item => item.zonificacion_al_momento);
+      return registro?.zonificacion_al_momento || "---";
+    };
+
+    const zonificacionDetectada = obtenerZonificacion(expediente.declaracion_jurada_giro);
+
+    // 1. Obtenemos la lista procesada
+    const listaNombres = procesarDatosGiros(expediente.declaracion_jurada_giro, 'nombres');
+    const textoNombres = listaNombres.join(', ');
+
+    const listaCodigos = procesarDatosGiros(expediente.declaracion_jurada_giro, 'codigos');
+    const textoCodigos = listaCodigos.join(', ');
+
+    doc.font('Times-Bold').fontSize(11).text('CONSIDERANDO:');
+    const parrafosConsiderando_00 = [
+      `Que, el articulo ll del Título Preliminar de la Ley N° 27972, Ley Orgánica de Municipalidades, señala que los gobiernos locales gozan de autonomía política, económica y administrativa en los asuntos de su competencia. La autonomía que la Constitución Política del Perú establece para las municipalidades radica en la facultad de ejercer actos de gobierno, administrativos y de administración, con sujeción al ordenamiento jurídico;`
+    ];
+    const parrafosConsiderando_01 = [
+      `Que, con fecha ${this.formatearFechaLarga(expediente.fecha)}, el administrado <b>${nombre_representante}</b>, en calidad de representante legal de <b>${nombre_solicitante}</b>, presenta el formato de Solicitud Declaración Jurada para autorizaciones municipales, según el Texto Único Ordenado de la Ley N° 28976, Ley Marco de licencias de Funcionamiento, aprobado mediante Decreto Supremo N” 165-2020-PCM y el decreto Supremo N° 200-2020-PCM, para el establecimiento comercial ubicado en <b>${this.formatearDireccion(declaracion_jurada)}</b>, declarando un área de <b>${declaracion_jurada.area_total_m2} m2</b>, para desarrollar la actividad comercial de <b>${textoNombres}</b>`
+    ];
+    const parrafosConsiderando_02 = [
+      `Que, el presente procedimiento según prescribe el Decreto Supremo N° 200-2020-PCM, que aprueba los Procedimientos Administrativos Estandarizados de Licencia de funcionamiento en cumplimiento del artículo 41° del Texto Único Ordenado de la Ley N° 27444, Ley del Procedimiento Administrativo General y la Ordenanza N" 428/MDSM, Que aprueba la incorporación de los procedimientos administrativos estandarizados al Texto Único de Procedimientos Administrativos — TUPA de la Municipalidad de San Miguel, establece como requisitos para el presente caso, lo siguiente:`,
+    ];
+
+    parrafosConsiderando_00.forEach(p => {
+      this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
+    });
+    
+    parrafosConsiderando_01.forEach(p => {
+      this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
+    });
+    doc.moveDown(0.8);
+    
+    parrafosConsiderando_02.forEach(p => {
+      this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
+    });
+
+    const listaRequisitos = [
+      `Presentación del Formato Solicitud-Declaración Jurada.`,
+      `Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación (<b>calificación: Riesgo ${expediente.expediente_licencia[0].nivel_riesgo})</b>.`,
+      `Número de Recibo de pago N° <b>${expediente.pago_tramite[0].nro_recibo}</b> por el monto de S/ <b>${expediente.pago_tramite[0].monto}</b> de fecha  <b>${ this.formatearFecha(expediente.pago_tramite[0].fecha_pago)}</b>`,
+    ];
+
+    listaRequisitos.forEach((item) => {
+      const vineta = "   •  "; 
+      this.imprimirTextoFormateado( doc, `${vineta}${item}`, MARGIN, PAGE_WIDTH);
+      doc.moveDown(-0.7);
+    });
 
     doc.moveDown(1.5);
 
-    // Sección CONSIDERANDO
-    doc.font('Times-Bold').fontSize(11).text('CONSIDERANDO:');
-    
-    const parrafosConsiderando = [
-      'Que, el articulo ll del Título Preliminar de la Ley N• 27972, Ley Orgánica de Municipalidades, señala que los gobiernos locales gozan de autonomía política, económica y administrativa en los asuntos de su competencia. La autonomía que la Constitución Política del Perú establece para las municipalidades radica en la facultad de ejercer actos de gobierno, administrativos y de administración, con sujeción al ordenamiento jurídico;',
-      `Que, con fecha ${expediente.fecha}, el administrado VARGAS SOLIS LILIANA CAROLINA, en calidad de representante legal de BUBBLEX S.A.C., presenta el formato de Solicitud Declaración Jurada para autorizaciones municipales, según el Texto Único Ordenado de la Ley N° 28976, Ley Marco de licencias de Funcionamiento, aprobado mediante Decreto Supremo N” 165-2020-PCM y el decreto Supremo N° 200-2020-PCM, para el establecimiento comercial ubicado en Avenida Universitaria N° 571, Urbanización Pando 1° Etapa, distrito de San Miguel, declarando un área de 281.21 m2, para desarrollar la actividad comercial de LAVADO VEHICULAR Y TALLER DE MECANICA`,
-      `Que, el presente procedimiento según prescribe el Decreto Supremo N° 200-2020-PCM, que aprueba los Procedimientos Administrativos Estandarizados de Licencia de funcionamiento en cumplimiento del artículo 41° del Texto Único Ordenado de la Ley N° 27444, Ley del Procedimiento Administrativo General y la Ordenanza N" 428/MDSM, Que aprueba la incorporación de los procedimientos administrativos estandarizados al Texto Único de Procedimientos Administrativos — TUPA de la Municipalidad de San Miguel, establece como requisitos para el presente caso, lo siguiente:`,    
+    const parrafo4 = [
+      `Que, de la revisión del expediente, se observa gue el administrado cumple con presentar los requisitos determinados por Iey, por lo que corresponde a este despacho continuar con el procedimiento;`
     ];
-
-    parrafosConsiderando.forEach(parrafo => {
-      doc.font('Times-Roman').fontSize(10).text(parrafo, { align: 'justify' });
-      doc.moveDown(0.8);
+    
+    parrafo4.forEach((item) => {
+      this.imprimirTextoFormateado( doc, item, MARGIN, PAGE_WIDTH);
     });
 
-    doc.list([
-      `Presentación del Formato Solicitud-Declaración Jurada.`,
-      `Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación calificación: Riesgo Medio).`,
-      `Número de Recibo de pago (N° 017707-2026 por el monto de S/ 178.90 de fecha 01/02/2026)`,
-    ]);
+    const parrafo5 = [
+      `Que, según el artículo 6° de la norma acotada, referido a la evaluación del expediente por parte de la autoridad competente, señala lo siguiente: “<b>para el otorgamiento de la Licencia de Funcionamiento, la municipalidad evaluará los siguientes aspectos:"</b>`
+    ];
+
+    parrafo5.forEach((item) => {
+      this.imprimirTextoFormateado( doc, item, MARGIN, PAGE_WIDTH);
+    });
 
     doc.moveDown(0.8);
 
-    doc.text(
-      `Que, de la revisión del expediente, se observa gue el administrado cumple con presentar los requisitos determinados por Iey, por lo que corresponde a este despacho continuar con el procedimiento;`,
-      { align: 'justify' }
-    );
+    const listaRequisitos_01 = [
+      `<b>Zonificación y Compatibilidad de Uso.</b>`,
+      `<b>Condiciones de Seguridad de la Edificación.</b>`
+    ];
 
-    doc.moveDown(0.8);
+    listaRequisitos_01.forEach((item) => {
+      const vineta = "   •  "; 
+      this.imprimirTextoFormateado( doc, `${vineta}${item}`, MARGIN, PAGE_WIDTH);
+      doc.moveDown(0.3);
+    });
 
-    doc.text(
-      `Que, según el artículo 6° de la norma acotada, referido a la evaluación del expediente por parte de la autoridad competente, señala lo siguiente: “para el otorgamiento de la Licencia de Funcionamiento, la municipalidad evaluará los siguientes aspectos:`,
-      { align: 'justify' }
-    );
+    doc.moveDown(1);
 
-    doc.moveDown(0.8);
-
-    doc.list([
-      'Zonificación y Compatibilidad de Uso.',
-      `Condiciones de Seguridad de la Edificación.`,
-    ]);
-
-    doc.moveDown(0.8);
-
-    doc.font('Times-Italic').text('Cualquier aspecto adicional será materia de fiscalización posterior', { underline: true });
+    doc.font('Times-BoldItalic').text('Cualquier aspecto adicional será materia de fiscalización posterior', { underline: true });
     doc.moveDown(0.8);
 
     const parrafos2 = [
-      `Que, de la revisión del formato Solicitud-Declaración Jurada presentado, en relación al establecimiento comercial ubicado en Avenida Universitaria N° 571, Urbanización Pando 1° Etapa, distrito de san Miguel, el técnico que evalúa la documentación, consigna la Zonificación de COMERCIO ZONAL (CZ), en la Ficha Técnica de Zonificación y Compatibilidad de Uso N° 02 19-2026: de conformidad con la Ordenanza N° 1015- MML, que aprueba el reajuste integral de la zonificación de los usos del suelo de los distritos de San Martín de Porres y otros que forman parte de las áreas de Tratamiento Normativo I y II de Lima Metropolitana y la Ordenanza N° 2146-MML que aprueba el Plano de Zonificación de los Usos del Suelo: en dicho sentido el establecimiento comercial, conforme al cuadro de Índice de Usos solicitados como {giros} con código {código_giros}, es considerado {compatible} con la zonificación vigente.`, 
+      `Que, de la revisión del formato Solicitud-Declaración Jurada presentado, en relación al establecimiento comercial ubicado en <b>${this.formatearDireccion(declaracion_jurada)}</b>, el técnico que evalúa la documentación, consigna la Zonificación de <b>${zonificacionDetectada}</b> , en la Ficha Técnica de Zonificación y Compatibilidad de Uso N° 02 19-2026: de conformidad con la Ordenanza N° 1015- MML, que aprueba el reajuste integral de la zonificación de los usos del suelo de los distritos de San Martín de Porres y otros que forman parte de las áreas de Tratamiento Normativo I y II de Lima Metropolitana y la Ordenanza N° 2146-MML que aprueba el Plano de Zonificación de los Usos del Suelo: en dicho sentido el establecimiento comercial, conforme al cuadro de Índice de Usos solicitados como <b>${textoNombres}</b> con código <b>${textoCodigos}</b>, es considerado <b>Compatible </b> con la zonificación vigente;`, 
       `Que, asimismo, a fojas ocho (08) al once (11), obra la presentación de la Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación proporcionada por el solicitante para la determinación del nivel de riesgo del establecimiento objeto de inspección - Anexo 4, cumpliendo con las condiciones de seguridad exigidas por ley, en concordancia con lo prescrito en el Decreto Supremo que aprueba el Nuevo Reglamento de Inspecciones Técnicas de Seguridad en edificaciones N" 002-2018-PCM, que en su artículo 15, numeral 15. 1. señala "que para el caso de los establecimientos objeto de inspección clasificados con riesgo bajo o medio, que requieren de una ITSE posterior conforme al numeral 18.1 del artículo 18" del Reglamento" la licencia de funcionamiento es sustentada con la Declaración Jurada de Cumplimiento de Condiciones de Seguridad en la Edificación, que es materia de verificación a través de la ITSE posterior, finalizando el procedimiento con la emisión de una resolución. y, de corresponder, el Certificado de ITSE; debiendo este despacho emitir pronunciamiento;`,
       `Por las consideraciones expuestas y en uso de las facultades conferidas por el numeral 3.6 del artículo 83° de la Ley N 27972, Ley Orgánica de Municipalidades y a Io dispuesto por la Ley N" 28976, Ley Marco de Licencia de Funcionamiento:`
     ];
 
     parrafos2.forEach(element => {
-      doc.font('Times-Roman').fontSize(10).text(element, { align: 'justify' });
-      doc.moveDown(0.8);
+      this.imprimirTextoFormateado( doc, element, MARGIN, PAGE_WIDTH);
     });
 
     doc.font('Times-Bold').fontSize(11).text('SE RESUELVE:');
     doc.moveDown(0.8);
 
     const parrafos3 = [
-      `<b>ARTÍCULO PRIMERO.</b> - Declarar PROCEDENTE la solicitud de LICENCIA DE FUNCIONAMIENTO INDETERMINADA, presentado por {solicitante}, para el desarrollo de la actividad comercial de {giros}, en el establecimiento comercial ubicado en Avenida {dirección_local}, distrito de San Miguel, con un área de {área} m2, por las consideraciones expuestas en la presente resolución.`, 
-      `<b>ARTÍCULO SEGUNDO.</b> - EMITIR el Certificado de Licencia de Funcionamiento N 24662, la presente Resolución no autoriza el uso de la vía pública, retiro municipal y/o edificaciones antirreglamentarias.`,
+      `<b>ARTÍCULO PRIMERO.</b> - Declarar <b>PROCEDENTE </b>la solicitud de <b>${tipo}</b> <b>${modalidad}</b>, presentado por <b>${nombre_solicitante}</b>, para el desarrollo de la actividad comercial de <b>${textoNombres}</b>, en el establecimiento comercial ubicado en <b>${this.formatearDireccion(declaracion_jurada)}</b>, con un área de <b>${declaracion_jurada.area_total_m2} m2</b>, por las consideraciones expuestas en la presente resolución.`, 
+      `<b>ARTÍCULO SEGUNDO.</b> - <b>EMITIR</b> el Certificado de Licencia de Funcionamiento N° <b>${expediente.expediente_licencia[0].numero_certificado}</b>, la presente Resolución no autoriza el uso de la vía pública, retiro municipal y/o edificaciones antirreglamentarias.`,
       `<b>ARTÍCULO TERCERO.</b> - El establecimiento comercial queda sujeto a fiscalización posterior a fin de verificar que los datos proporcionados sean verdaderos, en caso de existir discrepancias entre lo declarado y lo constatado, se procederá a dar inicio al procedimiento administrativo de NULIDAD de la licencia de funcionamiento expedida y a iniciar las acciones legales por presentar declaración jurada con datos falsos, así mismo en caso de detectarse irregularidades durante la vigencia de la presente licencia de funcionamiento, con referencia a quejas o por denuncias de terceros, ampliación de giros no autorizados, emisión de humo, gases, ruidos molestos; la administración procederá a dejar sin efecto la licencia, ordenando la clausura del establecimiento, sin perjuicio de las acciones penales por el delito contra la administración pública.`,
-      `<b>ARTÍCULO CUARTO.</b> - NOTIFICAR el presente acto administrativo a la parte interesada, y poner de conocimiento a la Subgerencia de Inspecciones y Control de Sanciones, a efecto de velar por el cumplimiento de las condiciones de funcionamiento en la presente resolución.`
+      `<b>ARTÍCULO CUARTO.</b> - <b>NOTIFICAR </b> el presente acto administrativo a la parte interesada, y poner de conocimiento a la Subgerencia de Inspecciones y Control de Sanciones, a efecto de velar por el cumplimiento de las condiciones de funcionamiento en la presente resolución.`
     ];
 
     parrafos3.forEach(p => {
@@ -833,6 +914,66 @@ export class ExpedientesService {
     doc.end();
   }
 
+  private escribirParrafo(doc: any, fragments: { text: string; bold?: boolean }[]) {
+    fragments.forEach((fragment, index) => {
+      const isLast = index === fragments.length - 1;
+      
+      // Cambiamos fuente según si es bold o no
+      doc.font(fragment.bold ? 'Times-Bold' : 'Times-Roman')
+        .fontSize(10);
+
+      // Escribimos el fragmento
+      doc.text(fragment.text, {
+        continued: !isLast, // Si no es el último, sigue en la misma línea
+        align: 'justify'
+      });
+    });
+  }
+
+  private formatearDireccion(d: any): string {
+    if (!d) return '---';
+    
+    const partes = [
+      d.via_tipo && d.via_nombre ? `${d.via_tipo} ${d.via_nombre}` : null,
+      d.numero ? `NRO. ${d.numero}` : null,
+      d.interior ? `INT. ${d.interior}` : null,
+      d.mz ? `MZ. ${d.mz}` : null,
+      d.lt ? `LT. ${d.lt}` : null,
+      d.urb_aa_hh_otros,
+      d.otros, 
+      d.provincia
+    ];
+    console.log(partes);
+    // Filtramos los nulos/vacíos y unimos
+    return partes.filter(p => p && p.trim() !== '').join(', ').toUpperCase();
+  }
+
+  /**
+   * Convierte una fecha a formato: 11 de Febrero de 2026
+   */
+  private formatearFechaLarga(fecha: Date | string | null | undefined): string {
+    if (!fecha) return "---";
+
+    const date = new Date(fecha);
+    
+    // Usamos 'es-ES' para asegurar el formato en español
+    // 'timeZone: UTC' para evitar que la zona horaria reste un día
+    const opciones: Intl.DateTimeFormatOptions = { 
+      day: 'numeric', 
+      month: 'long', 
+      year: 'numeric', 
+      timeZone: 'UTC' 
+    };
+
+    const fechaFormateada = date.toLocaleDateString('es-ES', opciones);
+
+    // Capitalizar la primera letra del mes (opcional, por estilo)
+    // De: "11 de febrero de 2026" -> "11 de Febrero de 2026"
+    return fechaFormateada.replace(/([a-zñáéíóú]+)/gi, (match) => {
+      return match.length > 2 ? match.charAt(0).toUpperCase() + match.slice(1) : match;
+    });
+  }
+
   private imprimirTextoFormateado(doc: any, textoFull: string, MARGIN: number, PAGE_WIDTH: number) {
     const widthArea = PAGE_WIDTH - (MARGIN * 2);
     const partes = textoFull.split(/(<b>.*?<\/b>|<i>.*?<\/i>)/g);
@@ -851,9 +992,13 @@ export class ExpedientesService {
       doc.font(fuente).fontSize(10).text(textoLimpio, {
         continued: !esUltimo,
         align: 'justify',
-        width: widthArea
+        width: widthArea,
       });
     });
+    
+    doc.text('', { align: 'justify' });
+    //doc.y += doc.currentLineHeight();
+    doc.x = MARGIN;
     doc.moveDown(0.8);
   }
 
@@ -1094,6 +1239,11 @@ export class ExpedientesService {
       // Función auxiliar para convertir strings a Date o null
       const parseFecha = (fecha: any) => (fecha && String(fecha).trim() !== "") ? new Date(fecha) : null;
 
+    // Generamos un hash único. 
+    const qrHash = data.codigo_qr || crypto.createHash('sha256')
+      .update(`${data.numero_expediente}-${Date.now()}`)
+      .digest('hex');
+
       // 1. Limpieza de Licencia
       const { 
         nombre_representante: _repNom, 
@@ -1117,8 +1267,9 @@ export class ExpedientesService {
         data: {
           numero_expediente: data.numero_expediente,
           id_persona: data.id_persona,
-          estado: data.estado || 'EN_EVALUACION',
+          estado: data.estado || 'REGISTRO',
           fecha: parseFecha(data.fecha) || new Date(),
+          codigo_qr: qrHash,
           
           // Relación 1:1 - Tabla Licencia
           expediente_licencia: {
@@ -1148,14 +1299,16 @@ export class ExpedientesService {
           pago_tramite: {
             create: data.pagos.map(({ id_expediente, ...pago }) => ({
               ...pago,
-              fecha_pago: parseFecha(pago.fecha_pago)
+              fecha_pago: parseFecha(pago.fecha_pago),
+              concepto: pago.concepto || "DERECHO DE TRÁMITE"
             }))
           },
           
           // Relación 1:N - Tabla Giros Seleccionados (Limpieza estricta de campos UI)
           declaracion_jurada_giro: {
             create: data.giros_seleccionados.map((giro: any) => ({
-              id_giro_zonificacion: giro.id_giro,
+              id_giro_zonificacion: giro.id_giro_zonificacion,
+              id_giro: giro.id_giro,
               es_excepcion: giro.con_excepcion,
               zonificacion_al_momento: giro.zonificacion_al_momento
             }))
@@ -1173,6 +1326,7 @@ export class ExpedientesService {
         success: true,
         message: 'Solicitud registrada correctamente',
         numero_expediente: nuevoExpediente.numero_expediente,
+        qr_generado: nuevoExpediente.codigo_qr,
         data: nuevoExpediente
       };
 
@@ -1183,6 +1337,42 @@ export class ExpedientesService {
         throw new InternalServerErrorException(error.message);
       }
       throw new InternalServerErrorException('Ocurrió un error al registrar el expediente.');
+    }
+  }
+
+  async generarResolucion(data: { id_expediente: number, numero_resolucion: string, resolucion_fecha: string }) {
+    try {
+
+      console.log(data)
+
+      const actualizacion = await this.prisma.expedienteLicencia.updateMany({
+        where: {
+          id_expediente: data.id_expediente,
+        },
+        data: {
+          numero_resolucion: data.numero_resolucion, 
+          resolucion_fecha: new Date(data.resolucion_fecha),
+        },
+      });
+
+      // 2. Opcional: Actualizar el estado del Expediente principal a 'FINALIZADO' o 'EMITIDO'
+      await this.prisma.expediente.update({
+        where: { id_expediente: data.id_expediente },
+        data: { estado: 'APROBADO' }
+      });
+
+      return {
+        success: true,
+        message: 'Resolución generada correctamente',
+        registros_afectados: actualizacion.count
+      };
+
+    } catch (error) {
+      console.error('Error al guardar solicitud DDJJ:', error);
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException('Ocurrió un error al registrar la resolución.');
     }
   }
 

@@ -5,7 +5,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { Play, Plus, Pencil, Trash2, Shield, Users, Key, Edit2, Search , 
   MoreVertical, Trash,
   Eye, Paperclip, CreditCard, Calendar, Printer, Filter, RotateCcw,
-  FileText, DollarSign, Scale, CheckCircle
+  FileText, DollarSign, Scale, CheckCircle,
+  FileBadge,
+  Copyright
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
 import { Label } from "../../types/components/ui/label";
@@ -29,6 +31,8 @@ import {
 } from "../../types/components/ui/popover";
 
 import { ModalPagos } from './ModalPagos';
+import { ModalResolucion } from "./FormModalGenerarResolucion";
+import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
 
 const StatusSteps = ({ pasoActual, esObservado = false }) => {
   const steps = [
@@ -98,6 +102,10 @@ export default function ExpedientesList() {
   // ===== Modal de Pagos =====
   const [isPagosOpen, setIsPagosOpen] = useState(false);
   const [selectedExpediente, setSelectedExpediente] = useState<number | null>(null);
+
+  // Modal Generar Resolución
+  const [isFormModalGenerarResolucion, setIsFormModalGenerarResolucion] = useState(false);
+
 
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -333,7 +341,7 @@ export default function ExpedientesList() {
   };
 
   //const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
-  const abrirEventos = async (row: Expedientes) => {
+  const LicenciaPDF = async (row: Expedientes) => {
     try {
       const blob = await expedientesApi.getPdfCarton(row.id_expediente);
       const url = window.URL.createObjectURL(blob);
@@ -342,11 +350,16 @@ export default function ExpedientesList() {
       console.error("Error al generar el Carton:", error);
     }
   }
+
+  const generarResolucion = (row: Expedientes) => {
+    setSelectedExpediente(row.id_expediente);
+    setIsFormModalGenerarResolucion(true)
+  }
   
-  const imprimir = async (row: Expedientes) => {
+  const resolucionPDF = async (row: Expedientes) => {
     try {
       console.log(row.id_expediente);
-      const blob = await expedientesApi.getPdf(row.id_expediente);
+      const blob = await expedientesApi.getPdfResolucion(row.id_expediente);
 
       const url = window.URL.createObjectURL(blob);
 
@@ -494,10 +507,7 @@ export default function ExpedientesList() {
             <Button onClick={handleBuscar} className="bg-zinc-800 hover:bg-black text-white px-6 cursor-pointer rounded-lg shadow-sm transition-all">
               Buscar
             </Button>
-          </div>
-
-          {/* GRUPO DERECHO: Acciones principales */}
-          <div className="flex items-center gap-2">
+            
             <Link
               to="/licfuncionamiento/nueva"
               className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20
@@ -506,7 +516,20 @@ export default function ExpedientesList() {
               <Plus className="w-5 h-5 stroke-[2.5]" /> 
               <span>Nuevo DJ</span>
             </Link>
+
           </div>
+
+          {/* GRUPO DERECHO: Acciones principales */}
+          {/* <div className="flex items-center gap-2">
+            <Link
+              to="/licfuncionamiento/nueva"
+              className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20
+              "
+            >
+              <Plus className="w-5 h-5 stroke-[2.5]" /> 
+              <span>Nuevo DJ</span>
+            </Link>
+          </div> */}
         </div>
       </div>
     );
@@ -536,6 +559,29 @@ export default function ExpedientesList() {
         return 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-50';
     }
   };
+
+  const handleGuardarResolucion = async (data: { id_expediente: number, numero_resolucion: string, fecha_resolucion: string }) => {
+    try {
+
+      console.log(data);
+
+      const response = await expedientesApi.generaResolucion({
+        id_expediente: data.id_expediente,
+        numero_resolucion: data.numero_resolucion,
+        resolucion_fecha: data.fecha_resolucion
+      });
+
+      if (response.success) {
+        swalSuccess("Resolución registrada y expediente actualizado.");
+        loadData(activeFilters, page, limit)
+      } else {
+        throw new Error(response.message);
+      }
+    } catch (error: any) {
+      swalError(error.message || "Error al registrar resolución");
+      throw error;
+    }
+  }
 
   return (
     <Card className="rounded-2xl shadow">
@@ -607,10 +653,18 @@ export default function ExpedientesList() {
                         <CreditCard className="w-4 h-4 mr-1"/> Pagos
                       </Button>
 
-                      <Button size="sm" onClick={() => abrirAnexos(row)} variant="ghost" className="text-indigo-600">
+                      {/* <Button size="sm" onClick={() => abrirAnexos(row)} variant="ghost" className="text-indigo-600">
                         <Paperclip className="w-4 h-4 mr-1"/> Anexos
+                      </Button> */}
+
+                      <Button size="sm" onClick={() => resolucionPDF(row)} variant="ghost" className="text-indigo-600">
+                        <Copyright className="w-4 h-4 mr-2 text-gray-600" /> Resolución
                       </Button>
 
+                      <Button size="sm" onClick={() => LicenciaPDF(row)} variant="ghost" className="text-indigo-600">
+                        <FileBadge className="w-4 h-4 mr-2 text-gray-600" /> Licencia
+                      </Button>
+                      
                       {/* Menú de Tres Puntitos */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -620,16 +674,16 @@ export default function ExpedientesList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
                           <DropdownMenuLabel>Más opciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => abrirEventos(row)} className="cursor-pointer">
-                            <Calendar className="w-4 h-4 mr-2 text-amber-600" /> Eventos
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => imprimir(row)} className="cursor-pointer">
+                          {<DropdownMenuItem onClick={() => generarResolucion(row)} className="cursor-pointer">
+                            <Calendar className="w-4 h-4 mr-2 text-amber-600" /> Generar Resolución
+                          </DropdownMenuItem>}
+                          {/* <DropdownMenuItem onClick={() => imprimir(row)} className="cursor-pointer">
                             <Printer className="w-4 h-4 mr-2 text-gray-600" /> Imprimir
-                          </DropdownMenuItem>
+                          </DropdownMenuItem> */}
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600 cursor-pointer">
+                          {/* <DropdownMenuItem className="text-red-600 cursor-pointer">
                             <Trash className="w-4 h-4 mr-2" /> Eliminar
-                          </DropdownMenuItem>
+                          </DropdownMenuItem> */}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -645,6 +699,14 @@ export default function ExpedientesList() {
           onClose={() => setIsPagosOpen(false)} 
           idExpediente={selectedExpediente} 
         />
+
+        <ModalResolucion
+          isOpen={isFormModalGenerarResolucion}
+          onClose={() => setIsFormModalGenerarResolucion(false)}
+          idExpediente={selectedExpediente}
+          onGuardar={handleGuardarResolucion}
+        />
+
 
         <Pagination
           page={page}

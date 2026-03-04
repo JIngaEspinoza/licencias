@@ -6,7 +6,7 @@ import * as turf from '@turf/turf';
 import 'leaflet/dist/leaflet.css';
 import datosGeoJSON from '../../geoJson/mapa.json';
 import lineaMapa from '../../geoJson/lineaLimite.json';
-//import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { expedientesApi } from "../../services/expedientes";
 import { GiroModal, girosApi } from "../../services/giros";
 import { personasApi } from "../../services/personas";
@@ -35,6 +35,8 @@ import { MapaZonificacion } from './MapaZonificacion';
 import { ModalSeleccionGiro } from "../gestion/GiroModal";
 import { BuscadorSolicitante } from "./BuscadorSolicitante";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
+
+
 
   // ESTILOS GENERALES
 const inputClassLine = "h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none";
@@ -324,7 +326,7 @@ export default function ExpedienteForm() {
       nombre_razon_social: '',
       fecha: new Date().toISOString().split('T')[0],
       numero_expediente: '',
-      estado: 'EN_EVALUACION',
+      estado: 'REGISTRO',
       // EXPEDIENTE LICENCIA
       licencia: {
         id_representante: '',
@@ -790,7 +792,7 @@ export default function ExpedienteForm() {
     };
     console.log(nuevoGiro)
 
-    /*appendGiro({
+    appendGiro({
       id_giro: giro.id_giro,
       codigo: giro.codigo,
       nombre: giro.nombre,
@@ -798,7 +800,7 @@ export default function ExpedienteForm() {
       id_giro_zonificacion: compatibilidad?.id_giro_zonificacion || null,
       con_excepcion: !esPermitido,
       zonificacion_al_momento: watch("declaracion.zonificacion")
-    });*/
+    });
 
     setIsGiroModalOpen(false);
   };
@@ -976,11 +978,13 @@ export default function ExpedienteForm() {
     }
   };
 
-  const alEnviar = (data: any) => {
+  const navigate = useNavigate();
+
+  const alEnviar2 = (data: any) => {
     console.log("Datos limpios recolectados:", data);
   };
 
-  const alEnviar2 = async (data) => {
+  const alEnviar = async (data) => {
     try {
       setLoading(true);
 
@@ -998,11 +1002,15 @@ export default function ExpedienteForm() {
       const response = await expedientesApi.guardarSolicitudDDJJ(payload);
       const result = response.data;
 
-      if (result.success) {
-        swalSuccess(`Licencia registrada con expediente ${result.numero_expediente}`);
+      if (response.success) {
+        swalSuccess(`Licencia registrada con expediente ${response.numero_expediente}`);
+
+        setTimeout(() => {
+          navigate('/licfuncionamiento');
+        }, 2000);
         // Redirigir o limpiar formulario
       } else {
-        throw new Error(result.message || "Error al guardar");
+        throw new Error(response.message || "Error al guardar");
       }
 
     } catch (error: any) {
@@ -1354,7 +1362,7 @@ export default function ExpedienteForm() {
                       {...register("declaracion.via_tipo")}>
                       <option>Av.</option><option>Jr.</option><option>Ca.</option><option>Pje.</option>
                     </select>
-                    <input className="flex-1 h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" 
+                    <input className={inputClasses} 
                       placeholder="Nombre de vía"
                       autoComplete="off"
                       {...register("declaracion.via_nombre")}
@@ -1376,7 +1384,7 @@ export default function ExpedienteForm() {
                   </div>
                   <div className="md:col-span-4">
                     <label className={labelClasses}>Provincia / Distrito</label>
-                    <input className="w-full h-9 rounded-md border border-slate-300 bg-white px-3 text-xs outline-none focus:border-[#0f766e]" autoComplete="off"
+                    <input className={inputClasses} autoComplete="off"
                       {...register("declaracion.provincia")}/>
                   </div>
                   <div className="md:col-span-2">
@@ -1705,8 +1713,7 @@ export default function ExpedienteForm() {
                 <div className="flex gap-2">
                   <input 
                     autoComplete="off"
-                    className="flex-1 h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
-                              focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-400" 
+                    className={inputClasses}
                     placeholder="Ingrese número..."
                     {...register("numero_expediente")}
                   />
@@ -1733,8 +1740,7 @@ export default function ExpedienteForm() {
                 </label>
                 <input 
                   type="date" 
-                  className="w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs 
-                            focus:border-[#0f766e] focus:ring-2 focus:ring-[#0f766e]/10 outline-none transition-all text-slate-700" 
+                  className={inputClasses}
                   {...register("licencia.fecha_recepcion")}
                 />
               </div>
@@ -1754,7 +1760,7 @@ export default function ExpedienteForm() {
                     `}
                     {...register("estado")}
                   >
-                    <option value="EN_EVALUACION">🟡 EN EVALUACIÓN</option>
+                    <option value="REGISTRO">🟡 REGISTRO</option>
                     <option value="OBSERVADO">🟠 OBSERVADO</option>
                     <option value="APROBADO">🟢 APROBADO</option>
                     <option value="RECHAZADO">🔴 RECHAZADO</option>
