@@ -20,7 +20,7 @@ export const ModalResolucion = ({ isOpen, onClose, idExpediente, onGuardar }: Mo
   const [loading, setLoading] = useState(false);
   const [nroResolucion, setNroResolucion] = useState("");
   const [fechaResolucion, setFechaResolucion] = useState("");
-  const [nroCertificado, setCertificado] = useState("");
+  const [nroCertificado, setNroCertificado] = useState("");
 
   const handleSubmit = async () => {
     if (!nroResolucion || !fechaResolucion || !nroCertificado) return;

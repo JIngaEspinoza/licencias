@@ -568,7 +568,7 @@ export default function ExpedientesList() {
     }
   };
 
-  const handleGuardarResolucion = async (data: { id_expediente: number, numero_resolucion: string, fecha_resolucion: string }) => {
+  const handleGuardarResolucion = async (data: { id_expediente: number, numero_resolucion: string, fecha_resolucion: string, numero_certificado: string }) => {
     try {
 
       console.log(data);
@@ -576,7 +576,8 @@ export default function ExpedientesList() {
       const response = await expedientesApi.generaResolucion({
         id_expediente: data.id_expediente,
         numero_resolucion: data.numero_resolucion,
-        resolucion_fecha: data.fecha_resolucion
+        resolucion_fecha: data.fecha_resolucion,
+        numero_certificado: data.numero_certificado
       });
 
       if (response.success) {

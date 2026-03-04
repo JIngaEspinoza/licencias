@@ -1214,12 +1214,15 @@ export class ExpedientesService {
       }
     );
 
-    const qrData = "https://www.munisanmiguel.gob.pe/valida/12345";
-    const qrBuffer = await QRCode.toBuffer(qrData, {
-      errorCorrectionLevel: 'H', // Alta recuperación para que escanee aunque el cartón se dañe
+    const hashQR = expediente.expediente_licencia[0].qr_certificado || "ERROR_SIN_HASH";
+    const urlValidacion = `https://www.munisanmiguel.gob.pe/valida/${hashQR}`;
+    const qrBuffer = await QRCode.toBuffer(urlValidacion, {
+      errorCorrectionLevel: 'H',
       margin: 1,
       width: 100 // Tamaño en puntos (aprox 3.5cm)
     });
+
+    console.log(hashQR);
 
     // 2. Lo posicionamos en el PDF
     // X: Usamos tu margen izquierdo (150.23 pts o 5.3cm)
@@ -1229,13 +1232,9 @@ export class ExpedientesService {
 
     doc.image(qrBuffer, qrPosX, qrPosY, { width: 80 });
 
-    // 3. Opcional: Agregar un pequeño texto debajo del QR
-    doc.font('Times-Roman').fontSize(7).text(
-      'VALIDACIÓN ELECTRÓNICA',
-      qrPosX,
-      qrPosY + 85,
-      { width: 80, align: 'center' }
-    );
+    const hashCorto = hashQR.substring(0, 8).toUpperCase();
+    doc.fontSize(7).text(`ID: ${hashCorto}`, qrPosX, qrPosY + 85, { width: 80, align: 'center' });
+    //doc.font('Times-Roman').fontSize(7).text('VALIDACIÓN ELECTRÓNICA', qrPosX, qrPosY + 85, { width: 80, align: 'center' } );
 
     doc.end();
   }
@@ -1346,35 +1345,54 @@ export class ExpedientesService {
     }
   }
 
-  async generarResolucion(data: { id_expediente: number, numero_resolucion: string, resolucion_fecha: string }) {
+  async generarResolucion(data: { id_expediente: number, numero_resolucion: string, resolucion_fecha: string, numero_certificado: string }) {
     try {
 
       console.log(data)
 
-      const actualizacion = await this.prisma.expedienteLicencia.updateMany({
-        where: {
-          id_expediente: data.id_expediente,
-        },
-        data: {
-          numero_resolucion: data.numero_resolucion, 
-          resolucion_fecha: new Date(data.resolucion_fecha),
-        },
+      const expedienteActual = await this.prisma.expediente.findUnique({
+        where: { id_expediente: data.id_expediente },
+        include: {
+          expediente_licencia: true
+        }
       });
 
-      // 2. Opcional: Actualizar el estado del Expediente principal a 'FINALIZADO' o 'EMITIDO'
-      await this.prisma.expediente.update({
-        where: { id_expediente: data.id_expediente },
-        data: { estado: 'APROBADO' }
-      });
+      if (!expedienteActual) {
+        throw new Error('Expediente no encontrado');
+      }
+
+      const licenciaExistente = expedienteActual.expediente_licencia?.[0];
+
+      const qrHash = licenciaExistente?.qr_certificado || crypto.createHash('sha256')
+        .update(`${expedienteActual.numero_expediente}-${expedienteActual.id_expediente}`)
+        .digest('hex');
+
+      const [actualizacionLicencia] = await this.prisma.$transaction([
+        this.prisma.expedienteLicencia.updateMany({
+          where: { id_expediente: data.id_expediente },
+          data: {
+            numero_resolucion: data.numero_resolucion, 
+            resolucion_fecha: new Date(data.resolucion_fecha),
+            numero_certificado: data.numero_certificado,
+            qr_certificado: qrHash
+          },
+        }),
+
+        this.prisma.expediente.update({
+          where: { id_expediente: data.id_expediente },
+          data: { estado: 'APROBADO'}
+        })
+      ]);
 
       return {
         success: true,
         message: 'Resolución generada correctamente',
-        registros_afectados: actualizacion.count
+        hash_generado: qrHash,
+        registros_afectados: actualizacionLicencia.count
       };
 
     } catch (error) {
-      console.error('Error al guardar solicitud DDJJ:', error);
+      console.error('Error al guardar la resolución:', error);
       if (error instanceof Error) {
         throw new InternalServerErrorException(error.message);
       }
