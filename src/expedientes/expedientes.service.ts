@@ -622,6 +622,32 @@ export class ExpedientesService {
     doc.text(label, x + 15, y + 1);
   }
 
+  private procesarDatosGiros(girosDJ: any[], tipo: 'nombres' | 'codigos' | 'ambos' = 'nombres') {
+    const resultados = girosDJ.map((item) => {
+      let giroData: { nombre: string, codigo: string } | null = null;
+
+      // Prioridad 1: Giro por Zonificación
+      if (item.id_giro_zonificacion && item.giro_zonificacion?.giro) {
+        giroData = item.giro_zonificacion.giro;
+      } 
+      // Prioridad 2: Giro directo (Excepción/Fuera de zona)
+      else if (item.giro) {
+        giroData = item.giro;
+      }
+
+      return {
+        nombre: giroData?.nombre || "Giro no identificado",
+        codigo: giroData?.codigo || "---"
+      };
+    });
+
+    // Retornamos según el parámetro solicitado
+    if (tipo === 'nombres') return resultados.map(r => r.nombre);
+    if (tipo === 'codigos') return resultados.map(r => r.codigo);
+    
+    return resultados; 
+  }
+
   async generarPdfResolucion(id: number, res: Response) {
     const expediente = await this.prisma.expediente.findUnique({
       where: { id_expediente: id },
@@ -718,7 +744,7 @@ export class ExpedientesService {
       this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
     });
 
-    const procesarDatosGiros = (girosDJ: any[], tipo: 'nombres' | 'codigos' | 'ambos' = 'nombres') => {
+    /*const procesarDatosGiros = (girosDJ: any[], tipo: 'nombres' | 'codigos' | 'ambos' = 'nombres') => {
       const resultados = girosDJ.map((item) => {
         let giroData: { nombre: string, codigo: string } | null = null;
 
@@ -742,7 +768,7 @@ export class ExpedientesService {
       if (tipo === 'codigos') return resultados.map(r => r.codigo);
       
       return resultados; // Retorna el objeto completo si pides 'ambos'
-    };
+    };*/
 
     const obtenerZonificacion = (girosDJ: any[]) => {
       const registro = girosDJ.find(item => item.zonificacion_al_momento);
@@ -752,10 +778,10 @@ export class ExpedientesService {
     const zonificacionDetectada = obtenerZonificacion(expediente.declaracion_jurada_giro);
 
     // 1. Obtenemos la lista procesada
-    const listaNombres = procesarDatosGiros(expediente.declaracion_jurada_giro, 'nombres');
+    const listaNombres = this.procesarDatosGiros(expediente.declaracion_jurada_giro, 'nombres');
     const textoNombres = listaNombres.join(', ');
 
-    const listaCodigos = procesarDatosGiros(expediente.declaracion_jurada_giro, 'codigos');
+    const listaCodigos = this.procesarDatosGiros(expediente.declaracion_jurada_giro, 'codigos');
     const textoCodigos = listaCodigos.join(', ');
 
     doc.font('Times-Bold').fontSize(11).text('CONSIDERANDO:');
@@ -967,6 +993,21 @@ export class ExpedientesService {
   async generarPdfCarton(id: number, res: Response) {
     const expediente = await this.prisma.expediente.findUnique({
       where: { id_expediente: id },
+      include: {
+        expediente_licencia: {
+          include: {
+            representante: true
+          }
+        },
+        pago_tramite: true,
+        persona: true,
+        declaracion_jurada: true,
+        declaracion_jurada_giro: {
+          include: {
+            giro: true
+          }
+        }
+      },
     });
 
     if (!expediente) throw new Error('Expediente no encontrado');
@@ -995,17 +1036,20 @@ export class ExpedientesService {
     res.setHeader('Content-Disposition', `inline; filename=carton-${id}.pdf`);
     doc.pipe(res);
 
-    const numero_expediente = 'I20260003513';
-    const numero_certificado = '24662';
-    const numero_resolucion = '0125-2026-SGLC-GDECI/MDSM';
-    const solicitante = 'BUBBLEX S.A.C.';
-    const giros = 'LAVADO VEHICULAR Y TALLER DE MECANICA';
-    const direccion = 'Avenida Universitaria N° 571 Urbanización Pando 1° Etapa San Miguel,';
-    const area = 281.21;
-    const ruc = '20614965208';
-    const categoria = 'INDETERMINADO';
+    const numero_expediente = expediente.numero_expediente;
+    const numero_resolucion  = expediente.expediente_licencia[0]?.numero_resolucion;
+    const numero_certificado = expediente.expediente_licencia[0]?.numero_certificado;
+    const solicitante = expediente.persona.nombre_razon_social;
+    const listaNombres = this.procesarDatosGiros(expediente.declaracion_jurada_giro, 'nombres');
+    const giros = listaNombres.join(', ');
+    const direccion = this.formatearDireccion(expediente.declaracion_jurada[0])
+    const area = expediente.declaracion_jurada[0].area_total_m2;
+    const tipo_documento_solicitante = expediente.persona.tipo_persona === 'JURIDICA' ? 'RUC': expediente.persona.tipo_documento;
+    const ruc = expediente.persona.tipo_persona === 'JURIDICA' ? expediente.persona.ruc: expediente.persona.numero_documento;
+    const categoria = expediente.expediente_licencia[0]?.modalidad;
     const horario = 'Desde las 08:00 hasta las 23:00 horas';
     const restricciones = 'NO SE AUTORIZA EL USO DE LA VÍA PUBLICA Y/O RETIRO MUNICIPAL';
+    const resolucion_fecha = this.formatearFechaLarga(expediente.expediente_licencia[0]?.resolucion_fecha);
     
     doc.font('Times-Bold').fontSize(15).text(
       'MUNICIPALIDAD DISTRITAL DE SAN MIGUEL',
@@ -1108,7 +1152,7 @@ export class ExpedientesService {
       }
     );
     doc.font('Times-Bold').fontSize(11).text(
-      `${direccion}`
+      `${direccion.toLowerCase()}`
     );
 
     doc.moveDown();
@@ -1130,7 +1174,7 @@ export class ExpedientesService {
     const ANCHO_CONTENIDO = PAGE_WIDTH - X_VALOR - MARGIN_R;
 
     const detalles = [
-      { label: 'RUC', value: ruc },
+      { label: tipo_documento_solicitante, value: ruc },
       { label: 'Categoría de Licencia', value: categoria },
       { label: 'Horario', value: horario },
       { label: 'Restricciones', value: restricciones }
@@ -1161,7 +1205,7 @@ export class ExpedientesService {
     doc.moveDown();
 
     doc.font('Times-Roman').fontSize(11).text(
-      'San Miguel, 11 de Febrero de 2026',
+      resolucion_fecha,
       MARGIN_X,
       doc.y,
       {
