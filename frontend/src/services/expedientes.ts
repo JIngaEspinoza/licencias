@@ -8,6 +8,7 @@ export type Expedientes = {
   estado?: string | null;
   codigo_qr?: string | null;
   persona?: Persona;
+  expediente_licencia?: ExpedienteLicencia[];
 };
 
 export type ExpedienteCreate = Omit<Expedientes, "id_expediente">;
@@ -18,6 +19,12 @@ const BASE_PATH = "/expedientes";
 export type CrearDesdeDemoResponse = { ok: boolean; id_expediente?: number };
 
 import { NuevaDJTransaccionalRequest } from "@/types/declaracionJurada";
+
+export type ExpedienteLicencia = {
+  numero_resolucion: string | null;
+  resolucion_fecha: string | null;
+  numero_certificado: string | null;
+};
 
 export type Persona = {
   id_persona: number;

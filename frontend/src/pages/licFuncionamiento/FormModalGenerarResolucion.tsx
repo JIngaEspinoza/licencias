@@ -13,23 +13,25 @@ interface ModalResolucionProps {
   isOpen: boolean;
   onClose: () => void;
   idExpediente: number | null;
-  onGuardar: (data: { id_expediente: number, numero_resolucion: string, fecha_resolucion: string }) => Promise<void>;
+  onGuardar: (data: { id_expediente: number, numero_resolucion: string, fecha_resolucion: string, numero_certificado: string }) => Promise<void>;
 }
 
 export const ModalResolucion = ({ isOpen, onClose, idExpediente, onGuardar }: ModalResolucionProps) => {
   const [loading, setLoading] = useState(false);
   const [nroResolucion, setNroResolucion] = useState("");
   const [fechaResolucion, setFechaResolucion] = useState("");
+  const [nroCertificado, setCertificado] = useState("");
 
   const handleSubmit = async () => {
-    if (!nroResolucion || !fechaResolucion) return;
+    if (!nroResolucion || !fechaResolucion || !nroCertificado) return;
     
     try {
       setLoading(true);
       await onGuardar({
         id_expediente: Number(idExpediente),
         numero_resolucion: nroResolucion,
-        fecha_resolucion: fechaResolucion
+        fecha_resolucion: fechaResolucion,
+        numero_certificado: nroCertificado
       });
       onClose();
     } catch (error) {
@@ -71,6 +73,21 @@ export const ModalResolucion = ({ isOpen, onClose, idExpediente, onGuardar }: Mo
                 className={`${inputClasses} pl-9`}
                 value={nroResolucion}
                 onChange={(e) => setNroResolucion(e.target.value.toUpperCase())}
+              />
+            </div>
+          </div>
+
+          {/* CAMPO: NÚMERO DE CERTIFICADO */}
+          <div>
+            <label className={labelClasses}>Número de Certificado</label>
+            <div className="relative">
+              <Hash className="absolute left-3 top-3 text-slate-400" size={14} />
+              <input
+                type="text"
+                placeholder="EJ. CERT-0001"
+                className={`${inputClasses} pl-9`}
+                value={nroCertificado}
+                onChange={(e) => setNroCertificado(e.target.value.toUpperCase())}
               />
             </div>
           </div>

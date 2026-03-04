@@ -34,63 +34,72 @@ import { ModalPagos } from './ModalPagos';
 import { ModalResolucion } from "./FormModalGenerarResolucion";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
 
-const StatusSteps = ({ pasoActual, esObservado = false }) => {
+const obtenerPasoPorAcciones = (row) => {
+  const licencia = row.expediente_licencia?.[0];
+
+  // Acción 4: Licencia (Si ya tiene número de certificado)
+  if (licencia?.numero_certificado) return 4;
+
+  // Acción 3: Resolución (Si ya se generó la resolución pero quizás no el certificado)
+  if (licencia?.numero_resolucion) return 3;
+
+  // Acción 2: Pago (Si el expediente existe, asumimos que ya pasó por registro y está en pago)
+  // Aquí podrías añadir una validación si tienes monto de pago: if (row.monto_pago > 0) return 2;
+  return 2; 
+
+  // Acción 1: Registro / DDJJ (Estado base al crear el expediente)
+};
+
+const StatusSteps = ({ row }) => {
+  const pasoActual = obtenerPasoPorAcciones(row);
+  
   const steps = [
-    { id: 1, icon: FileText, label: 'DJ' },
-    { id: 2, icon: DollarSign, label: 'Pago' },
-    { id: 3, icon: Paperclip, label: 'Anexos' },
-    { id: 4, icon: Scale, label: 'Dictamen' },
-    { id: 5, icon: CheckCircle, label: 'Licencia' },
+    { id: 1, label: 'DDJJ' },
+    { id: 2, label: 'Pago' },
+    { id: 3, label: 'Resolución' },
+    { id: 4, label: 'Licencia' },
   ];
 
+  // Cálculo del porcentaje de la barra
   const progressWidth = ((pasoActual - 1) / (steps.length - 1)) * 100;
 
-  // Definimos colores dinámicos según el estado
-  const colorPrimario = esObservado ? 'bg-amber-500' : 'bg-emerald-500';
-  const colorBorde = esObservado ? 'border-amber-500' : 'border-emerald-500';
-  const colorTexto = esObservado ? 'text-amber-600' : 'text-emerald-600';
-
   return (
-    <div className="relative flex items-center justify-between w-full max-w-[240px] py-4 group">
-      
-      {/* LINEA DE FONDO */}
-      <div className="absolute top-1/2 left-0 w-full h-[2px] bg-zinc-100 -translate-y-1/2 z-0" />
-
-      {/* LINEA DE PROGRESO ACTIVA (Cambia a Ámbar si hay observación) */}
-      <div 
-        className={`absolute top-1/2 left-0 h-[2px] ${colorPrimario} -translate-y-1/2 z-0 transition-all duration-700`} 
-        style={{ width: `${progressWidth}%` }}
-      />
-
-      {/* ICONOS */}
-      {steps.map((step) => {
-        const isCompleted = pasoActual > step.id;
-        const isCurrent = pasoActual === step.id;
+    <div className="flex flex-col gap-2">
+      <div className="relative flex items-center justify-between w-[220px] px-1">
         
-        // El icono cambia a un triángulo de alerta si es el paso actual y está observado
-        const IconComponent = (isCurrent && esObservado) ? AlertTriangle : step.icon;
+        {/* Línea de fondo gris */}
+        <div className="absolute top-1/2 left-0 w-full h-[3px] bg-zinc-100 -translate-y-1/2 rounded-full" />
 
-        return (
-          <div key={step.id} className="relative z-10 flex flex-col items-center">
+        {/* Línea de progreso color esmeralda */}
+        <div 
+          className="absolute top-1/2 left-0 h-[3px] bg-emerald-500 -translate-y-1/2 transition-all duration-500 rounded-full" 
+          style={{ width: `${progressWidth}%` }}
+        />
+
+        {/* Círculos indicadores */}
+        {steps.map((step) => {
+          const activado = pasoActual >= step.id;
+          return (
             <div 
-              className={`
-                flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-300 bg-white
-                ${isCompleted ? `${colorBorde} ${colorTexto}` : 'border-zinc-100 text-zinc-300'}
-                ${isCurrent ? (esObservado ? 'border-amber-500 text-amber-500 ring-4 ring-amber-50 scale-110' : 'border-emerald-500 text-emerald-500 ring-4 ring-emerald-50 scale-110') : ''}
-              `}
-            >
-              <IconComponent size={14} strokeWidth={isCompleted || isCurrent ? 3 : 2} />
-            </div>
-            
-            {/* Label con estado */}
-            <span className={`absolute -bottom-6 text-[8px] font-bold uppercase tracking-tighter whitespace-nowrap
-              ${isCurrent && esObservado ? 'text-amber-600' : (isCompleted || isCurrent ? 'text-zinc-800' : 'text-zinc-400')}
-            `}>
-              {isCurrent && esObservado ? 'Observado' : step.label}
-            </span>
-          </div>
-        );
-      })}
+              key={step.id} 
+              className={`relative z-10 w-3 h-3 rounded-full border-2 transition-colors duration-300
+                ${activado ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-200'}`}
+            />
+          );
+        })}
+      </div>
+
+      {/* Etiquetas debajo de los puntos */}
+      <div className="flex justify-between w-[220px] px-0">
+        {steps.map((step) => (
+          <span 
+            key={step.id} 
+            className={`text-[9px] font-bold uppercase ${pasoActual >= step.id ? 'text-emerald-700' : 'text-zinc-400'}`}
+          >
+            {step.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 };
@@ -193,7 +202,7 @@ export default function ExpedientesList() {
     const [expedienteResponse] = await Promise.all([
       await expedientesApi.list(params)
     ]);
-
+    console.log(expedienteResponse.data)
     setRows(expedienteResponse.data);
     setTotal(expedienteResponse.total);
 
@@ -331,7 +340,6 @@ export default function ExpedientesList() {
       console.error("Error al imprimir la declaración jurada:", error);
     }
   };
-  
 
   const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
   //const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
@@ -631,7 +639,7 @@ export default function ExpedientesList() {
                     }
                   </td>
                   <td className="p-3">
-                    <StatusSteps pasoActual={5} />
+                    <StatusSteps row={row} />
                   </td>
                   <td className="p-3">
                     <span className="flex flex-wrap gap-2">
@@ -657,13 +665,17 @@ export default function ExpedientesList() {
                         <Paperclip className="w-4 h-4 mr-1"/> Anexos
                       </Button> */}
 
-                      <Button size="sm" onClick={() => resolucionPDF(row)} variant="ghost" className="text-indigo-600">
-                        <Copyright className="w-4 h-4 mr-2 text-gray-600" /> Resolución
-                      </Button>
-
-                      <Button size="sm" onClick={() => LicenciaPDF(row)} variant="ghost" className="text-indigo-600">
-                        <FileBadge className="w-4 h-4 mr-2 text-gray-600" /> Licencia
-                      </Button>
+                      {row.expediente_licencia?.[0]?.numero_certificado && (
+                        <Button size="sm" onClick={() => resolucionPDF(row)} variant="ghost" className="text-indigo-600">
+                          <Copyright className="w-4 h-4 mr-2 text-gray-600" /> Resolución
+                        </Button>
+                      )}
+                      
+                      {row.expediente_licencia?.[0]?.numero_certificado && (
+                        <Button size="sm" onClick={() => LicenciaPDF(row)} variant="ghost" className="text-indigo-600">
+                          <FileBadge className="w-4 h-4 mr-2 text-gray-600" /> Licencia
+                        </Button>
+                      )}
                       
                       {/* Menú de Tres Puntitos */}
                       <DropdownMenu>
@@ -674,9 +686,20 @@ export default function ExpedientesList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
                           <DropdownMenuLabel>Más opciones</DropdownMenuLabel>
-                          {<DropdownMenuItem onClick={() => generarResolucion(row)} className="cursor-pointer">
-                            <Calendar className="w-4 h-4 mr-2 text-amber-600" /> Generar Resolución
+                          
+                          {<DropdownMenuItem 
+                            onClick={() => generarResolucion(row)} 
+                            className="cursor-pointer"
+                            disabled={!!row.expediente_licencia?.[0]?.numero_certificado}
+                          >
+                            <Copyright className={`w-4 h-4 mr-2 ${ row.expediente_licencia?.[0]?.numero_certificado ? 'text-gray-400' : 'text-amber-600' }`} />
+                            <span>
+                              {row.expediente_licencia?.[0]?.numero_certificado 
+                                ? 'Resolución ya registrada' 
+                                : 'R. Resolución'}
+                            </span>
                           </DropdownMenuItem>}
+                          
                           {/* <DropdownMenuItem onClick={() => imprimir(row)} className="cursor-pointer">
                             <Printer className="w-4 h-4 mr-2 text-gray-600" /> Imprimir
                           </DropdownMenuItem> */}

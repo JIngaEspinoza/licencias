@@ -851,29 +851,18 @@ export class ExpedientesService {
     ];
 
     parrafos3.forEach(p => {
-      // LLAMADA A LA FUNCIÓN QUE ESTÁ AFUERA
       this.imprimirTextoFormateado(doc, p, MARGIN, PAGE_WIDTH);
     });
-    /*parrafos3.forEach(element => {
-      doc.font('Times-Roman').fontSize(10).text(element, { align: 'justify' });
-      doc.moveDown(0.8);
-    });*/
 
-    doc.font('Times-BoldItalic').fontSize(10).text(
-      `REGISTRESE, COMUNÍQUESE, CÚMPLASE`,
-      { align: 'left' }
-    );
+    doc.font('Times-BoldItalic').fontSize(10).text(`REGISTRESE, COMUNÍQUESE, CÚMPLASE`, { align: 'left' });
 
     /* ===================================
       PARTE 2: ESTAMPADO DE CABECERA Y PIE
     ===================================*/
-    
     const range = doc.bufferedPageRange(); // Sabe si el texto ocupó 1, 2 o más páginas
 
     for (let i = range.start; i < range.start + range.count; i++) {
       doc.switchToPage(i);
-
-      // --- CABECERA (Posición Absoluta) ---
       try { doc.image(logoPath, MARGIN, 40, { width: 70 }); } catch (e) {}
       
       doc.font('Times-Bold').fontSize(7).text('MUNICIPALIDAD DISTRITAL DE SAN MIGUEL', MARGIN, 80);
@@ -896,38 +885,11 @@ export class ExpedientesService {
         { lineBreak: false }
       );
 
-      doc.text(
-        'Web: www.munisanmiguel.gob.pe', 
-        MARGIN, 
-        FOOTER_Y + 20, 
-        { lineBreak: false }
-      );
-
-      doc.text(
-        `Página ${i + 1} de ${range.count}`, 
-        460,
-        FOOTER_Y + 10, 
-        { lineBreak: false }
-      );
+      doc.text('Web: www.munisanmiguel.gob.pe', MARGIN, FOOTER_Y + 20, { lineBreak: false } );
+      doc.text(`Página ${i + 1} de ${range.count}`, 460, FOOTER_Y + 10, { lineBreak: false });
     }
 
     doc.end();
-  }
-
-  private escribirParrafo(doc: any, fragments: { text: string; bold?: boolean }[]) {
-    fragments.forEach((fragment, index) => {
-      const isLast = index === fragments.length - 1;
-      
-      // Cambiamos fuente según si es bold o no
-      doc.font(fragment.bold ? 'Times-Bold' : 'Times-Roman')
-        .fontSize(10);
-
-      // Escribimos el fragmento
-      doc.text(fragment.text, {
-        continued: !isLast, // Si no es el último, sigue en la misma línea
-        align: 'justify'
-      });
-    });
   }
 
   private formatearDireccion(d: any): string {
@@ -1384,39 +1346,6 @@ export class ExpedientesService {
     const page = Math.max(1, query.page || 1);
     const limit = Math.max(1, Math.min(100, query.limit || 10));
     const skip = (page - 1) * limit;
-
-    //const q = query.q?.trim() ?? '';   
-
-    /*const where: Prisma.ExpedienteWhereInput = q
-  ? {
-      OR: [
-        {
-          numero_expediente: {
-            contains: q
-          },
-        },
-        {
-          // Busca por nombre_razon_social o numero_documento de la Persona relacionada
-          persona: {
-            OR: [
-              {
-                nombre_razon_social: {
-                  contains: q,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                numero_documento: {
-                  contains: q,
-                  mode: 'insensitive',
-                },
-              }
-            ]
-          }
-        }
-      ]
-    }
-  : {};*/
     
     const where: Prisma.ExpedienteWhereInput = {};
 
@@ -1490,6 +1419,13 @@ export class ExpedientesService {
               tipo_documento: true,
               numero_documento: true,
               ruc: true,
+            }
+          },
+          expediente_licencia: {
+            select: {
+              numero_resolucion: true,
+              resolucion_fecha: true,
+              numero_certificado: true,
             }
           }
         }
