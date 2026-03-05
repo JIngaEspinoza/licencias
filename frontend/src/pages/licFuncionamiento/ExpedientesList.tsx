@@ -121,7 +121,6 @@ export default function ExpedientesList() {
   // Modal Generar Resolución
   const [isFormModalGenerarResolucion, setIsFormModalGenerarResolucion] = useState(false);
 
-
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [rows, setRows] = useState<Expedientes[]>([]);
@@ -140,62 +139,6 @@ export default function ExpedientesList() {
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   //const [selectedExpediente, setSelectedExpediente] = useState(true);
-
-  const [newForm, setNewForm] = useState<NuevaDJCompletaInput>({
-    id_persona: 0,
-    expedienteLicencia: {
-      id_representante: 0,
-      numero_licencia_origen: "",
-      fecha_recepcion: "", // YYYY-MM-DD
-      tipo_tramite: "",
-      modalidad: "",
-      fecha_inicio_plazo: "",
-      fecha_fin_plazo: "",
-      numero_resolucion: "",
-      resolucion_fecha: "",
-      nueva_denominacion: "",
-      numero_certificado: "",
-      qr_certificado: "",
-      detalle_otros: "",
-    },
-    declaracionJurada: {
-      fecha: "",
-      aceptacion: true,
-      nombre_comercial: "",
-      codigo_ciiu: "",
-      actividad: "",
-      zonificacion: "",
-      via_tipo: "",
-      via_nombre: "",
-      numero: "",
-      interior: "",
-      mz: "",
-      lt: "",
-      otros: "",
-      urb_aa_hh_otros: "",
-      provincia: "",
-      tiene_aut_sectorial: false,
-      aut_entidad: "",
-      aut_denominacion: "",
-      aut_fecha: "",
-      aut_numero: "",
-      monumento: false,
-      aut_ministerio_cultura: false,
-      num_aut_ministerio_cultura: "",
-      fecha_aut_ministerio_cultura: "",
-      area_total_m2: undefined,
-      firmante_tipo: "",
-      firmante_nombre: "",
-      firmante_doc_tipo: "",
-      firmante_doc_numero: "",
-      vigencia_poder: false,
-      condiciones_seguridad: false,
-      titulo_profesional: false,
-      observaciones: "",
-    },
-  });
-
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
   async function loadData(currentFilters, currentPage, currentLimit){
 
@@ -249,82 +192,6 @@ export default function ExpedientesList() {
     };
   }, [activeFilters, page, limit]);
 
-  const openNew = () => {
-    setNewForm((s) => ({
-      ...s,
-      id_persona: 0,
-      expedienteLicencia: { ...s.expedienteLicencia, id_representante: 0, fecha_recepcion: "" },
-      declaracionJurada: { ...s.declaracionJurada, fecha: "" },
-    }));
-    setIsNewOpen(true);
-  };
-
-  const closeNew = () => setIsNewOpen(false);
-
-  const refresh = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await expedientesApi.list(dq, page, limit);
-      setRows(Array.isArray(res.data) ? res.data : []);
-      setTotal(Number(res.total) || 0);
-    } catch (e: any) {
-      setError(e.message || "Error al refrescar");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const toISODate = (d: string) => {
-    // Recibe "YYYY-MM-DD" (input type="date") y lo retorna igual (tu backend lo parsea como Date)
-    // Si necesitas "YYYY-MM-DDT00:00:00.000Z", ajusta aquí.
-    return d || "";
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreating(true);
-    setError("");
-    try {
-      const p = newForm;
-
-      if (!p.id_persona || p.id_persona <= 0) throw new Error("Ingresa un id_persona válido.");
-      if (!p.expedienteLicencia.id_representante || p.expedienteLicencia.id_representante <= 0) {
-        throw new Error("Ingresa un id_representante válido.");
-      }
-      if (!p.expedienteLicencia.fecha_recepcion) {
-        throw new Error("La fecha de recepción (ExpedienteLicencia) es obligatoria.");
-      }
-
-      // Normaliza fechas (si usas ISO con Z, cámbialo aquí)
-      const payload: NuevaDJCompletaInput = {
-        id_persona: p.id_persona,
-        expedienteLicencia: {
-          ...p.expedienteLicencia,
-          fecha_recepcion: toISODate(p.expedienteLicencia.fecha_recepcion),
-          fecha_inicio_plazo: p.expedienteLicencia.fecha_inicio_plazo ? toISODate(p.expedienteLicencia.fecha_inicio_plazo) : null,
-          fecha_fin_plazo: p.expedienteLicencia.fecha_fin_plazo ? toISODate(p.expedienteLicencia.fecha_fin_plazo) : null,
-          resolucion_fecha: p.expedienteLicencia.resolucion_fecha ? toISODate(p.expedienteLicencia.resolucion_fecha) : null,
-        },
-        declaracionJurada: {
-          ...p.declaracionJurada,
-          fecha: p.declaracionJurada.fecha ? toISODate(p.declaracionJurada.fecha) : null,
-          aut_fecha: p.declaracionJurada.aut_fecha ? toISODate(p.declaracionJurada.aut_fecha) : null,
-          fecha_aut_ministerio_cultura: p.declaracionJurada.fecha_aut_ministerio_cultura ? toISODate(p.declaracionJurada.fecha_aut_ministerio_cultura) : null,
-        },
-      };
-
-      const res = await expedientesApi.crearNuevaDJCompleta(payload);
-      if (!res.ok) throw new Error("No se pudo crear la Declaración Jurada completa.");
-      await refresh();
-      setIsNewOpen(false);
-    } catch (err: any) {
-      setError(err.message || "Error al crear la DJ");
-    } finally {
-      setCreating(false);
-    }
-  };
-
   // Acciones de fila (placeholders)
   //const verExpediente = (row: Expedientes) => alert(`Ver expediente ${row.numero_expediente}`);
 
@@ -346,13 +213,6 @@ export default function ExpedientesList() {
       console.error("Error al imprimir la declaración jurada:", error);
     }
   };
-
-  const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
-  //const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
-  /*const abrirPagos = (row: Expedientes) => {
-    setSelectedExpediente(row.id_expediente);
-    setIsPagosOpen(true);
-  };*/
 
   //const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
   const LicenciaPDF = async (row: Expedientes) => {
@@ -566,25 +426,33 @@ export default function ExpedientesList() {
   const getColorClasses = (estado: any) => {
     // Aseguramos que el estado se maneje en minúsculas para consistencia
     const normalizedEstado = estado ? estado.toLowerCase() : '';
-    
+    console.log(normalizedEstado)
     switch (normalizedEstado) {
+      case 'licencia':
       case 'aprobado':
-      case 'activo':
-      case 'completo':
-        return 'border-green-300 bg-green-100 text-green-700 hover:bg-green-50';
-      case 'pendiente':
-      case 'en revisión':
-      case 'por pagar':
-        return 'border-yellow-300 bg-yellow-100 text-yellow-700 hover:bg-yellow-50';
-      case 'cancelado':
-      case 'rechazado':
-      case 'anulado':
-        return 'border-red-300 bg-red-100 text-red-700 hover:bg-red-50';
-      case 'en proceso':
-      case 'nuevo':
+        // Estado final: Verde (Éxito total)
+        return 'border-emerald-300 bg-emerald-100 text-emerald-700 hover:bg-emerald-50';
+      
+      case 'resolucion':
+        // Penúltimo paso: Azul (Avance significativo)
         return 'border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-50';
+        
+      case 'pagado':
+        // Proceso en marcha: Amarillo/Ámbar (Validado pero pendiente de emitir documentos)
+        return 'border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-50';
+        
+      case 'registro':
+        // Estado inicial: Gris/Slate (Aún no hay acción de tesorería)
+        return 'border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-50';
+        
+      case 'anular':
+      case 'anulado':
+        // Estado crítico: Rojo (Cancelación)
+        return 'border-red-300 bg-red-100 text-red-700 hover:bg-red-50';
+        
       default:
-        return 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-50';
+        // Fallback para cualquier otro valor no mapeado
+        return 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100';
     }
   };
 
@@ -641,8 +509,8 @@ export default function ExpedientesList() {
   return (
     <Card className="rounded-2xl shadow">
       <CardHeader>
-        <CardTitle>Declaraciones Juradas</CardTitle>
-        <CardDescription>Listado de expedientes</CardDescription>
+        <CardTitle>Gestión de Expedientes de Licencia</CardTitle>
+        <CardDescription>Administración y seguimiento del flujo de licencias municipales</CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-4">
         <div className="flex items-end gap-3 flex-wrap">
@@ -657,7 +525,7 @@ export default function ExpedientesList() {
               <tr>
                 <th className="text-left p-3">N° Expediente</th>
                 <th className="text-left p-3">Fecha</th>
-                <th className="text-left p-3">Persona</th>
+                <th className="text-left p-3">Solicitante</th>
                 <th className="text-left p-3">Progreso</th>
                 <th className="text-left p-3">Estado</th>
                 <th className="text-right p-3">Acciones</th>
