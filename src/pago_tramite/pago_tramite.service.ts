@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { CreatePagoTramiteDto } from './dto/create-pago_tramite.dto';
 import { UpdatePagoTramiteDto } from './dto/update-pago_tramite.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -17,9 +17,60 @@ export class PagoTramiteService {
     return pagoTramite;
   }
 
+  async generarPago(data: {id_expediente: number, concepto: string, nro_recibo: string, fecha_pago: string, monto: number}) {
+    try {
+
+      console.log(data)
+
+      const expedienteActual = await this.prisma.expediente.findUnique({
+        where: { id_expediente: data.id_expediente },
+        include: {
+          expediente_licencia: true
+        }
+      });
+
+      if (!expedienteActual) {
+        throw new Error('Expediente no encontrado');
+      }
+
+      const resultado = await this.prisma.$transaction(async (tx) => {
+        const nuevoPago = await tx.pagoTramite.create({
+          data: {
+            id_expediente: data.id_expediente,
+            concepto: data.concepto,
+            nro_recibo: data.nro_recibo,
+            fecha_pago: new Date(data.fecha_pago),
+            monto: data.monto,
+          }
+        });
+
+        await tx.expediente.update({
+          where: { id_expediente: data.id_expediente },
+          data: { estado: "PAGADO" }
+        });
+
+        return nuevoPago;
+      });
+
+      return {
+        success: true,
+        message: 'Pago registrado y expediente actualizado correctamente',
+        id_pago: resultado.id_pago
+      };
+
+    } catch (error) {
+      console.error('Error al guardar la resolución:', error);
+      if (error instanceof Error) {
+        throw new InternalServerErrorException(error.message);
+      }
+      throw new InternalServerErrorException('Ocurrió un error al registrar el pago.');
+    }
+  }
+
   async findAll() {
     return this.prisma.pagoTramite.findMany({ orderBy: { id_pago: 'desc' } });
   }
+
   async findByExpediente(id_expediente: number) {
     const pago = await this.prisma.pagoTramite.findMany({
       where: {

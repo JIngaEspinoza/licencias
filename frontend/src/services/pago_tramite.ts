@@ -16,6 +16,12 @@ export const pago_tramiteApi = {
 
   getDetallePago: async (id: number) => {
     return http<Pagos>(`${BASE_PATH}/${id}/pago`); 
-  }
+  },
+
+  generaPago: (payload: any) =>
+    http<any>(`${BASE_PATH}/generar-pago`,{
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
 
 }

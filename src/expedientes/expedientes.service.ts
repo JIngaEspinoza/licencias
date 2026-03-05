@@ -1489,6 +1489,11 @@ export class ExpedientesService {
               resolucion_fecha: true,
               numero_certificado: true,
             }
+          },
+          pago_tramite: {
+            select: {
+              id_pago: true
+            }
           }
         }
       }),

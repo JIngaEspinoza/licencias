@@ -7,7 +7,8 @@ import { Play, Plus, Pencil, Trash2, Shield, Users, Key, Edit2, Search ,
   Eye, Paperclip, CreditCard, Calendar, Printer, Filter, RotateCcw,
   FileText, DollarSign, Scale, CheckCircle,
   FileBadge,
-  Copyright
+  Copyright,
+  Coins
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
 import { Label } from "../../types/components/ui/label";
@@ -33,21 +34,25 @@ import {
 import { ModalPagos } from './ModalPagos';
 import { ModalResolucion } from "./FormModalGenerarResolucion";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
+import { pago_tramiteApi } from "../../services/pago_tramite";
 
 const obtenerPasoPorAcciones = (row) => {
   const licencia = row.expediente_licencia?.[0];
+  const pago = row.pago_tramite?.[0];
 
   // Acción 4: Licencia (Si ya tiene número de certificado)
   if (licencia?.numero_certificado) return 4;
 
-  // Acción 3: Resolución (Si ya se generó la resolución pero quizás no el certificado)
+  // Acción 3: Resolución (Si ya se generó la resolución)
   if (licencia?.numero_resolucion) return 3;
 
-  // Acción 2: Pago (Si el expediente existe, asumimos que ya pasó por registro y está en pago)
-  // Aquí podrías añadir una validación si tienes monto de pago: if (row.monto_pago > 0) return 2;
-  return 2; 
+  // Acción 2: Pago (Si existe un registro de pago con ID)
+  // Validamos que el array tenga elementos y que el primer elemento tenga un id_pago
+  if (pago && pago.id_pago) return 2;
 
-  // Acción 1: Registro / DDJJ (Estado base al crear el expediente)
+  // Acción 1: Registro / DDJJ (Estado base si no se ha cumplido lo anterior)
+  // Si llegó aquí es porque no tiene resolución, ni certificado, ni pago registrado.
+  return 1;
 };
 
 const StatusSteps = ({ row }) => {
@@ -110,6 +115,7 @@ export default function ExpedientesList() {
 
   // ===== Modal de Pagos =====
   const [isPagosOpen, setIsPagosOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [selectedExpediente, setSelectedExpediente] = useState<number | null>(null);
 
   // Modal Generar Resolución
@@ -343,10 +349,10 @@ export default function ExpedientesList() {
 
   const abrirAnexos = (row: Expedientes) => alert(`Anexos de expediente ${row.id_expediente}`);
   //const abrirPagos = (row: Expedientes) => alert(`Pagos de expediente ${row.id_expediente}`);
-  const abrirPagos = (row: Expedientes) => {
+  /*const abrirPagos = (row: Expedientes) => {
     setSelectedExpediente(row.id_expediente);
     setIsPagosOpen(true);
-  };
+  };*/
 
   //const abrirEventos = (row: Expedientes) => alert(`Eventos de expediente ${row.id_expediente}`);
   const LicenciaPDF = async (row: Expedientes) => {
@@ -358,6 +364,20 @@ export default function ExpedientesList() {
       console.error("Error al generar el Carton:", error);
     }
   }
+
+  const generarPago = (row: any) => {
+    setSelectedExpediente(row.id_expediente);
+    
+    if (row.pago_tramite?.length > 0) {
+      console.log('view')
+      setModalMode('view'); // Si ya tiene pago, solo ver
+    } else {
+      console.log('edit')
+      setModalMode('edit'); // Si no tiene, abrir para registrar
+    }
+    
+    setIsPagosOpen(true);
+  };
 
   const generarResolucion = (row: Expedientes) => {
     setSelectedExpediente(row.id_expediente);
@@ -592,6 +612,32 @@ export default function ExpedientesList() {
     }
   }
 
+  const handleGuardarPago = async (data: {id_expediente: number, concepto: string, nro_recibo: string, fecha_pago: string, monto: number}) => {
+    try {
+      console.log(data);
+
+      const response = await pago_tramiteApi.generaPago({
+        id_expediente: data.id_expediente,
+        concepto: data.concepto,
+        nro_recibo: data.nro_recibo,
+        fecha_pago: data.fecha_pago,
+        monto: data.monto
+      });
+
+      if (response.success) {
+        swalSuccess("Pago actualizado.");
+        loadData(activeFilters, page, limit)
+      } else {
+        throw new Error(response.message);
+      }
+
+    } catch(error: any) {
+      swalError(error.message || "Error al registrar pago");
+      throw error;
+    }
+
+  }
+
   return (
     <Card className="rounded-2xl shadow">
       <CardHeader>
@@ -654,14 +700,23 @@ export default function ExpedientesList() {
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-2">
                       {/* Acciones Primarias */}
-                      <Button size="sm" onClick={() => verExpediente(row)} variant="ghost" className="text-red-600">
+                      <Button size="sm" 
+                        onClick={() => verExpediente(row)} 
+                        variant="ghost" 
+                        disabled={!row.pago_tramite?.[0]?.id_pago}
+                        className="text-red-600">
                         <FileText className="w-4 h-4 mr-1"/> DDJJ
                       </Button>
 
-                      <Button size="sm" onClick={() => abrirPagos(row)} variant="ghost" className="text-green-600">
-                        <CreditCard className="w-4 h-4 mr-1"/> Pagos
-                      </Button>
-
+                      {row.pago_tramite?.[0]?.id_pago && (
+                        <Button size="sm" 
+                          onClick={() => generarPago(row)} 
+                          variant="ghost" 
+                          className="text-green-600">
+                          <CreditCard className="w-4 h-4 mr-1"/> Pagos
+                        </Button>
+                      )}
+                      
                       {/* <Button size="sm" onClick={() => abrirAnexos(row)} variant="ghost" className="text-indigo-600">
                         <Paperclip className="w-4 h-4 mr-1"/> Anexos
                       </Button> */}
@@ -687,6 +742,13 @@ export default function ExpedientesList() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
                           <DropdownMenuLabel>Más opciones</DropdownMenuLabel>
+
+                          {<DropdownMenuItem 
+                            onClick={() => generarPago(row)} 
+                            className="cursor-pointer"
+                            disabled={!!row.pago_tramite?.[0]?.id_pago}>
+                            <Coins className="w-4 h-4 mr-2 text-gray-600" /> R. Pago
+                          </DropdownMenuItem>}
                           
                           {<DropdownMenuItem 
                             onClick={() => generarResolucion(row)} 
@@ -701,9 +763,7 @@ export default function ExpedientesList() {
                             </span>
                           </DropdownMenuItem>}
                           
-                          {/* <DropdownMenuItem onClick={() => imprimir(row)} className="cursor-pointer">
-                            <Printer className="w-4 h-4 mr-2 text-gray-600" /> Imprimir
-                          </DropdownMenuItem> */}
+                          
                           <DropdownMenuSeparator />
                           {/* <DropdownMenuItem className="text-red-600 cursor-pointer">
                             <Trash className="w-4 h-4 mr-2" /> Eliminar
@@ -722,6 +782,8 @@ export default function ExpedientesList() {
           isOpen={isPagosOpen} 
           onClose={() => setIsPagosOpen(false)} 
           idExpediente={selectedExpediente} 
+          mode={modalMode}
+          onGuardar={handleGuardarPago}
         />
 
         <ModalResolucion
@@ -731,7 +793,6 @@ export default function ExpedientesList() {
           onGuardar={handleGuardarResolucion}
         />
 
-
         <Pagination
           page={page}
           limit={limit}
@@ -739,7 +800,7 @@ export default function ExpedientesList() {
           onPageChange={setPage}
         />
       </CardContent>
-    </Card>    
+    </Card>
   );
 }
 
@@ -747,10 +808,13 @@ function formatDate(iso: string | undefined) {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
+    // Usamos 'en-GB' o 'es-PE' para formato DD/MM/YYYY y forzamos UTC
+    return new Intl.DateTimeFormat('es-PE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC' // <--- Esto es la clave
+    }).format(d);
   } catch {
     return iso;
   }

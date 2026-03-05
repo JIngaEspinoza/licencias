@@ -12,6 +12,11 @@ export class PagoTramiteController {
     return this.pagoTramiteService.create(createPagoTramiteDto);
   }
 
+  @Post('generar-pago')
+  async generaPago(@Body() payload: any) {
+    return await this.pagoTramiteService.generarPago(payload);
+  }
+
   @Get()
   findAll() {
     return this.pagoTramiteService.findAll();

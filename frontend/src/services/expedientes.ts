@@ -9,6 +9,7 @@ export type Expedientes = {
   codigo_qr?: string | null;
   persona?: Persona;
   expediente_licencia?: ExpedienteLicencia[];
+  pago_tramite?: PagoTramite[];
 };
 
 export type ExpedienteCreate = Omit<Expedientes, "id_expediente">;
@@ -19,6 +20,14 @@ const BASE_PATH = "/expedientes";
 export type CrearDesdeDemoResponse = { ok: boolean; id_expediente?: number };
 
 import { NuevaDJTransaccionalRequest } from "@/types/declaracionJurada";
+
+export type PagoTramite = {
+  id_pago: number;
+  concepto: string;
+  numero_recibo: string;
+  fecha_pago: string;
+  monto: string;
+};
 
 export type ExpedienteLicencia = {
   numero_resolucion: string | null;
@@ -155,7 +164,7 @@ export const expedientesApi = {
     http<any>(`${BASE_PATH}/generar-resolucion`,{
       method: "POST",
       body: JSON.stringify(payload)
-    }),
+    }), 
 
   list: (params = {}) => {
     const defaultParams = { page: 1, limit: 10 };

@@ -95,6 +95,13 @@ export default function BuscarExpedienteDialog({
     handleOpenChange(false);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Evita que el Enter propague al formulario padre
+      handleSearch();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <div className="inline-block" onClick={() => !isControlled && setInternalOpen(true)}>
@@ -116,14 +123,15 @@ export default function BuscarExpedienteDialog({
         </DialogHeader>
 
         <div className="p-6">
-          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-x-4 gap-y-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
             <div className="md:col-span-3">
               <label className={labelClasses}>N° Expediente</label>
               <input
                 className={cx(inputClasses, "font-mono tracking-wider uppercase")}
                 value={query.numero}
+                onKeyDown={handleKeyDown}
                 onChange={(e) => setQuery(s => ({ ...s, numero: e.target.value.toUpperCase() }))}
-                placeholder="EXP-000"
+                placeholder="EXP-000" 
               />
             </div>
             <div className="md:col-span-3">
@@ -131,6 +139,7 @@ export default function BuscarExpedienteDialog({
               <input
                 className={cx(inputClasses, "font-mono")}
                 value={query.ruc}
+                onKeyDown={handleKeyDown}
                 onChange={(e) => setQuery(s => ({ ...s, ruc: e.target.value.replace(/[^0-9]/g, "") }))}
                 placeholder="Documento..."
                 maxLength={11}
@@ -146,7 +155,9 @@ export default function BuscarExpedienteDialog({
                   placeholder="Ingrese nombre..."
                 />
                 <button
-                  type="submit"
+                  type="button"
+                  onKeyDown={handleKeyDown}
+                  onClick={handleSearch}
                   disabled={loading}
                   className="h-9 bg-[#0f766e] text-white px-5 rounded-lg font-black text-[10px] uppercase tracking-widest hover:bg-[#0d635d] disabled:opacity-50 flex items-center gap-2 transition-all shadow-md active:scale-95"
                 >
@@ -165,7 +176,7 @@ export default function BuscarExpedienteDialog({
                 <Trash2 size={12} /> Limpiar filtros
               </button>
             </div>
-          </form>
+          </div>
 
           <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
             <div className="max-h-[320px] overflow-y-auto">
