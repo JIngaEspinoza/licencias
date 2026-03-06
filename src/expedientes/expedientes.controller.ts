@@ -79,6 +79,20 @@ export class ExpedientesController {
     return { ok: true, id_expediente: id };
   }
 
+  // Estadísticas
+  @Get('stats/dashboard')
+  async getDashboardStats() {
+    return await this.expedientesService.obtenerKpisDashboard();
+  }
 
+  @Get('stats/recent')
+  async getDashboardRecent() {
+    return await this.expedientesService.obtenerActividadReciente();
+  }
+
+  @Get('stats/chart')
+  async getDashboardChart() {
+    return await this.expedientesService.obtenerDatosGrafico();
+  }
 
 }

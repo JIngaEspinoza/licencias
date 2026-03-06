@@ -1916,4 +1916,102 @@ export class ExpedientesService {
     };
   }
 
+  async obtenerKpisDashboard() {
+    const ahora = new Date();
+    const inicioMesActual = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    const inicioMesPasado = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+
+    const [
+      licenciasMesActual, licenciasMesPasado, totalLicencias,
+      personasMesActual, personasMesPasado, totalPersonas,
+      totalPendientes
+    ] = await Promise.all([
+      // Conteos para Licencias
+      this.prisma.expedienteLicencia.count({ where: { resolucion_fecha: { gte: inicioMesActual } } }),
+      this.prisma.expedienteLicencia.count({ where: { resolucion_fecha: { gte: inicioMesPasado, lt: inicioMesActual } } }),
+      this.prisma.expedienteLicencia.count(),
+      
+      // Conteos para Personas (Solicitantes) - Asumiendo que tienes 'createdAt'
+      this.prisma.persona.count({ where: { createdAt: { gte: inicioMesActual } } }),
+      this.prisma.persona.count({ where: { createdAt: { gte: inicioMesPasado, lt: inicioMesActual } } }),
+      this.prisma.persona.count(),
+
+      // Pendientes (Expedientes sin licencia emitida aún)
+      this.prisma.expediente.count({ where: { estado: 'PENDIENTE' } }),
+    ]);
+
+    // Función auxiliar para no repetir código de porcentaje
+    const calcularTendencia = (actual: number, pasado: number) => {
+      if (pasado === 0) return actual > 0 ? "+100%" : "0%";
+      const diff = ((actual - pasado) / pasado) * 100;
+      return `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
+    };
+
+    return {
+      totalLicencias,
+      tendenciaLicencias: calcularTendencia(licenciasMesActual, licenciasMesPasado),
+      totalPersonas,
+      tendenciaPersonas: calcularTendencia(personasMesActual, personasMesPasado),
+      totalPendientes,
+      statusPendientes: totalPendientes > 50 ? "Crítico" : totalPendientes > 10 ? "Alerta" : "Normal"
+    };
+  }
+
+  async obtenerActividadReciente() {
+    const actividades = await this.prisma.expedienteLicencia.findMany({
+      take: 5,
+      orderBy: {
+        resolucion_fecha: 'desc', // O usa 'createdAt' si tienes ese campo
+      },
+      select: {
+        id_expediente_licencia: true,
+        numero_certificado: true,
+        resolucion_fecha: true,
+        expediente: {
+          select: {
+            persona: {
+              select: {
+                nombre_razon_social: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return actividades.map(act => ({
+      id: act.id_expediente_licencia,
+      title: `Licencia #${act.numero_certificado}`,
+      desc: act.expediente?.persona?.nombre_razon_social || 'Titular no registrado',
+      time: act.resolucion_fecha, // Luego lo formateamos en el Front
+    }));
+  }
+
+  async obtenerDatosGrafico() {
+    const fechaInicioAnio = new Date(new Date().getFullYear(), 0, 1);
+
+    const licencias = await this.prisma.expedienteLicencia.findMany({
+      where: { 
+        resolucion_fecha: { gte: fechaInicioAnio } 
+      },
+      select: { resolucion_fecha: true },
+    });
+
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Dic'];
+    
+    // Inicializamos el contador en cero para cada mes
+    const counts = new Array(12).fill(0);
+
+    // Recorremos las licencias una sola vez
+    licencias.forEach(l => {
+      if (l.resolucion_fecha) {
+        const mesIndex = new Date(l.resolucion_fecha).getMonth();
+        counts[mesIndex]++;
+      }
+    });
+
+    // Formateamos para el ChartCard
+    return meses.map((name, i) => ({ name, total: counts[i] }));
+  }
+
 }

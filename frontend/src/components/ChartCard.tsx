@@ -1,13 +1,13 @@
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 
-const data = [
+/*const data = [
     { name: 'Ene', licencias: 12 }, { name: 'Feb', licencias: 18 },
     { name: 'Mar', licencias: 9 }, { name: 'Abr', licencias: 22 },
     { name: 'May', licencias: 17 }, { name: 'Jun', licencias: 25 }
-];
+];*/
 
-export default function ChartCard() {
+export default function ChartCard({ data }: { data: any[] }) {
     return (
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm h-full">
             <div className="flex items-center justify-between mb-6">
@@ -34,7 +34,7 @@ export default function ChartCard() {
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
                         <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                         <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                        <Area type="monotone" dataKey="licencias" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorLic)" />
+                        <Area type="monotone" dataKey="total" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorLic)" />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
