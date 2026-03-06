@@ -154,6 +154,7 @@ model Persona {
   distrito            String? @db.VarChar(50)
   provincia           String? @db.VarChar(50)
   departamento        String? @db.VarChar(50)
+  createdAt           DateTime  @default(now())
 
   representante Representante[]
   expediente    Expediente[]
@@ -168,6 +169,7 @@ model Representante {
   tipo_documento         String? @db.VarChar(10)
   numero_documento       String? @db.VarChar(20)
   sunarp_partida_asiento String? @db.VarChar(100)
+  createdAt              DateTime @default(now())
 
   persona Persona @relation(fields: [id_persona], references: [id_persona], map: "fk_representante_persona")
   expedientes ExpedienteLicencia[]
@@ -183,6 +185,7 @@ model Expediente {
   numero_expediente String   @db.VarChar(50)
   estado            String?  @db.VarChar(20)
   codigo_qr         String?  @db.Text
+  createdAt         DateTime @default(now())
 
   persona Persona @relation(fields: [id_persona], references: [id_persona], map: "fk_expediente_persona")  
 
@@ -228,6 +231,7 @@ model ExpedienteLicencia {
   numero_itse            String?   @db.VarChar(10)    // NUMERO ITSE
   doc_itse               String?   @db.VarChar(100)   // ARCHIVO PDF
   bajo_juramento         Boolean   @default(false)    // CHECK DECLARACION BAJO JURAMENTO
+  createdAt DateTime @default(now())
 
   expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_explicencia_expediente")
   representante Representante? @relation(fields: [id_representante], references: [id_representante], map: "fk_expediente_representante")
@@ -273,6 +277,7 @@ model DeclaracionJurada {
   titulo_profesional          Boolean   @default(false)   // CHECK DE CUENTO CON TITULO Y HABILITACION VIGENTE
   aceptacion                  Boolean   @default(false)   // CHECK Aviso de fiscalización posterior
   observaciones               String?   @db.Text          // OBSERVACIONES ADICIONALES
+  createdAt DateTime          @default(now())
 
   expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_dj_expediente")
 

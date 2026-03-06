@@ -5,7 +5,7 @@ import { formatDistanceToNow } from 'date-fns'; // Opcional: npm install date-fn
 import { es } from 'date-fns/locale';
 
 export default function Dashboard() {
-    const [stats, setStats] = useState({ total: 0, personas: 0, pendientes: 0, tendenciaLicencias: 0, tendenciaPersonas: 0, statusPendientes: 0 });
+    const [stats, setStats] = useState({ totalLicencias: 0, totalPersonas: 0, totalPendientes: 0, tendenciaLicencias: 0, tendenciaPersonas: 0, statusPendientes: 0 });
     const [loading, setLoading] = useState(true);
     const API_URL = import.meta.env.VITE_API_URL;
     const [actividades, setActividades] = useState([]);
@@ -16,7 +16,7 @@ export default function Dashboard() {
             try {
                 const res = await fetch(`${API_URL}/expedientes/stats/dashboard`);
                 const data = await res.json();
-
+                console.log(data)
                 setStats(data);
             } catch (error) {
                 console.error("Error cargando KPIs", error);
@@ -32,7 +32,7 @@ export default function Dashboard() {
             try {
                 const res = await fetch(`${API_URL}/expedientes/stats/recent`);
                 const data = await res.json();
-                console.log(data)
+                
                 setActividades(data);
             } catch (error) {
                 console.error("Error en actividad reciente", error);
@@ -74,9 +74,9 @@ export default function Dashboard() {
 
             {/* KPIs - Movidos aquí para consistencia visual */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Total Licencias" value={stats.total.toLocaleString()} icon={FileCheck} color="text-blue-600" bg="bg-blue-50" trend={stats.tendenciaLicencias} />
-                <StatCard title="Solicitantes" value={stats.personas.toLocaleString()} icon={Users} color="text-purple-600" bg="bg-purple-50" trend={stats.tendenciaPersonas} />
-                <StatCard title="Pendientes" value={stats.pendientes} icon={Clock} color="text-amber-600" bg="bg-amber-50" trend={stats.statusPendientes} />
+                <StatCard title="Total Licencias" value={(stats?.totalLicencias ?? 0).toLocaleString()} icon={FileCheck} color="text-blue-600" bg="bg-blue-50" trend={stats.tendenciaLicencias} />
+                <StatCard title="Solicitantes" value={(stats?.totalPersonas ?? 0).toLocaleString()} icon={Users} color="text-purple-600" bg="bg-purple-50" trend={stats.tendenciaPersonas} />
+                <StatCard title="Pendientes" value={(stats?.totalPendientes ?? 0).toLocaleString()} icon={Clock} color="text-amber-600" bg="bg-amber-50" trend={stats.statusPendientes} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -103,9 +103,9 @@ export default function Dashboard() {
                             <p className="text-xs text-slate-400">No hay actividad reciente.</p>
                         )}
                     </div>
-                    <button className="w-full mt-6 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-blue-600 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all">
+                    {/* <button className="w-full mt-6 py-2.5 text-xs font-bold text-slate-500 uppercase tracking-widest hover:text-blue-600 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all">
                         Ver Historial Completo
-                    </button>
+                    </button> */}
                 </div>
             </div>
         </div>

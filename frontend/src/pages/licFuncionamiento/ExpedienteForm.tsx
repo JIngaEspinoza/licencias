@@ -439,8 +439,6 @@ export default function ExpedienteForm() {
     modo === "MODIFICACION" &&
     ["CAMBIO_DENOMINACION", "TRANSFERENCIA", "CESE"].includes(accion);   
 
-  
-
   const actualizarFormulario = (addr) => {
     // Aquí pon tus funciones set del formulario:
     if (typeof setEstViaNombre === "function") setEstViaNombre(addr.road || addr.pedestrian || "");
@@ -461,7 +459,6 @@ export default function ExpedienteForm() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
  
-
   /*const eventHandlers = useMemo(() => ({
     dragend() {
       const marker = markerRef.current;
@@ -472,7 +469,6 @@ export default function ExpedienteForm() {
     },
   }), []);*/
  
-
   const handleReverseGeocode = async (lat, lon) => {
     setLoading(true);
     try {
@@ -498,32 +494,32 @@ export default function ExpedienteForm() {
 
   // Función para verificar zonificación
   const verificarZonificacion = (coords, geojsonData) => {
-  if (!coords || !geojsonData?.features) return "Error de datos";
+    if (!coords || !geojsonData?.features) return "Error de datos";
 
-  try {
-    // 1. Crear el punto (Turf usa [lng, lat])
-    const punto = turf.point([coords.lng, coords.lat]);
+    try {
+      // 1. Crear el punto (Turf usa [lng, lat])
+      const punto = turf.point([coords.lng, coords.lat]);
 
-    // 2. Buscar el polígono que contiene el punto
-    // Filtramos para asegurarnos de procesar solo polígonos y evitar errores
-    const featureEncontrada = geojsonData.features.find((f) => {
-      const esPoligono = f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon';
-      return esPoligono && turf.booleanPointInPolygon(punto, f);
-    });
+      // 2. Buscar el polígono que contiene el punto
+      // Filtramos para asegurarnos de procesar solo polígonos y evitar errores
+      const featureEncontrada = geojsonData.features.find((f) => {
+        const esPoligono = f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon';
+        return esPoligono && turf.booleanPointInPolygon(punto, f);
+      });
 
-    // 3. Retornar el nombre de la capa o el mensaje por defecto
-    if (featureEncontrada) {
-      // Usamos el nombre de la columna que limpiaste en QGIS ('layer')
-      return featureEncontrada.properties.layer || "Zona sin nombre";
+      // 3. Retornar el nombre de la capa o el mensaje por defecto
+      if (featureEncontrada) {
+        // Usamos el nombre de la columna que limpiaste en QGIS ('layer')
+        return featureEncontrada.properties.layer || "Zona sin nombre";
+      }
+
+      return "Fuera de zona";
+
+    } catch (error) {
+      console.error("Error en validación espacial:", error);
+      return "Error de cálculo";
     }
-
-    return "Fuera de zona";
-
-  } catch (error) {
-    console.error("Error en validación espacial:", error);
-    return "Error de cálculo";
-  }
-};
+  };
 
   // Manejador del evento al soltar el pin
   const eventHandlers2 = useMemo(() => ({
@@ -929,14 +925,29 @@ export default function ExpedienteForm() {
   useEffect(() => {
     let cancelled = false;
 
-    if (djFirmanteTipo === "SOLICITANTE") {
-      setDjFirmanteNombre(nombreRazon || "");
-      setDjDeclaroPoder(false);
+    if (modo === "MODIFICACION") {
+      //setValue("licencia.vigencia", ""); // O el valor por defecto que uses
+      setValue("licencia.modalidad", "");
+      setValue("licencia.fecha_fin_plazo", null);
+      setValue("licencia.anuncio", false);
+      setValue("licencia.a_descripcion", "");
+      setValue("licencia.cesionario", false);
+      setValue("licencia.mercado", false);
+      setValue("licencia.ces_nrolicencia", "");
+
+      /*setDjFirmanteNombre(nombreRazon || "");
+      setDjDeclaroPoder(false);*/
     } else {
-      setDjFirmanteNombre(repNombre || "");
+      setValue("licencia.modalidad", "INDETERMINADA");
+      setValue("licencia.tipo_accion_tramite", "");
+      setValue("licencia.numero_licencia_origen", "");
+      setValue("licencia.nueva_denominacion", "");
+      setValue("licencia.detalle_otros", "");
+      
+      /*setDjFirmanteNombre(repNombre || "");
       setDjFirmanteDocTipo(repDocTipo || "DNI");
       setDjFirmanteDocNumero(repDocNumero || "");
-      setDjDeclaroPoder(true);
+      setDjDeclaroPoder(true);*/
     }
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -955,7 +966,7 @@ export default function ExpedienteForm() {
     document.addEventListener("mousedown", handleClickOutside);
     return () =>  document.removeEventListener("mousedown", handleClickOutside);
 
-  }, [djFirmanteTipo, nombreRazon, docTipo, docNumero, repNombre, repDocTipo, repDocNumero/*, tipoPersona, dq, page, limit*/]);
+  }, [modo, setValue, djFirmanteTipo, nombreRazon, docTipo, docNumero, repNombre, repDocTipo, repDocNumero/*, tipoPersona, dq, page, limit*/]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -980,11 +991,11 @@ export default function ExpedienteForm() {
 
   const navigate = useNavigate();
 
-  const alEnviar2 = (data: any) => {
+  const alEnviar = (data: any) => {
     console.log("Datos limpios recolectados:", data);
   };
 
-  const alEnviar = async (data) => {
+  const alEnviar2 = async (data) => {
     try {
       setLoading(true);
 
@@ -1335,8 +1346,7 @@ export default function ExpedienteForm() {
                   />
                 </div>
                 {/* COLUMNA TOLERANCIA - Arreglado para alineación uniforme */}
-                <div className="md:col-span-3 flex flex-col gap-1.5">
-                  {/* Este label invisible (o vacío) empuja el switch hacia abajo lo mismo que el label de Zonificación */}
+                {/* <div className="md:col-span-3 flex flex-col gap-1.5">
                   <label className="text-[10px] uppercase select-none opacity-0">spacer</label>
                   
                   <div className="flex items-center justify-between h-9 bg-slate-50 px-4 rounded-lg border border-slate-200 transition-all hover:border-slate-300">
@@ -1348,7 +1358,7 @@ export default function ExpedienteForm() {
                       {...register("declaracion.chk_tolerancia")}
                     />
                   </div>
-                </div>
+                </div> */}
 
               </div>
 
@@ -2364,14 +2374,6 @@ export default function ExpedienteForm() {
                   </button>
                 </div>
               </div>
-
-
-
-
-
-
-
-
 
             </div>
           </SeccionCard>

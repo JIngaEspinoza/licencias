@@ -402,18 +402,18 @@ export class ExpedientesService {
     if (nivel_riesgo=='MUY_ALTO')  hoja2.drawText('X', { x: 462, y: 417, size: 12, font: boldFont, color: rgb(0, 0, 0) });
 
     // ESTO ES SOLO PARA DISEÑO, LUEGO LO BORRAS
-    const dibujarRegla = (pagina) => {
-      for (let i = 0; i < 850; i += 50) {
-        // Eje X (Horizontal) - se dibuja cerca del borde inferior (y: 10)
-        pagina.drawText(`${i}`, { x: i, y: 10, size: 8, color: rgb(0.8, 0, 0) }); 
+    // const dibujarRegla = (pagina) => {
+    //   for (let i = 0; i < 850; i += 50) {
+    //     // Eje X (Horizontal) - se dibuja cerca del borde inferior (y: 10)
+    //     pagina.drawText(`${i}`, { x: i, y: 10, size: 8, color: rgb(0.8, 0, 0) }); 
         
-        // Eje Y (Vertical) - se dibuja cerca del borde izquierdo (x: 10)
-        pagina.drawText(`${i}`, { x: 10, y: i, size: 8, color: rgb(0.8, 0, 0) });
-      }
-    };
+    //     // Eje Y (Vertical) - se dibuja cerca del borde izquierdo (x: 10)
+    //     pagina.drawText(`${i}`, { x: 10, y: i, size: 8, color: rgb(0.8, 0, 0) });
+    //   }
+    // };
 
-    dibujarRegla(hoja1); // Activa guía en hoja 1
-    dibujarRegla(hoja2); // Activa guía en hoja 2
+    // dibujarRegla(hoja1);
+    // dibujarRegla(hoja2);
 
     const pdfFinalBytes = await pdfDoc.save();
     return pdfFinalBytes;
