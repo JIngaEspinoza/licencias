@@ -24,6 +24,7 @@ import UsuariosPage from '../pages/seguridad/UsuariosPage';
 import PermisosPage from "../pages/seguridad/PermisosPage";
 import RolesPage from "../pages/seguridad/RolesPage";
 import ResetPassword from '../pages/ResetPassword';
+import { PublicValidatorPage } from '../pages/validaLicencia/PublicValidatorPage';
 // Páginas de seguridad
 /*import SeguridadHome from "./modules/seguridad";
 */
@@ -31,6 +32,7 @@ import ResetPassword from '../pages/ResetPassword';
 export const router = createBrowserRouter([
     { path: '/login', element: <Login /> },
     { path: '/reset-password', element: <ResetPassword /> },
+    { path: '/valida/:hash', element: <PublicValidatorPage /> },
     {
         path: '/',
         element: <Protected />,

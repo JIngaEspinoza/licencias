@@ -8,8 +8,11 @@ export class TramiteController {
   @Get(':numero')
   @HttpCode(HttpStatus.OK)
   async getHistorial(@Param('numero') numero: string) {
+    //console.log(numero)
     // Aquí llamamos al método que devuelve el arreglo de registros
-    const datos = await this.tramiteService.obtenerExpediente(numero);
+    const datos = await this.tramiteService.buscarExpedientes(numero);
+
+    //console.log(datos)
     
     // Devolvemos un objeto estandarizado (buena práctica para React)
     return {

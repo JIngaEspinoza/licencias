@@ -1214,15 +1214,17 @@ export class ExpedientesService {
       }
     );
 
+    const baseUrl = process.env.URL_VALIDACION_QR;
+
     const hashQR = expediente.expediente_licencia[0].qr_certificado || "ERROR_SIN_HASH";
-    const urlValidacion = `https://www.munisanmiguel.gob.pe/valida/${hashQR}`;
+    const urlValidacion = `${baseUrl}/${hashQR}`;
     const qrBuffer = await QRCode.toBuffer(urlValidacion, {
       errorCorrectionLevel: 'H',
       margin: 1,
       width: 100 // Tamaño en puntos (aprox 3.5cm)
     });
 
-    console.log(hashQR);
+    //console.log(hashQR);
 
     // 2. Lo posicionamos en el PDF
     // X: Usamos tu margen izquierdo (150.23 pts o 5.3cm)
@@ -1871,6 +1873,47 @@ export class ExpedientesService {
       }
       return idExp;
     });
+  }
+
+  async buscarPorHash(hash: string) {
+
+    //console.log(hash);
+
+    const licencia = await this.prisma.expedienteLicencia.findFirst({
+      where: { qr_certificado: hash },
+      select: {
+        numero_certificado: true,
+        numero_resolucion: true,
+        resolucion_fecha: true,
+        expediente: {
+          select: {
+            estado: true,
+            persona: {
+              select: {
+                nombre_razon_social: true
+              }
+            },
+            declaracion_jurada_giro: {
+              select: {
+                id_giro: true,
+                id_giro_zonificacion: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!licencia) return null;
+
+    return {
+      numero_certificado: licencia.numero_certificado,
+      numero_resolucion: licencia.numero_resolucion,
+      resolucion_fecha: licencia.resolucion_fecha,
+      titular: licencia.expediente?.persona?.nombre_razon_social,
+      estado: licencia.expediente?.estado,
+      giros: licencia.expediente?.declaracion_jurada_giro
+    };
   }
 
 }

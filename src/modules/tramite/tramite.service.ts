@@ -10,7 +10,7 @@ export class TramiteService implements OnModuleInit{
     // En oracledb 6.0+ ya viene por defecto.
   }
 
-  async obtenerExpediente(numero: string) {
+  async buscarExpedientes(terminoBusqueda: string) {
     let connection;
 
     try {
@@ -20,28 +20,42 @@ export class TramiteService implements OnModuleInit{
         connectString: process.env.TRAMITE_DB_CONN_STR,
       });
 
-      // Tu consulta SQL para Oracle 12c
+      // 1. Usamos LIKE para que el usuario pueda buscar por partes del número
+      // 2. Mapeamos los nombres a algo más legible para tu Frontend (alias)
       const sql = `
-        SELECT TRAM_VC_NUMERO, EXP_CODCON, EXP_NOMREC 
-        FROM SM_TRAMITE 
-        WHERE EXP_CODCON LIKE :num
+        SELECT 
+          T.TRAM_IN_CODIGO as id,
+          T.TRAM_VC_NUMERO as numero,
+          TU.TUPA_VC_DESCRIPCION as procedimiento,
+          T.TRAM_DA_DOCUMENTO as fecha_documento
+        FROM TRAMITE T
+        JOIN TRAMITE_EXTERNO TE ON T.TRAM_IN_CODIGO = TE.TRAM_IN_CODIGO
+        JOIN ORG O ON T.ORG_IN_DIRIGIDO = O.ORGA_IN_CODIGO
+        JOIN TUPA TU ON TE.TUPA_IN_CODIGO = TU.TUPA_IN_CODIGO
+        WHERE T.ORG_IN_DIRIGIDO IN (53, 214)
+        AND UPPER(T.TRAM_VC_NUMERO) LIKE UPPER(:termino)
+        ORDER BY T.TRAM_DA_DOCUMENTO DESC
+        FETCH FIRST 20 ROWS ONLY
       `;
 
       const result = await connection.execute(
         sql, 
-        { num: numero }, // Binding por seguridad contra SQL Injection
-        { outFormat: oracledb.OUT_FORMAT_OBJECT } // Para recibir un JSON limpio
+        { termino: `%${terminoBusqueda}%` }, // Concatenamos los comodines de Oracle
+        { outFormat: oracledb.OUT_FORMAT_OBJECT } 
       );
 
+      console.log(result.rows);
+
+      // Retornamos todos los registros encontrados para que el usuario elija
       return result.rows;
 
     } catch (err) {
-      this.logger.error('Error consultando Oracle 12c:', err.message);
+      this.logger.error('Error en el buscador de Oracle:', err.message);
       throw err;
     } finally {
       if (connection) {
         try {
-          await connection.close(); // Cerramos siempre para liberar memoria
+          await connection.close();
         } catch (err) {
           this.logger.error('Error cerrando conexión:', err.message);
         }
