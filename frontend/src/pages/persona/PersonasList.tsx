@@ -112,7 +112,7 @@ export default function PersonasList() {
           setTotal(total);
         }
       } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Error al cargar personas");
+        if (!cancelled) setError(e?.message ?? "Error al cargar");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -493,7 +493,7 @@ export default function PersonasList() {
           transition-all duration-200
         "
       >
-        Personas
+        Solicitantes
       </TabsTrigger>
 
       <TabsTrigger 
@@ -519,8 +519,8 @@ export default function PersonasList() {
       <TabsContent value="personas">
         <Card className="rounded-2xl shadow">
           <CardHeader>
-            <CardTitle>Personas</CardTitle>
-            <CardDescription>Administra las personas</CardDescription>
+            <CardTitle>Solicitantes</CardTitle>
+            <CardDescription>Administra los solicitantes</CardDescription>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
             <div className="flex items-end gap-3 flex-wrap">
@@ -635,10 +635,10 @@ export default function PersonasList() {
         <Card className="rounded-2xl shadow">
           <CardHeader>
             <CardTitle>Representantes</CardTitle>
-            <CardDescription>Gestión solo para Personas JURÍDICAS</CardDescription>
+            <CardDescription>Gestión solo para solicitantes JURÍDICAS</CardDescription>
             {selectedPersonaId != null && (
               <div className="mt-1 text-sm text-gray-700">
-                Persona seleccionada:{" "}
+                Solicitante seleccionada:{" "}
                 <span className="font-semibold">
                   {personasById.get(selectedPersonaId)?.nombre_razon_social ?? `ID ${selectedPersonaId}`}
                 </span>

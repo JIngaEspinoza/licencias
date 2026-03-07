@@ -2317,11 +2317,11 @@ export default function ExpedienteForm() {
                     
                     {/* Nro de Recibo */}
                     <div className="col-span-12 md:col-span-4">
-                      <Label className={labelClasses}>Nro. Recibo / Operación</Label>
+                      <Label className={labelClasses}>Nro. Recibo/Año</Label>
                       <input 
                         {...register(`pagos.${index}.nro_recibo`)} 
                         className={inputClasses} 
-                        placeholder="000-XXXXX" 
+                        placeholder="000000-AAAA" 
                         autoComplete="off"
                       />
                     </div>

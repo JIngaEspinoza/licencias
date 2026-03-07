@@ -74,7 +74,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-3 mb-2">Menú Principal</p>
 
           <NavItem to="/" icon={LayoutDashboard} label="Inicio" end onClick={onClose} />
-          <NavItem to="/personas" icon={Users} label="Personas" onClick={onClose} />
+          <NavItem to="/personas" icon={Users} label="Solicitantes" onClick={onClose} />
           <NavItem to="/licfuncionamiento" icon={FileText} label="Licencia Func." onClick={onClose} />
 
           {/* Autorización */}
