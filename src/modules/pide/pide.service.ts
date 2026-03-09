@@ -51,16 +51,9 @@ export class PideService {
         return { success: false, message: 'Error de credenciales (1002). Se intentó actualizar, por favor reintente la búsqueda.' };
       }
       
-      /*if (dataPide?.coResultado === '1002') {
-        this.logger.warn('Credencial 1002 detectada. Intentando auto-actualización...');
-        const actualizo = await this.actualizarClave();
-        if (actualizo) {
-          dataPide = await this.ejecutarConsultaExterna(dniLimpio);
-        }
-      }*/
-
       // 5. VALIDAR SI OBTUVIMOS DATOS DE PIDE
       if (dataPide && dataPide.coResultado === '0000') {
+        const persona = dataPide.datosPersona;
         // 6. INSERTAR EN BD LOCAL PARA LA PRÓXIMA VEZ
         const sqlInsert = `
           INSERT INTO SMIGUEL.USUARIO_RENIEC (DNI, NOMBRE, APATERNO, AMATERNO, DIRECCION, ESTADO_CIVIL, RESTRICCION, FECHA_REGISTRO, FECHA_ACTUALIZA)
@@ -68,12 +61,12 @@ export class PideService {
         `;
         await connection.execute(sqlInsert, {
           dni: dniLimpio,
-          nom: dataPide.prenombres,
-          pat: dataPide.apPrimer,
-          mat: dataPide.apSegundo,
-          dir: dataPide.direccion,
-          estcivil: dataPide.estadoCivil.trim(),
-          restric: dataPide.restriccion
+          nom: persona.prenombres,
+          pat: persona.apPrimer,
+          mat: persona.apSegundo,
+          dir: persona.direccion,
+          estcivil: persona.estadoCivil,
+          restric: persona.restriccion
         });
         await connection.commit();
 
@@ -89,27 +82,6 @@ export class PideService {
       if (connection) await connection.close();
     }
   }
-
-  /*private async ejecutarConsultaExterna(dni: string) {
-    const params = {
-      nuDniConsulta: dni,
-      nuDniUsuario: process.env.PIDE_USUARIO_RENIEC,
-      nuRucUsuario: process.env.PIDE_RUCMUNI,
-      password: process.env.PIDE_CLAVE_RENIEC,
-      out: 'json'
-    };
-    try {
-      const resp = await firstValueFrom(this.httpService.get(`${process.env.PIDE_URL_CONSULTADNI}`, { params }));
-      const data = resp.data;
-
-      if (data?.consultarResponse?.return) {
-        return data.consultarResponse.return; 
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }*/
 
   private async ejecutarConsultaExterna(dni: string) {
     const url = `${process.env.PIDE_URL_CONSULTADNI}?out=json`;
@@ -159,6 +131,8 @@ export class PideService {
         item = data.consultarResponse;
       }
 
+      //console.log(item)
+
       // --- 4. VALIDAR coResultado (Dentro del return o del item directamente) ---
       // Dependiendo de la versión de la PIDE, el coResultado puede estar en diferentes niveles
       const resultado = item?.return || item;
@@ -166,6 +140,8 @@ export class PideService {
       if (!resultado || !resultado.coResultado) {
         throw new Error('PIDE_ERROR_INCOMPLETO: Respuesta incompleta del servicio RENIEC.');
       }
+
+      console.log(resultado)
 
       return resultado;
 
@@ -204,6 +180,70 @@ export class PideService {
     } catch (e) {
       this.logger.error('Fallo crítico al actualizar credencial PIDE');
       return false;
+    }
+  }
+
+  async consultarCE(numCE: string) {
+    const ceLimpio = numCE.trim();
+
+    // 1. Ejecutar consulta externa
+    const dataPide = await this.ejecutarConsultaCarnetExtranjeria(ceLimpio);
+
+    // 2. Manejo de error si no hay respuesta
+    if (!dataPide) {
+      return { success: false, message: 'No se pudo conectar con el servicio de Migraciones.' };
+    }
+
+    // 3. Validar código de respuesta (0000 es éxito)
+    const codRespuesta = String(dataPide.codRespuesta || '');
+    
+    if (codRespuesta === '0000') {
+      return {
+        success: true,
+        source: 'pide',
+        data: {
+          codRespuesta: dataPide.codRespuesta,
+          desRespuesta: dataPide.desRespuesta,
+          datosPersonales: dataPide.datosPersonales
+        }
+      };
+    } else {
+      return {
+        success: false,
+        message: dataPide.desRespuesta || 'Error en la consulta de Migraciones.',
+        codRespuesta: codRespuesta
+      };
+    }
+  }
+
+  private async ejecutarConsultaCarnetExtranjeria(numCE: string) {
+    const url = `${process.env.PIDE_URL_CONSULTAEXT}?out=json`;
+
+    console.log(url)
+    
+    const body = {
+      PIDE: {
+        username: process.env.PIDE_EXT_DNIADMIN?.trim(),
+        password: process.env.PIDE_EXT_PASSWORD?.trim(),
+        ip: process.env.PIDE_EXT_IP?.trim(),
+        nivelacceso: process.env.PIDE_EXT_NIVELACCESO,
+        docconsulta: numCE
+      }
+    };
+
+    const config = {
+      headers: { 'Content-Type': 'application/json; charset=UTF-8' },
+      timeout: 10000
+    };
+
+    try {
+      const resp = await firstValueFrom(this.httpService.post(url, body, config));
+      let data = resp.data;
+      return data?.jsonObject || data;
+
+    } catch (e) {
+      this.logger.error(`Error Migraciones CEE: ${e.message}`);
+      return null;
     }
   }
 
