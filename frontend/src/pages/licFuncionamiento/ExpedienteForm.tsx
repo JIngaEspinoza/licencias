@@ -36,14 +36,13 @@ import { ModalSeleccionGiro } from "../gestion/GiroModal";
 import { BuscadorSolicitante } from "./BuscadorSolicitante";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
 
-
-
   // ESTILOS GENERALES
 const inputClassLine = "h-9 rounded-md border border-slate-300 bg-white px-2 text-[11px] text-center outline-none";
 const labelClasses = "text-[10px] font-black text-slate-500 uppercase tracking-tight ml-0.5";
 const inputClasses  = "w-full h-9 rounded-lg border border-slate-300 bg-white px-3 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 uppercase";
 const buttonClasses = "h-9 px-4 inline-flex items-center whitespace-nowrap rounded-lg bg-[#0f766e] text-white font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all focus:outline-none shadow-sm shadow-[#0f766e]/20 active:scale-95"
 const buttonPrimary = "w-full md:w-auto md:min-w-[240px] flex items-center justify-center gap-3 px-12 h-12 bg-[#0f766e] text-white rounded-xl text-[11px] font-black uppercase tracking-[0.15em] hover:bg-[#0d635d] hover:shadow-xl hover:shadow-[#0f766e]/30 transition-all active:scale-95 shadow-lg shadow-[#0f766e]/20"
+const textareaClasses = "w-full h-14 rounded-lg border border-slate-300 bg-white p-2.5 text-[11px] font-bold focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]/10 outline-none transition-all placeholder:text-slate-300 uppercase resize-none leading-normal";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -346,7 +345,7 @@ export default function ExpedienteForm() {
         numero_licencia_origen: '',
         nueva_denominacion: '',
         detalle_otros: '',
-        nivel_riesgo: 'BAJO',
+        nivel_riesgo: '',
         numero_itse: '',
         doc_itse: '',
         bajo_juramento: true
@@ -745,7 +744,7 @@ export default function ExpedienteForm() {
   const handleGiroSelect = (giro, compatibilidad) => {
     // 1. Extraemos la zonificación actual para el mensaje (puedes usar watch o una variable local)
     //const zonificacionActual = watch("declaracion.zonificacion") || "No detectada";
-    const girosActuales = watch("giros_seleccionados") || [];
+    const girosActuales = getValues("giros_seleccionados") || [];
 
     // 1. Evitar duplicados
     const yaExiste = girosActuales.some(g => g.id_giro === giro.id_giro);
@@ -754,39 +753,10 @@ export default function ExpedienteForm() {
       return;
     }
 
-    // 2. Seteamos los valores principales de una sola vez
-    // Es buena práctica agrupar los setValues si usas react-hook-form
-    //setValue("declaracion.codigo_ciiu", giro.id_giro, { shouldValidate: true });
-    //setValue("declaracion.nombre_giro", giro.nombre, { shouldValidate: true });
-    //setValue("riesgo_base", giro.riesgo_base || "BAJO"); // Fallback por si viene vacío
-
     // 3. Lógica de compatibilidad (Corregida: X = Permitido, O = No permitido)
     // Usamos 'O' como fallback si no existe el registro de compatibilidad
     const codigoEstado = compatibilidad?.estado_uso?.codigo || 'O'; 
     const esPermitido = codigoEstado === 'X';
-
-    /*if (!esPermitido) {
-      // Si NO es 'X', marcamos como excepción
-      setValue("declaracion.chk_tolerancia", true);
-      
-      // Opcional: Podrías usar un Toast en lugar de un alert para una mejor UI
-      console.warn(`Giro no compatible: ${giro.nombre} en zona ${zonificacionActual}`);
-      
-      // Podrías abrir un campo de "Sustento de Excepción" aquí si tu formulario lo tiene
-    } else {
-      setValue("declaracion.chk_tolerancia", false);
-    }*/
-    // 3. Agregamos el nuevo objeto al array del formulario
-    const nuevoGiro = {
-      id_giro: giro.id_giro,
-      codigo: giro.codigo,
-      nombre: giro.nombre,
-      riesgo_base: giro.riesgo_base || "BAJO",
-      id_giro_zonificacion: compatibilidad?.id_giro_zonificacion || null,
-      con_excepcion: !esPermitido,
-      zonificacion_al_momento: watch("declaracion.zonificacion")
-    };
-    console.log(nuevoGiro)
 
     appendGiro({
       id_giro: giro.id_giro,
@@ -795,7 +765,8 @@ export default function ExpedienteForm() {
       riesgo_base: giro.riesgo_base || "BAJO",
       id_giro_zonificacion: compatibilidad?.id_giro_zonificacion || null,
       con_excepcion: !esPermitido,
-      zonificacion_al_momento: watch("declaracion.zonificacion")
+      zonificacion_al_momento: watch("declaracion.zonificacion"),
+      justificacion: ""
     });
 
     setIsGiroModalOpen(false);
@@ -991,11 +962,11 @@ export default function ExpedienteForm() {
 
   const navigate = useNavigate();
 
-  const alEnviar = (data: any) => {
+  const alEnviar2 = (data: any) => {
     console.log("Datos limpios recolectados:", data);
   };
 
-  const alEnviar2 = async (data) => {
+  const alEnviar3 = async (data) => {
     try {
       setLoading(true);
 
@@ -1026,6 +997,45 @@ export default function ExpedienteForm() {
 
     } catch (error: any) {
       console.error("Error en el registro:", error);
+      swalError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const alEnviar = async (data) => {
+    try {
+      setLoading(true);
+
+      // 1. Preparamos el FormData
+      const formData = new FormData();
+
+      // 2. Agregamos el archivo (si existe)
+      if (fileUploaded instanceof File) {
+        formData.append('archivo_mc', fileUploaded);
+      }
+
+      // 3. Limpieza de datos y agregar el resto como string
+      const payload = {
+        ...data,
+        pagos: data.pagos.map(p => ({
+          ...p,
+          monto: parseFloat(p.monto)
+        })),
+      };
+      
+      // El backend recibirá esto como un campo llamado "json_data"
+      formData.append('json_data', JSON.stringify(payload));
+
+      const response = await expedientesApi.guardarSolicitudDDJJ(formData);
+      
+      if (response.success) {
+        swalSuccess(`Licencia registrada con expediente ${response.numero_expediente}`);
+        setTimeout(() => navigate('/licfuncionamiento'), 2000);
+      } else {
+        throw new Error(response.message || "Error al guardar");
+      }
+    } catch (error: any) {
       swalError(error.message);
     } finally {
       setLoading(false);
@@ -1451,32 +1461,50 @@ export default function ExpedienteForm() {
               </div>
 
               {/* Chips de giros */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase text-slate-700">
                   Giros Seleccionados
                 </label>
                 
                 {fieldsGiros.map((item, index) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-[#0f766e]">CIIU: {item.codigo}</span>
-                        {item.con_excepcion && (
-                          <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded font-black">
-                            CON EXCEPCIÓN
-                          </span>
-                        )}
+                  <div key={item.id} className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-[#0f766e]">CIIU: {item.codigo}</span>
+                          {item.con_excepcion && (
+                            <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded font-black">
+                              CON EXCEPCIÓN
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-800 uppercase leading-tight">
+                          {item.nombre}
+                        </p>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-800 uppercase">{item.nombre}</p>
+                      
+                      <button 
+                        type="button"
+                        onClick={() => removeGiro(index)}
+                        className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-full transition-colors flex-shrink-0"
+                      >
+                        <XCircle size={18} />
+                      </button>
                     </div>
-                    
-                    <button 
-                      type="button"
-                      onClick={() => removeGiro(index)} // Elimina del formulario
-                      className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-full transition-colors"
-                    >
-                      <XCircle size={18} />
-                    </button>
+
+                    {/* Nuevo Campo: Justificación Opcional */}
+                    <div className="pt-2 border-t border-slate-100">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">
+                        Justificación / Observación (Opcional)
+                      </label>
+                      <textarea
+                        {...register(`giros_seleccionados.${index}.justificacion`)}
+                        placeholder="Escriba aquí una breve descripción o justificación..."
+                        autoComplete="off"
+                        className={textareaClasses}
+                        rows={1}
+                      />
+                    </div>
                   </div>
                 ))}
 
@@ -1541,6 +1569,7 @@ export default function ExpedienteForm() {
                       <label className={labelClasses}>Entidad</label>
                       <input 
                         className={inputClasses}
+                        autoComplete="off"
                         placeholder="EJ. MINSA, MTC" 
                         {...register("declaracion.aut_entidad")}
                       />
@@ -1550,6 +1579,7 @@ export default function ExpedienteForm() {
                       <label className={labelClasses}>Denominación del Permiso</label>
                       <input 
                         className={inputClasses}
+                        autoComplete="off"
                         placeholder="NOMBRE DEL DOCUMENTO..." 
                         {...register("declaracion.aut_denominacion")}
                       />
@@ -1568,6 +1598,7 @@ export default function ExpedienteForm() {
                       <label className={labelClasses}>N° Resolución / Código</label>
                       <input 
                         className={inputClasses} 
+                        autoComplete="off"
                         placeholder="EJ. 123-2024/MINSA"
                         {...register("declaracion.aut_numero")}
                       />
@@ -1635,6 +1666,7 @@ export default function ExpedienteForm() {
                           <Label className={labelClasses}>N° de Autorización del Ministerio de Cultura</Label>
                           <input 
                             placeholder="Ej. AUT-2026-MC-001" 
+                            autoComplete="off"
                             className={inputClasses} 
                             {...register("declaracion.num_aut_ministerio_cultura")}
                           />
@@ -1800,7 +1832,7 @@ export default function ExpedienteForm() {
                 <div className="md:col-span-7 flex flex-col gap-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1 h-1 bg-[#0f766e] rounded-full"></span>
-                    Nivel de Riesgo
+                    Nivel de Riesgo <span className="text-[8px] font-normal lowercase">(Opcional)</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
@@ -1812,7 +1844,10 @@ export default function ExpedienteForm() {
                       <button
                         key={r.id}
                         type="button"
-                        onClick={() => setValue("licencia.nivel_riesgo", r.id as any)}
+                        onClick={() => {
+                          const newValue = nivelRiesgo === r.id ? null : r.id;
+                          setValue("licencia.nivel_riesgo", newValue as any);
+                        }}
                         className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1
                           ${nivelRiesgo === r.id 
                             ? 'border-slate-800 bg-slate-800 text-white shadow-md scale-[1.02]' 
@@ -1847,23 +1882,6 @@ export default function ExpedienteForm() {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Checkbox de declaro bajo juramento */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 border-dashed">
-                <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
-                  <Switch 
-                    checked={chk_bajoJuramento}
-                    onCheckedChange={(val) => setValue("licencia.bajo_juramento", val)}
-                    className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
-                  />
-                  <span className="text-[11px] font-black text-slate-600 group-hover:text-[#0f766e] transition-colors tracking-tight">
-                    Declaro bajo juramento que el local cumple con las condiciones de seguridad vigente.
-                    <span className="block text-[9px] text-slate-400 font-bold italic normal-case">
-                      Obligatorio para procesar el trámite
-                    </span>
-                  </span>
-                </label>
               </div>
 
               {/* SECCIÓN CONDICIONAL: Datos ITSE Previa */}
@@ -1944,6 +1962,23 @@ export default function ExpedienteForm() {
                   </div>
                 </div>
               )}
+
+              {/* Checkbox de declaro bajo juramento */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 border-dashed">
+                <label className="flex items-center gap-3 cursor-pointer group mb-4 ml-1">
+                  <Switch 
+                    checked={chk_bajoJuramento}
+                    onCheckedChange={(val) => setValue("licencia.bajo_juramento", val)}
+                    className="data-[state=checked]:bg-[#0f766e] data-[state=unchecked]:bg-slate-200"
+                  />
+                  <span className="text-[11px] font-black text-slate-600 group-hover:text-[#0f766e] transition-colors tracking-tight">
+                    Declaro bajo juramento que el local cumple con las condiciones de seguridad vigente.
+                    <span className="block text-[9px] text-slate-400 font-bold italic normal-case">
+                      Obligatorio para procesar el trámite
+                    </span>
+                  </span>
+                </label>
+              </div>
 
               {/* SUBTÍTULO SECCIONADOR  */}
               <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
@@ -2299,7 +2334,7 @@ export default function ExpedienteForm() {
                 <textarea 
                   rows={2} 
                   autoComplete="off"
-                  className="w-full rounded-lg border border-slate-300 bg-slate-50/50 p-3 text-xs focus:bg-white focus:border-[#0f766e] outline-none transition-all resize-none"
+                  className={textareaClasses}
                   placeholder="Opcional: Detalles relevantes para la evaluación..." 
                   {...register("declaracion.observaciones")}
                 />

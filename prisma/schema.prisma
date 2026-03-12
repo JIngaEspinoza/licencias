@@ -227,7 +227,7 @@ model ExpedienteLicencia {
   nueva_denominacion     String?   @db.VarChar(255)   // (TIPO_TRAMITE=MODIFICACIONES)
   detalle_otros          String?   @db.Text           // (TIPO_TRAMITE=MODIFICACIONES)  
   qr_certificado         String?   @db.Text           // QR_CERTIFICADO
-  nivel_riesgo           String    @db.Text           // BAJO, MEDIO, ALTO, MUY_ALTO
+  nivel_riesgo           String?   @db.Text           // BAJO, MEDIO, ALTO, MUY_ALTO
   numero_itse            String?   @db.VarChar(10)    // NUMERO ITSE
   doc_itse               String?   @db.VarChar(100)   // ARCHIVO PDF
   bajo_juramento         Boolean   @default(false)    // CHECK DECLARACION BAJO JURAMENTO
@@ -308,6 +308,7 @@ model DeclaracionJuradaGiro {
   id_giro              Int? // Para saber qué giro es en caso de excepción
   es_excepcion         Boolean @default(false)
   zonificacion_al_momento String? // Para guardar el código (ej. "CZ") que detectó el mapa al declarar
+  justificacion        String?
 
   expediente        Expediente        @relation(fields: [id_expediente], references: [id_expediente], map: "fk_djg_expediente")
   giro_zonificacion GiroZonificacion? @relation(fields: [id_giro_zonificacion], references: [id_giro_zonificacion], map: "fk_djg_gz")

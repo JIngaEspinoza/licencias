@@ -19,6 +19,7 @@ interface SidebarProps {
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const location = useLocation();
   const user = auth.current();
+  console.log(user?.roles)
 
   const gestionLinks = useMemo(() => ([
     { to: '/gestion/uso', label: 'Uso' },

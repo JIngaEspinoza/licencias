@@ -1298,7 +1298,8 @@ export class ExpedientesService {
               ...declaracionResto,
               aut_fecha: parseFecha(aut_fecha),
               fecha_aut_ministerio_cultura: parseFecha(fecha_aut_ministerio_cultura),
-              area_total_m2: parseFloat(declaracionResto.area_total_m2)
+              area_total_m2: parseFloat(declaracionResto.area_total_m2),
+              archivo_aut_ministerio_cultura: declaracionResto.archivo_aut_ministerio_cultura || null
             }
           },
           
@@ -1317,7 +1318,8 @@ export class ExpedientesService {
               id_giro_zonificacion: giro.id_giro_zonificacion,
               id_giro: giro.id_giro,
               es_excepcion: giro.con_excepcion,
-              zonificacion_al_momento: giro.zonificacion_al_momento
+              zonificacion_al_momento: giro.zonificacion_al_momento,
+              justificacion: giro.justificacion
             }))
           }
         },
@@ -1490,6 +1492,13 @@ export class ExpedientesService {
               numero_resolucion: true,
               resolucion_fecha: true,
               numero_certificado: true,
+            }
+          },
+          declaracion_jurada: {
+            select: {
+              archivo_aut_ministerio_cultura: true,
+              nombre_comercial: true,
+              area_total_m2: true
             }
           },
           pago_tramite: {

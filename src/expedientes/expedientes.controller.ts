@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Res, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { ExpedientesService } from './expedientes.service';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
@@ -6,6 +6,9 @@ import { FindExpedientesDto } from './dto/find-expedientes.dto';
 //import { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.request';
 import type { NuevaDJTransaccionalRequest } from './dto/nueva-dj-transaccional.request';
 import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
 
 @Controller('expedientes')
 export class ExpedientesController {
@@ -36,9 +39,36 @@ export class ExpedientesController {
     return this.expedientesService.generarPdfCarton(Number(id), res);
   }  
 
-  @Post('guardar-solicitud')
-  async guardarSolicitudDDJJ(@Body() payload: any) { // Cambia 'any' por tu DTO si tienes uno
+  /*@Post('guardar-solicitud')
+  async guardarSolicitudDDJJ(@Body() payload: any) {
     return await this.expedientesService.guardarSolicitudDDJJ(payload);
+  }*/
+  @Post('guardar-solicitud')
+  @UseInterceptors(FileInterceptor('archivo_mc', {
+    storage: diskStorage({
+      //destination: './uploads/expedientes', // Asegúrate de crear esta carpeta
+      destination: (req, file, callback) => {
+        const uploadPath = join(process.cwd(), 'uploads', 'expedientes');
+        callback(null, uploadPath);
+      },
+      filename: (req, file, callback) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        callback(null, `MC-${uniqueSuffix}${extname(file.originalname)}`);
+      },
+    }),
+  }))
+  async guardarSolicitudDDJJ(
+    @UploadedFile() file: Express.Multer.File, 
+    @Body('json_data') jsonData: string // Recibimos el string del frontend
+  ) {
+    const data = JSON.parse(jsonData); // Lo convertimos a objeto
+    
+    // Si hay un archivo, guardamos el nombre generado en el objeto de la declaración
+    if (file) {
+      data.declaracion.archivo_aut_ministerio_cultura = file.filename;
+    }
+
+    return await this.expedientesService.guardarSolicitudDDJJ(data);
   }
 
   @Post('generar-resolucion')

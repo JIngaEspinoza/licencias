@@ -34,7 +34,17 @@ async function httpRaw(path: string, init: RequestInit = {}) {
 export async function http<T = any>(path: string, opts: Options = {}) {
   const headers = new Headers(opts.headers || {});
 
-  if (!headers.has("Content-Type") && opts.body && opts.responseType !== "blob") {
+  /*if (!headers.has("Content-Type") && opts.body && opts.responseType !== "blob") {
+    headers.set("Content-Type", "application/json");
+  }*/
+
+  // Solo ponemos application/json si el body NO es un FormData
+  if (
+    !headers.has("Content-Type") && 
+    opts.body && 
+    opts.responseType !== "blob" &&
+    !(opts.body instanceof FormData)
+  ) {
     headers.set("Content-Type", "application/json");
   }
 

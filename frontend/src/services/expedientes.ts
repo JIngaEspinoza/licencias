@@ -10,6 +10,7 @@ export type Expedientes = {
   persona?: Persona;
   expediente_licencia?: ExpedienteLicencia[];
   pago_tramite?: PagoTramite[];
+  declaracion_jurada?: DeclaracionJurada[];
 };
 
 export type ExpedienteCreate = Omit<Expedientes, "id_expediente">;
@@ -33,6 +34,13 @@ export type ExpedienteLicencia = {
   numero_resolucion: string | null;
   resolucion_fecha: string | null;
   numero_certificado: string | null;
+  nivel_riesgo: string | null;
+};
+
+export type DeclaracionJurada = {
+  archivo_aut_ministerio_cultura: string | null;
+  nombre_comercial: string | null;
+  area_total_m2: string | null;
 };
 
 export type Persona = {
@@ -154,10 +162,15 @@ export const expedientesApi = {
     auth: true
   }),
 
-  guardarSolicitudDDJJ: (payload: any) => 
+  /*guardarSolicitudDDJJ: (payload: any) => 
     http<any>(`${BASE_PATH}/guardar-solicitud`,{
       method: "POST",
       body: JSON.stringify(payload)
+    }), */
+  guardarSolicitudDDJJ: (formData: FormData) => 
+    http<any>(`${BASE_PATH}/guardar-solicitud`, {
+      method: "POST",
+      body: formData 
     }),
 
   generaResolucion: (payload: any) =>

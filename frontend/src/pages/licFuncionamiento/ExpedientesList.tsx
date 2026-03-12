@@ -8,7 +8,9 @@ import { Play, Plus, Pencil, Trash2, Shield, Users, Key, Edit2, Search ,
   FileText, DollarSign, Scale, CheckCircle,
   FileBadge,
   Copyright,
-  Coins
+  Coins,
+  FileX2,
+  ShieldAlert
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../types/components/ui/card";
 import { Label } from "../../types/components/ui/label";
@@ -35,6 +37,15 @@ import { ModalPagos } from './ModalPagos';
 import { ModalResolucion } from "./FormModalGenerarResolucion";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
 import { pago_tramiteApi } from "../../services/pago_tramite";
+import { getPdfUrl } from "../../utils/paths.js";
+import { auth } from "../../auth/auth";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "../../types/components/ui/sheet";
 
 const obtenerPasoPorAcciones = (row) => {
   const licencia = row.expediente_licencia?.[0];
@@ -117,9 +128,13 @@ export default function ExpedientesList() {
   const [isPagosOpen, setIsPagosOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view');
   const [selectedExpediente, setSelectedExpediente] = useState<number | null>(null);
+  const [selectedExpedienteNR, setSelectedExpedienteNR] = useState<Expedientes | null>(null);
 
   // Modal Generar Resolución
   const [isFormModalGenerarResolucion, setIsFormModalGenerarResolucion] = useState(false);
+
+  // Nivel de riesgo
+  const [isEvaluarOpen, setIsEvaluarOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -138,7 +153,6 @@ export default function ExpedientesList() {
   // ===== Modal Nueva DJ (completa) =====
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  //const [selectedExpediente, setSelectedExpediente] = useState(true);
 
   async function loadData(currentFilters, currentPage, currentLimit){
 
@@ -229,15 +243,19 @@ export default function ExpedientesList() {
     setSelectedExpediente(row.id_expediente);
     
     if (row.pago_tramite?.length > 0) {
-      console.log('view')
-      setModalMode('view'); // Si ya tiene pago, solo ver
+      setModalMode('view');
     } else {
-      console.log('edit')
-      setModalMode('edit'); // Si no tiene, abrir para registrar
+      setModalMode('edit');
     }
     
     setIsPagosOpen(true);
   };
+
+  const verDocumento = (row: any) => {
+    //setSelectedExpediente(row.id_expediente);
+    const nombreArchivo = row.declaracion_jurada?.[0]?.archivo_aut_ministerio_cultura;
+    window.open(getPdfUrl(nombreArchivo), '_blank')
+  }
 
   const generarResolucion = (row: Expedientes) => {
     setSelectedExpediente(row.id_expediente);
@@ -506,6 +524,14 @@ export default function ExpedientesList() {
 
   }
 
+  const user = auth.current(); 
+
+  const manejarEvaluacion = async (row: Expedientes) => {
+    setSelectedExpedienteNR(row);
+    console.log(row)
+    setIsEvaluarOpen(true);
+  };
+
   return (
     <Card className="rounded-2xl shadow">
       <CardHeader>
@@ -567,7 +593,6 @@ export default function ExpedientesList() {
 
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-2">
-                      {/* Acciones Primarias */}
                       <Button size="sm" 
                         onClick={() => verExpediente(row)} 
                         variant="ghost" 
@@ -612,6 +637,12 @@ export default function ExpedientesList() {
                           <DropdownMenuLabel>Más opciones</DropdownMenuLabel>
 
                           {<DropdownMenuItem 
+                            onClick={() => verDocumento(row)} 
+                            className="cursor-pointer">
+                            <FileX2 className="w-4 h-4 mr-2 text-gray-600" /> Ver documento
+                          </DropdownMenuItem>}
+
+                          {<DropdownMenuItem 
                             onClick={() => generarPago(row)} 
                             className="cursor-pointer"
                             disabled={!!row.pago_tramite?.[0]?.id_pago}>
@@ -631,6 +662,16 @@ export default function ExpedientesList() {
                             </span>
                           </DropdownMenuItem>}
                           
+                          {user?.roles?.includes("EDIFICACIONES") && (
+                            <DropdownMenuItem 
+                              onClick={() => manejarEvaluacion(row)}
+                              className="cursor-pointer text-blue-600 font-medium"
+                              disabled={!!row.expediente_licencia?.[0]?.nivel_riesgo}
+                            >
+                              <ShieldAlert className="w-4 h-4 mr-2" /> 
+                              {row.expediente_licencia?.[0]?.nivel_riesgo ? 'Riesgo Asignado' : 'Asignar Nivel Riesgo'}
+                            </DropdownMenuItem>
+                          )}                         
                           
                           <DropdownMenuSeparator />
                           {/* <DropdownMenuItem className="text-red-600 cursor-pointer">
@@ -644,7 +685,82 @@ export default function ExpedientesList() {
               ))}
             </tbody>
           </table>
-        </div>
+        </div>       
+
+        {/* Este componente va fuera del bucle map de la tabla */}
+        <Sheet open={isEvaluarOpen} onOpenChange={setIsEvaluarOpen}>
+          <SheetContent className="sm:max-w-[600px] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Evaluación Técnica de Riesgo</SheetTitle>
+              <SheetDescription>
+                Expediente N°: {selectedExpedienteNR?.numero_expediente} | {selectedExpedienteNR?.persona?.nombre_razon_social}
+              </SheetDescription>
+            </SheetHeader>
+
+            {/* SECCIÓN 1: VISTA DE DATOS (Ojos abiertos) */}
+            <div className="mt-6 space-y-4 border-b pb-6">
+              <h3 className="text-sm font-bold text-slate-700 uppercase">Datos del Establecimiento</h3>
+              <div className="grid grid-cols-2 gap-4 text-[12px]">
+                <div>
+                  <p className="text-slate-500">Nombre Comercial:</p>
+                  <p className="font-medium">{selectedExpedienteNR?.declaracion_jurada?.[0]?.nombre_comercial}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Área (m2):</p>
+                  <p className="font-medium">{selectedExpedienteNR?.declaracion_jurada?.[0]?.area_total_m2} m²</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-500">Giros Declarados:</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECCIÓN 2: REGISTRO DE RIESGO Y FIRMA */}
+            <form  className="mt-6 space-y-4">
+              <div>
+                <label className="text-xs font-bold">NIVEL DE RIESGO ITSE</label>
+                <select 
+                  
+                  className="w-full h-10 border rounded-md px-3 text-sm mt-1"
+                >
+                  <option value="">Seleccione nivel...</option>
+                  <option value="BAJO">RIESGO BAJO</option>
+                  <option value="MEDIO">RIESGO MEDIO</option>
+                  <option value="ALTO">RIESGO ALTO</option>
+                  <option value="MUY_ALTO">RIESGO MUY ALTO</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold">OBSERVACIONES TÉCNICAS</label>
+                <textarea 
+                  
+                  className="w-full border rounded-md p-2 text-sm mt-1 h-20"
+                  placeholder="Justifique el nivel de riesgo asignado..."
+                />
+              </div>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-[10px] text-amber-700 font-bold uppercase mb-2">Confirmación de Firma</p>
+                <div className="flex items-center gap-3">
+                  {/* Aquí mostramos la firma del usuario logueado que viene de la DB */}
+                  <img src={user.firma_url} alt="Firma" className="h-12 w-auto border bg-white" />
+                  <p className="text-[9px] text-slate-500">
+                    Al guardar, se estampará legalmente la firma de: <br/>
+                    <span className="font-bold text-slate-700">{user.nombre_completo}</span>
+                  </p>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full bg-[#0f766e] hover:bg-[#0d635d]">
+                Confirmar Riesgo e Imprimir DDJJ
+              </Button>
+            </form>
+          </SheetContent>
+        </Sheet>
 
         <ModalPagos 
           isOpen={isPagosOpen} 

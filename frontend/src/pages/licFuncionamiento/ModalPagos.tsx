@@ -84,12 +84,32 @@ export const ModalPagos = ({ isOpen, onClose, idExpediente, mode = 'view', onGua
     }
   };
 
-  const formatFechaView = (fechaISO: string) => {
+  /*const formatFechaView = (fechaISO) => {
     if (!fechaISO) return "---";
-    return new Date(fechaISO).toLocaleDateString('es-PE', {
-      day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC'
-    });
-  };
+    const datePart = fechaISO.split('T')[0];
+    const [year, month, day] = datePart.split('-');
+    
+    return `${day}/${month}/${year}`;
+  };*/
+
+  function formatFechaView(iso: string | undefined) {
+    if (!iso) return "—";
+    try {
+      // 1. Extraemos solo la parte de la fecha YYYY-MM-DD
+      // Esto ignora cualquier "T00:00:00Z" que cause desfases
+      const datePart = iso.split('T')[0]; 
+      const [year, month, day] = datePart.split('-');
+
+      // 2. Retornamos el formato peruano manualmente
+      if (year && month && day) {
+        return `${day}/${month}/${year}`;
+      }
+      
+      return iso;
+    } catch {
+      return iso;
+    }
+  }
 
   const formatMontoView = (monto: any) => {
     const num = parseFloat(monto);
@@ -170,7 +190,7 @@ export const ModalPagos = ({ isOpen, onClose, idExpediente, mode = 'view', onGua
                     <input 
                       type="date"
                       className={inputBase}
-                      value={formData.fecha_pago}
+                      value={formData.fecha_pago ? formData.fecha_pago.substring(0, 10) : ''}
                       onChange={(e) => setFormData({...formData, fecha_pago: e.target.value})}
                     />
                   ) : (
