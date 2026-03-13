@@ -11,6 +11,7 @@ export type Expedientes = {
   expediente_licencia?: ExpedienteLicencia[];
   pago_tramite?: PagoTramite[];
   declaracion_jurada?: DeclaracionJurada[];
+  declaracion_jurada_giro?: DeclaracionJuradaGiro[];
 };
 
 export type ExpedienteCreate = Omit<Expedientes, "id_expediente">;
@@ -42,6 +43,18 @@ export type DeclaracionJurada = {
   nombre_comercial: string | null;
   area_total_m2: string | null;
 };
+
+export type DeclaracionJuradaGiro = {
+  giro: Giro | null;
+  giro_zonificacion: {
+    giro: Giro;
+  } | null;
+};
+
+export type Giro = {
+  codigo: string;
+  nombre: string;
+}
 
 export type Persona = {
   id_persona: number;
@@ -170,20 +183,27 @@ export const expedientesApi = {
   guardarSolicitudDDJJ: (formData: FormData) => 
     http<any>(`${BASE_PATH}/guardar-solicitud`, {
       method: "POST",
-      body: formData 
+      body: formData,
+      auth: true
     }),
 
   generaResolucion: (payload: any) =>
     http<any>(`${BASE_PATH}/generar-resolucion`,{
       method: "POST",
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      auth: true
     }), 
+
+  updateRiesgoItse: (id: number, formData: FormData) => 
+    http<any>(`${BASE_PATH}/riesgo/${id}`, {
+      method: "PATCH",
+      body: formData,
+      auth: true 
+  }),
 
   list: (params = {}) => {
     const defaultParams = { page: 1, limit: 10 };
     const finalParams = { ...defaultParams, ...params };
-    
-    // Asumo que 'toQuery' toma un objeto y lo convierte en "?key1=value1&key2=value2"
     return httpList<Expedientes>(`${BASE_PATH}${toQuery(finalParams)}`, finalParams.page, finalParams.limit);
   },
 

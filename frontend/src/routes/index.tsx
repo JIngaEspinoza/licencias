@@ -25,6 +25,7 @@ import PermisosPage from "../pages/seguridad/PermisosPage";
 import RolesPage from "../pages/seguridad/RolesPage";
 import ResetPassword from '../pages/ResetPassword';
 import { PublicValidatorPage } from '../pages/validaLicencia/PublicValidatorPage';
+import RoleGuard from '../components/RoleGuard';
 // Páginas de seguridad
 /*import SeguridadHome from "./modules/seguridad";
 */
@@ -41,28 +42,31 @@ export const router = createBrowserRouter([
                 element: <DashboardLayout />,
                 children: [
                     { index: true, element: <Dashboard /> },
-                    { path: 'licencias', element: <LicenciasList /> },
-                    { path: 'licencias/nueva', element: <LicenciaForm /> },
-                    { path: 'licencias/:id/editar', element: <LicenciaForm /> },
-                    { path: 'personas', element: <PersonasList /> },
-                    { path: 'licfuncionamiento', element: <ExpedientesList /> },
-                    { path: 'licfuncionamiento/nueva', element: <ExpedienteForm /> },
-                    
-                    { path: 'autemp/list', element: <AutorizacionesTemporalesList /> },
-                    { path: 'autemp/req', element: <AutorizacionesTemporalesReq /> },
 
-                    { path: 'autempr', element: <AutorizacionesEmprendedoresList /> },
-                    
-                    { path: 'personas/nueva', element: <PersonasList /> },
-                    { path: 'personas/:id/editar', element: <PersonasList /> },
+                    {
+                        element: <RoleGuard prohibitedRole='EDIFICACIONES' />,
+                        children: [
+                            { path: 'licencias', element: <LicenciasList /> },
+                            { path: 'licencias/nueva', element: <LicenciaForm /> },
+                            { path: 'licencias/:id/editar', element: <LicenciaForm /> },
+                            { path: 'personas', element: <PersonasList /> },
+                            { path: 'licfuncionamiento/nueva', element: <ExpedienteForm /> },
+                            { path: 'autemp/list', element: <AutorizacionesTemporalesList /> },
+                            { path: 'autemp/req', element: <AutorizacionesTemporalesReq /> },
+                            { path: 'autempr', element: <AutorizacionesEmprendedoresList /> },
+                            { path: 'personas/nueva', element: <PersonasList /> },
+                            { path: 'personas/:id/editar', element: <PersonasList /> },
+
+                            { path: 'gestion/uso', element: <UsosList /> },
+                            { path: 'gestion/zonificacion', element: <ZonificacionesList /> },
+                            { path: 'gestion/giro', element: <GirosList /> },
+                            { path: 'gestion/giro-zonificacion', element: <GirosZonificacionesList /> },
+                        ]
+                    },                   
+                    { path: 'licfuncionamiento', element: <ExpedientesList /> },                    
                     /*{ path: 'ciudadanos', element: <CiudadanosList /> },
                     { path: 'ciudadanos/nueva', element: <CiudadanoForm /> },
                     { path: 'ciudadanos/:id/editar', element: <CiudadanoForm /> },*/
-
-                    { path: 'gestion/uso', element: <UsosList /> },
-                    { path: 'gestion/zonificacion', element: <ZonificacionesList /> },
-                    { path: 'gestion/giro', element: <GirosList /> },
-                    { path: 'gestion/giro-zonificacion', element: <GirosZonificacionesList /> },
 
                     // --- MÓDULO DE SEGURIDAD (solo ADMIN) ---
                     {

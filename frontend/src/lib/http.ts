@@ -10,14 +10,40 @@ export type Options = RequestInit & {
 export type Paginated<T> = { data: T[]; total: number; page: number; limit: number };
 
 function getToken() {
-  // Si más adelante guardas JWT al hacer login, léelo aquí:
-  const raw = localStorage.getItem("auth_token");
+  const raw = localStorage.getItem("accessToken");
   return raw || null;
 }
 
-async function httpRaw(path: string, init: RequestInit = {}) {
+/*async function httpRaw(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers || {});
   if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
+  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  const isJSON = res.headers.get("content-type")?.includes("application/json");
+  const body = isJSON ? await res.json().catch(() => ({})) : await res.text();
+
+  if (!res.ok) {
+    const message = (body as any)?.message || res.statusText || "Request error";
+    const err = new Error(message) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return { res, body };
+}*/
+
+async function httpRaw(path: string, init: RequestInit & { auth?: boolean } = {}) {
+  const headers = new Headers(init.headers || {});
+    
+  if (init.auth) {
+    const token = getToken();
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  if (!headers.has("Content-Type") && init.body && !(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   const isJSON = res.headers.get("content-type")?.includes("application/json");
   const body = isJSON ? await res.json().catch(() => ({})) : await res.text();
@@ -98,8 +124,28 @@ export async function http<T = any>(path: string, opts: Options = {}) {
 }*/
 
 // Helper para mapear respuestas de lista a un shape común
-export async function httpList<T = any>(path: string, page: number, limit: number) {
+/*export async function httpList<T = any>(path: string, page: number, limit: number) {
   const { res, body } = await httpRaw(path, { method: "GET" });
+
+  // Opción A: backend devuelve { data, total, page?, limit? }
+  if (typeof body === "object" && body && "data" in body && "total" in body) {
+    const { data, total, page: p, limit: l } = body as any;
+    return { data: data as T[], total: Number(total), page: p ?? page, limit: l ?? limit };
+  }
+
+  // Opción B: backend devuelve array y total por header 'X-Total-Count'
+  const totalHeader = res.headers.get("x-total-count");
+  if (Array.isArray(body) && totalHeader) {
+    return { data: body as T[], total: Number(totalHeader), page, limit };
+  }
+
+  // Fallback: array sin total (estimado)
+  return { data: (body as T[]) ?? [], total: (body as T[])?.length ?? 0, page, limit };
+}*/
+
+export async function httpList<T = any>(path: string, page: number, limit: number) {
+  // Ahora pasamos { auth: true } para que httpRaw incluya el token
+  const { res, body } = await httpRaw(path, { method: "GET", auth: true });
 
   // Opción A: backend devuelve { data, total, page?, limit? }
   if (typeof body === "object" && body && "data" in body && "total" in body) {

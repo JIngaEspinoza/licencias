@@ -23,6 +23,8 @@ model User {
 
   roles          UserRole[]
   tokens         PasswordResetToken[]
+  expediente_licencias_creadas ExpedienteLicencia[] @relation("CreadorDDJJ")
+  expediente_licencias_riesgo ExpedienteLicencia[] @relation("InspectorRiesgo")
 
   @@map("user")
 }
@@ -230,11 +232,17 @@ model ExpedienteLicencia {
   nivel_riesgo           String?   @db.Text           // BAJO, MEDIO, ALTO, MUY_ALTO
   numero_itse            String?   @db.VarChar(10)    // NUMERO ITSE
   doc_itse               String?   @db.VarChar(100)   // ARCHIVO PDF
+  nombre_inspector       String?   @db.VarChar(100)   // NOMBRE DEL INSPECTOR
+  fecha_visto_bueno      DateTime?                    // FECHA VISTO BUENO INSPECTOR
   bajo_juramento         Boolean   @default(false)    // CHECK DECLARACION BAJO JURAMENTO
+  id_user_creador        Int?                         // USUARIO REGISTRO
+  id_user_riesgo         Int?                         // USUARIO REGISTRO RIESGO
   createdAt DateTime @default(now())
 
   expediente Expediente @relation(fields: [id_expediente], references: [id_expediente], map: "fk_explicencia_expediente")
   representante Representante? @relation(fields: [id_representante], references: [id_representante], map: "fk_expediente_representante")
+  usuario_creador User? @relation("CreadorDDJJ", fields: [id_user_creador], references: [id], map: "fk_expediente_user_creador")
+  usuario_riesgo User? @relation("InspectorRiesgo", fields: [id_user_riesgo], references: [id], map: "fk_expediente_user_riesgo")
 
   @@index([id_expediente])
   @@map("expediente_licencia")

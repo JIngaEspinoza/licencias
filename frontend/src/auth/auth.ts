@@ -37,6 +37,16 @@ export const auth = {
     return raw ? JSON.parse(raw) : null;
   },
 
+  isEdificaciones(): boolean {
+    const user = this.current();
+    return !!user?.roles?.includes('EDIFICACIONES');
+  },
+
+  isAdmin(): boolean {
+    const user = this.current();
+    return !!user?.roles?.includes('ADMIN');
+  },
+
   async login(email: string, password: string) {
     const data = await authApi.login({ email, password });
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));

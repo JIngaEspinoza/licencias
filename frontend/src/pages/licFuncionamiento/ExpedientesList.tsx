@@ -135,6 +135,11 @@ export default function ExpedientesList() {
 
   // Nivel de riesgo
   const [isEvaluarOpen, setIsEvaluarOpen] = useState(false);
+  const [nivelRiesgo, setNivelRiesgo] = useState("");
+
+  const [file, setFile] = useState<File | null>(null);
+  const [numeroItse, setNumeroItse] = useState("");
+  const [observaciones, setObservaciones] = useState(""); // Si decides guardarlo en otra tabla
 
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -264,7 +269,7 @@ export default function ExpedientesList() {
   
   const resolucionPDF = async (row: Expedientes) => {
     try {
-      console.log(row.id_expediente);
+      
       const blob = await expedientesApi.getPdfResolucion(row.id_expediente);
 
       const url = window.URL.createObjectURL(blob);
@@ -414,14 +419,16 @@ export default function ExpedientesList() {
               Buscar
             </Button>
             
-            <Link
-              to="/licfuncionamiento/nueva"
-              className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20
-              "
-            >
-              <Plus className="w-5 h-5 stroke-[2.5]" /> 
-              <span>Nuevo DJ</span>
-            </Link>
+            {!auth.isEdificaciones() && (
+              <Link
+                to="/licfuncionamiento/nueva"
+                className="h-9 px-4 bg-[#0f766e] text-white rounded-lg font-bold text-[10px] uppercase tracking-tighter hover:bg-[#0a5a54] transition-all flex items-center gap-2 shadow-sm shadow-[#0f766e]/20
+                "
+              >
+                <Plus className="w-5 h-5 stroke-[2.5]" /> 
+                <span>Nuevo DJ</span>
+              </Link>
+            )}
 
           </div>
 
@@ -444,7 +451,7 @@ export default function ExpedientesList() {
   const getColorClasses = (estado: any) => {
     // Aseguramos que el estado se maneje en minúsculas para consistencia
     const normalizedEstado = estado ? estado.toLowerCase() : '';
-    console.log(normalizedEstado)
+    //console.log(normalizedEstado)
     switch (normalizedEstado) {
       case 'licencia':
       case 'aprobado':
@@ -477,8 +484,6 @@ export default function ExpedientesList() {
   const handleGuardarResolucion = async (data: { id_expediente: number, numero_resolucion: string, fecha_resolucion: string, numero_certificado: string }) => {
     try {
 
-      console.log(data);
-
       const response = await expedientesApi.generaResolucion({
         id_expediente: data.id_expediente,
         numero_resolucion: data.numero_resolucion,
@@ -500,7 +505,6 @@ export default function ExpedientesList() {
 
   const handleGuardarPago = async (data: {id_expediente: number, concepto: string, nro_recibo: string, fecha_pago: string, monto: number}) => {
     try {
-      console.log(data);
 
       const response = await pago_tramiteApi.generaPago({
         id_expediente: data.id_expediente,
@@ -524,12 +528,40 @@ export default function ExpedientesList() {
 
   }
 
-  const user = auth.current(); 
+  //const user = auth.current(); 
 
   const manejarEvaluacion = async (row: Expedientes) => {
     setSelectedExpedienteNR(row);
-    console.log(row)
     setIsEvaluarOpen(true);
+  };
+
+  const guardarEvaluacion = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedExpedienteNR?.id_expediente) {
+      alert("No se pudo identificar el expediente.");
+      return;
+    }
+    
+    if (!nivelRiesgo) return alert("Seleccione un nivel de riesgo");
+
+    const formData = new FormData();
+    formData.append("nivel_riesgo", nivelRiesgo);
+    formData.append("numero_itse", numeroItse);
+    
+    if (file) {
+      formData.append("archivo_pdf", file);
+    }
+
+    try {
+      await expedientesApi.updateRiesgoItse(selectedExpedienteNR.id_expediente, formData);
+      alert("Evaluación guardada correctamente");
+      setIsEvaluarOpen(false);
+      loadData(activeFilters, page, limit)
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("Error al procesar la solicitud");
+    }
   };
 
   return (
@@ -539,7 +571,7 @@ export default function ExpedientesList() {
         <CardDescription>Administración y seguimiento del flujo de licencias municipales</CardDescription>
       </CardHeader>
       <CardContent className="p-4 space-y-4">
-        <div className="flex items-end gap-3 flex-wrap">
+        <div className="flex items-end gap-3 flex-wrap">          
           <CrearNewDJ onSearch={handleSearch} 
             activeFilters={activeFilters}
           />
@@ -601,7 +633,7 @@ export default function ExpedientesList() {
                         <FileText className="w-4 h-4 mr-1"/> DDJJ
                       </Button>
 
-                      {row.pago_tramite?.[0]?.id_pago && (
+                      {!auth.current()?.roles?.includes("EDIFICACIONES") && row.pago_tramite?.[0]?.id_pago && (
                         <Button size="sm" 
                           onClick={() => generarPago(row)} 
                           variant="ghost" 
@@ -627,42 +659,65 @@ export default function ExpedientesList() {
                       )}
                       
                       {/* Menú de Tres Puntitos */}
-                      <DropdownMenu>
+                      <DropdownMenu >
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuContent align="end" className="w-80">
                           <DropdownMenuLabel>Más opciones</DropdownMenuLabel>
 
-                          {<DropdownMenuItem 
-                            onClick={() => verDocumento(row)} 
-                            className="cursor-pointer">
-                            <FileX2 className="w-4 h-4 mr-2 text-gray-600" /> Ver documento
-                          </DropdownMenuItem>}
+                          {!auth.current()?.roles?.includes("EDIFICACIONES") && (
+                              <DropdownMenuItem 
+                              onClick={() => verDocumento(row)} 
+                              className="cursor-pointer">
+                              <FileX2 className="w-4 h-4 mr-2 text-gray-600" /> Ver documento
+                            </DropdownMenuItem>
+                          )}
 
-                          {<DropdownMenuItem 
-                            onClick={() => generarPago(row)} 
-                            className="cursor-pointer"
-                            disabled={!!row.pago_tramite?.[0]?.id_pago}>
-                            <Coins className="w-4 h-4 mr-2 text-gray-600" /> R. Pago
-                          </DropdownMenuItem>}
+                          {!auth.current()?.roles?.includes("EDIFICACIONES") && (
+                            <DropdownMenuItem 
+                              onClick={() => generarPago(row)} 
+                              className="cursor-pointer"
+                              disabled={!!row.pago_tramite?.[0]?.id_pago}>
+                              <Coins className="w-4 h-4 mr-2 text-gray-600" /> R. Pago
+                            </DropdownMenuItem>
+                          )}
                           
-                          {<DropdownMenuItem 
-                            onClick={() => generarResolucion(row)} 
-                            className="cursor-pointer"
-                            disabled={!!row.expediente_licencia?.[0]?.numero_certificado}
-                          >
-                            <Copyright className={`w-4 h-4 mr-2 ${ row.expediente_licencia?.[0]?.numero_certificado ? 'text-gray-400' : 'text-amber-600' }`} />
-                            <span>
-                              {row.expediente_licencia?.[0]?.numero_certificado 
-                                ? 'Resolución ya registrada' 
-                                : 'R. Resolución'}
-                            </span>
-                          </DropdownMenuItem>}
+                          {!auth.current()?.roles?.includes("EDIFICACIONES") && (() => {
+                            const tieneCertificado = !!row.expediente_licencia?.[0]?.numero_certificado;
+                            const tienePago = row.pago_tramite && row.pago_tramite.length > 0;
+                            const tieneRiesgo = !!row.expediente_licencia?.[0]?.nivel_riesgo;
+
+                            // Se habilita solo si tiene TODO y no está registrado
+                            const puedeGenerar = !tieneCertificado && tienePago && tieneRiesgo;
+
+                            const obtenerTexto = () => {
+                              if (tieneCertificado) return 'Resolución ya registrada';
+                              if (!tienePago && !tieneRiesgo) return 'Falta Pago y Riesgo';
+                              if (!tienePago) return 'Falta registro de Pago';
+                              if (!tieneRiesgo) return 'Falta nivel de Riesgo';
+                              return 'R. Resolución';
+                            };
+
+                            return (
+                              <DropdownMenuItem
+                                onClick={() => generarResolucion(row)}
+                                className="cursor-pointer"
+                                disabled={!puedeGenerar}
+                              >
+                                <Copyright 
+                                  className={`w-4 h-4 mr-2 ${puedeGenerar ? 'text-amber-600' : 'text-gray-400'}`} 
+                                />
+                                <span>
+                                  {obtenerTexto()}
+                                </span>
+                              </DropdownMenuItem>
+                            );
+                          })()}
                           
-                          {user?.roles?.includes("EDIFICACIONES") && (
+                          {auth.current()?.roles?.includes("EDIFICACIONES") && (
                             <DropdownMenuItem 
                               onClick={() => manejarEvaluacion(row)}
                               className="cursor-pointer text-blue-600 font-medium"
@@ -712,19 +767,33 @@ export default function ExpedientesList() {
                 <div className="col-span-2">
                   <p className="text-slate-500">Giros Declarados:</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    
+                    {selectedExpedienteNR?.declaracion_jurada_giro?.map((item, index) => {
+                        const datosGiro = item.giro || item.giro_zonificacion?.giro;
+
+                        if (!datosGiro) return null;
+
+                        return (
+                          <span 
+                            key={index} 
+                            className="px-2 py-0.5 bg-white border border-slate-300 rounded text-[9px] font-bold text-slate-600"
+                          >
+                            {datosGiro?.codigo} - {datosGiro?.nombre}
+                          </span>
+                        );
+                      })}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* SECCIÓN 2: REGISTRO DE RIESGO Y FIRMA */}
-            <form  className="mt-6 space-y-4">
+            <form onSubmit={guardarEvaluacion} className="mt-6 space-y-4">
               <div>
-                <label className="text-xs font-bold">NIVEL DE RIESGO ITSE</label>
+                <label className="text-xs font-bold uppercase">Nivel de Riesgo ITSE</label>
                 <select 
-                  
-                  className="w-full h-10 border rounded-md px-3 text-sm mt-1"
+                  value={nivelRiesgo}
+                  onChange={(e) => setNivelRiesgo(e.target.value)}
+                  className="w-full h-10 border rounded-md px-3 text-sm mt-1 focus:ring-2 focus:ring-[#0f766e] outline-none"
                 >
                   <option value="">Seleccione nivel...</option>
                   <option value="BAJO">RIESGO BAJO</option>
@@ -734,29 +803,57 @@ export default function ExpedientesList() {
                 </select>
               </div>
 
-              <div>
-                <label className="text-xs font-bold">OBSERVACIONES TÉCNICAS</label>
-                <textarea 
+              {/* CAMPOS CONDICIONALES PARA RIESGO ALTO / MUY ALTO */}
+              {(nivelRiesgo === "ALTO" || nivelRiesgo === "MUY_ALTO") && (
+                <div className="space-y-4 p-4 bg-slate-50 border border-slate-200 rounded-lg animate-in fade-in slide-in-from-top-2">
+                  <div>
+                    <label className="text-xs font-bold text-[#0f766e]">N° DE CERTIFICADO ITSE</label>
+                    <input 
+                      type="text"
+                      value={numeroItse}
+                      onChange={(e) => setNumeroItse(e.target.value)}
+                      placeholder="Ej: CERT-2024-XXXX"
+                      className="w-full h-10 border rounded-md px-3 text-sm mt-1"
+                    />
+                  </div>
                   
-                  className="w-full border rounded-md p-2 text-sm mt-1 h-20"
+                  <div>
+                    <label className="text-xs font-bold text-[#0f766e]">ADJUNTAR CERTIFICADO (PDF)</label>
+                    <input 
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      className="w-full text-xs mt-1 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#0f766e] file:text-white hover:file:bg-[#0d635d] cursor-pointer"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* <div>
+                <label className="text-xs font-bold uppercase">Observaciones Técnicas</label>
+                <textarea 
+                  className="w-full border rounded-md p-2 text-sm mt-1 h-20 resize-none"
                   placeholder="Justifique el nivel de riesgo asignado..."
                 />
-              </div>
+              </div> */}
 
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-[10px] text-amber-700 font-bold uppercase mb-2">Confirmación de Firma</p>
                 <div className="flex items-center gap-3">
-                  {/* Aquí mostramos la firma del usuario logueado que viene de la DB */}
-                  <img src={user.firma_url} alt="Firma" className="h-12 w-auto border bg-white" />
+                  {auth.current()?.firma_url ? (
+                    <img src={auth.current().firma_url} alt="Firma" className="h-12 w-auto border bg-white mix-blend-multiply" />
+                  ) : (
+                    <div className="h-12 w-24 bg-slate-200 rounded flex items-center justify-center text-[8px] text-rose-500 font-bold">FALTA FIRMA</div>
+                  )}
                   <p className="text-[9px] text-slate-500">
                     Al guardar, se estampará legalmente la firma de: <br/>
-                    <span className="font-bold text-slate-700">{user.nombre_completo}</span>
+                    <span className="font-bold text-slate-700">{auth.current()?.nombre_completo}</span>
                   </p>
                 </div>
               </div>
 
-              <Button type="submit" className="w-full bg-[#0f766e] hover:bg-[#0d635d]">
-                Confirmar Riesgo e Imprimir DDJJ
+              <Button type="submit" className="w-full bg-[#0f766e] hover:bg-[#0d635d] font-bold py-6 uppercase tracking-wider">
+                Confirmar Riesgo
               </Button>
             </form>
           </SheetContent>

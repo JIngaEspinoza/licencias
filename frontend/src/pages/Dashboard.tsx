@@ -3,6 +3,7 @@ import ChartCard from '../components/ChartCard'
 import { PlusCircle, Search, FileText, CheckCircle, Clock, FileCheck, Users, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'; // Opcional: npm install date-fns
 import { es } from 'date-fns/locale';
+import { http } from "../lib/http";
 
 export default function Dashboard() {
     const [stats, setStats] = useState({ totalLicencias: 0, totalPersonas: 0, totalPendientes: 0, tendenciaLicencias: 0, tendenciaPersonas: 0, statusPendientes: 0 });
@@ -11,11 +12,13 @@ export default function Dashboard() {
     const [actividades, setActividades] = useState([]);
     const [chartData, setChartData] = useState([]);
 
-    useEffect(() => {
+    /*useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await fetch(`${API_URL}/expedientes/stats/dashboard`);
-                const data = await res.json();
+                const data = await http<any>(`/expedientes/stats/dashboard`, { 
+                    auth: true 
+                });
+                
                 console.log(data)
                 setStats(data);
             } catch (error) {
@@ -30,9 +33,7 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchActividad = async () => {
             try {
-                const res = await fetch(`${API_URL}/expedientes/stats/recent`);
-                const data = await res.json();
-                
+                const data = await http<any>(`/expedientes/stats/recent`, { auth: true });              
                 setActividades(data);
             } catch (error) {
                 console.error("Error en actividad reciente", error);
@@ -43,11 +44,35 @@ export default function Dashboard() {
 
     useEffect(() => {
         const fetchChart = async () => {
-            const res = await fetch(`${API_URL}/expedientes/stats/chart`);
-            const data = await res.json();
+            const data = await http<any>(`/expedientes/stats/chart`, { auth: true });
             setChartData(data);
         };
         fetchChart();
+    }, []);*/
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            try {
+                const [stats, actividad, chart] = await Promise.all([
+                    http<any>(`/expedientes/stats/dashboard`, { auth: true }),
+                    http<any>(`/expedientes/stats/recent`, { auth: true }),
+                    http<any>(`/expedientes/stats/chart`, { auth: true })
+                ]);
+
+                // Actualizamos los estados con los resultados
+                setStats(stats);
+                setActividades(actividad);
+                setChartData(chart);
+                
+            } catch (error) {
+                console.error("Error cargando datos del dashboard", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
     }, []);
 
     if (loading) return <div className="p-6 text-slate-500">Cargando panel...</div>;

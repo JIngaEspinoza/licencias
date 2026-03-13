@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Res, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Res, UseInterceptors, UploadedFile, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
 import { ExpedientesService } from './expedientes.service';
 import { CreateExpedienteDto } from './dto/create-expediente.dto';
 import { UpdateExpedienteDto } from './dto/update-expediente.dto';
@@ -9,7 +9,10 @@ import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { GetUser } from 'src/auth/get-user.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('expedientes')
 export class ExpedientesController {
   constructor(private readonly expedientesService: ExpedientesService) {}
@@ -59,7 +62,8 @@ export class ExpedientesController {
   }))
   async guardarSolicitudDDJJ(
     @UploadedFile() file: Express.Multer.File, 
-    @Body('json_data') jsonData: string // Recibimos el string del frontend
+    @Body('json_data') jsonData: string,
+    @GetUser() user: any
   ) {
     const data = JSON.parse(jsonData); // Lo convertimos a objeto
     
@@ -68,8 +72,31 @@ export class ExpedientesController {
       data.declaracion.archivo_aut_ministerio_cultura = file.filename;
     }
 
-    return await this.expedientesService.guardarSolicitudDDJJ(data);
+    return await this.expedientesService.guardarSolicitudDDJJ(data, user);
   }
+
+  @Patch('riesgo/:id')
+  @UseInterceptors(
+    FileInterceptor('archivo_pdf', {
+      storage: diskStorage({
+        destination: './uploads/itse',
+        filename: (req, file, cb) => {
+          const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+          cb(null, `${randomName}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  async actualizarRiesgo(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @UploadedFile() file: Express.Multer.File,
+    @GetUser() user: any
+  ) {
+    const filePath = file ? file.path : null;
+    return await this.expedientesService.actualizarRiesgoItse(id, body, user, filePath);
+  }
+
 
   @Post('generar-resolucion')
   async generarResolucion(@Body() payload: any) {
@@ -82,8 +109,10 @@ export class ExpedientesController {
   }
 
   @Get()
-  findAll(@Query() query: FindExpedientesDto) {
-    return this.expedientesService.findAll(query);
+  //@UseGuards(JwtAuthGuard)
+  findAll(@Query() query: FindExpedientesDto, @Req() req: any) {
+    console.log(req.user);
+    return this.expedientesService.findAll(query, req.user);
   }
 
   @Get(':id')

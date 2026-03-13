@@ -1241,10 +1241,11 @@ export class ExpedientesService {
     doc.end();
   }
 
-  async guardarSolicitudDDJJ(data: any) {
+  async guardarSolicitudDDJJ(data: any, user: any) {
     try {
       // Función auxiliar para convertir strings a Date o null
       const parseFecha = (fecha: any) => (fecha && String(fecha).trim() !== "") ? new Date(fecha) : null;
+      console.log(user)
 
     // Generamos un hash único. 
     const qrHash = data.codigo_qr || crypto.createHash('sha256')
@@ -1282,7 +1283,10 @@ export class ExpedientesService {
           expediente_licencia: {
             create: {
               ...licenciaResto,
-              fecha_recepcion: parseFecha(fecha_recepcion)!, // Obligatoria
+              usuario_creador: {
+                connect: { id: user.userId } 
+              },
+              fecha_recepcion: parseFecha(fecha_recepcion)!, 
               fecha_inicio_plazo: parseFecha(fecha_inicio_plazo),
               fecha_fin_plazo: parseFecha(fecha_fin_plazo),
               resolucion_fecha: parseFecha(resolucion_fecha),
@@ -1408,12 +1412,25 @@ export class ExpedientesService {
     return 'This action adds a new expediente';
   }
 
-  async findAll(query: FindExpedientesDto) {
+  async findAll(query: FindExpedientesDto, user: any) {
     const page = Math.max(1, query.page || 1);
     const limit = Math.max(1, Math.min(100, query.limit || 10));
     const skip = (page - 1) * limit;
     
     const where: Prisma.ExpedienteWhereInput = {};
+
+    const isEdificaciones = user.roles?.includes('EDIFICACIONES');
+    if (isEdificaciones) {
+      where.estado = 'PAGADO';
+      where.expediente_licencia = {
+        some: {
+          OR: [
+            { nivel_riesgo: null },
+            { nivel_riesgo: "" }
+          ]
+        },
+      };
+    }
 
     if (query.numero_expediente) {
       where.numero_expediente = {
@@ -1492,6 +1509,7 @@ export class ExpedientesService {
               numero_resolucion: true,
               resolucion_fecha: true,
               numero_certificado: true,
+              nivel_riesgo: true
             }
           },
           declaracion_jurada: {
@@ -1499,6 +1517,26 @@ export class ExpedientesService {
               archivo_aut_ministerio_cultura: true,
               nombre_comercial: true,
               area_total_m2: true
+            }
+          },
+          declaracion_jurada_giro: {
+            select: {
+              giro_zonificacion: {
+                select: {
+                  giro: {
+                    select: {
+                      codigo: true,
+                      nombre: true
+                    }
+                  },
+                }
+              },
+              giro: {
+                select: {
+                  codigo: true,
+                  nombre: true
+                }
+              }
             }
           },
           pago_tramite: {
@@ -1516,6 +1554,34 @@ export class ExpedientesService {
       page,
       limit,
     };
+  }
+
+  async actualizarRiesgoItse(id_expediente: number, data: any, user: any, filePath?: string | null ) {
+    const [actualizacionLicencia] = await this.prisma.$transaction([
+      this.prisma.expedienteLicencia.updateMany({
+        where: { id_expediente: id_expediente },
+        data: {
+          nivel_riesgo: data.nivel_riesgo,
+          numero_itse: data.numero_itse || null,
+          doc_itse: filePath || null, 
+
+          id_user_riesgo: user.userId,
+          nombre_inspector: data.nombre_inspector,   // Nombre del inspector ITSE
+          fecha_visto_bueno: new Date()
+        },
+      }),
+
+      this.prisma.expediente.update({
+        where: { id_expediente: id_expediente },
+        data: { estado: 'CON_NIVEL_RIESGO'}
+      })
+    ]);
+
+    return {
+      success: true,
+      message: 'Nivel de riesgo guardado correctamente',
+      registros_afectados: actualizacionLicencia.count
+    }    
   }
 
   findOne(id: number) {

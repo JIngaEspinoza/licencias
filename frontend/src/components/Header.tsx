@@ -8,6 +8,7 @@ import {
   FileText, 
   LayoutGrid 
 } from 'lucide-react';
+import { auth } from "../auth/auth";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -39,12 +40,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
           {/* --- BLOQUE DE ACCESOS DIRECTOS --- */}
           <div className="hidden md:flex items-center gap-2 pl-4 border-l border-slate-200">
-            <ShortcutBtn 
-              to="/licfuncionamiento/nueva" 
-              icon={<Plus size={18} />} 
-              tooltip="Nueva Licencia"
-              color="hover:text-emerald-600 hover:bg-emerald-50" 
-            />
+            {!auth.isEdificaciones() && (
+              <ShortcutBtn 
+                to="/licfuncionamiento/nueva" 
+                icon={<Plus size={18} />} 
+                tooltip="Nueva Licencia"
+                color="hover:text-emerald-600 hover:bg-emerald-50" 
+              />
+            )}
             <ShortcutBtn 
               to="/buscar" 
               icon={<Search size={18} />} 
