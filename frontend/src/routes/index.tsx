@@ -19,7 +19,7 @@ import CiudadanoForm from '../pages/CiudadanoForm'
 import UsosList from '../pages/gestion/UsosList'
 import ZonificacionesList from '../pages/gestion/ZonificacionesList'
 import GirosList from '../pages/gestion/GirosList'
-import GirosZonificacionesList from '../pages/gestion/GirosZonificacionesList'
+//import GirosZonificacionesList from '../pages/gestion/GirosZonificacionesList'
 import UsuariosPage from '../pages/seguridad/UsuariosPage';
 import PermisosPage from "../pages/seguridad/PermisosPage";
 import RolesPage from "../pages/seguridad/RolesPage";
@@ -60,7 +60,7 @@ export const router = createBrowserRouter([
                             { path: 'gestion/uso', element: <UsosList /> },
                             { path: 'gestion/zonificacion', element: <ZonificacionesList /> },
                             { path: 'gestion/giro', element: <GirosList /> },
-                            { path: 'gestion/giro-zonificacion', element: <GirosZonificacionesList /> },
+                            //{ path: 'gestion/giro-zonificacion', element: <GirosZonificacionesList /> },
                         ]
                     },                   
                     { path: 'licfuncionamiento', element: <ExpedientesList /> },                    

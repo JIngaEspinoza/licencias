@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Circle, FileText, CreditCard, AlertCircle, X, ChevronRight } from 'lucide-react';
 
-const ValidationPanel = ({ expediente, onClose }) => {
+interface ValidationPanelProps {
+  expediente: {
+    id: string;
+    // Agrega aquí otras propiedades si las usas, ej: nombre: string;
+  } | null;
+  onClose: () => void;
+}
+
+const ValidationPanel = ({ expediente, onClose }: ValidationPanelProps) => {
   // Estado para simular los checks de validación
   const [validations, setValidations] = useState({
     pago: false,

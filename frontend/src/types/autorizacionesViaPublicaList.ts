@@ -8,7 +8,7 @@ export type AutorizacionViaPublicaList = {
   otras_referencia: string | null;
 
   expediente: {
-    id_expediente: number;
+    id_expediente?: number;
     numero_expediente: string;
     id_persona: number;
 

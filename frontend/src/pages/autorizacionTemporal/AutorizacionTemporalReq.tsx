@@ -1,45 +1,44 @@
-
-import React, { useEffect, useMemo, useState } from "react";
+//import React, { useEffect, useMemo, useState } from "react";
 import { expedientesApi, Expediente, NuevaDJCompletaInput } from "../../services/expedientes";
 import { useDebounce } from "../../hooks/useDebounce";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search } from "lucide-react";
 import { autorizacionesApi } from '../../services/autorizaciones_temporales';
-import type { VistaDTO } from '@/types/autorizacionesViaPublicaList';
+//import type { VistaDTO } from '@/types/autorizacionesViaPublicaList';
 
 export default function AutorizacionesTemporalesList() {
-  const [selected, setSelected] = React.useState(null) // modal de requisitos
-  const [startItem, setStartItem] = React.useState(null) // modal de iniciar trámite + adjuntos
-  const [toast, setToast] = React.useState("")
+  // const [selected, setSelected] = React.useState(null)
+  // const [startItem, setStartItem] = React.useState(null)
+  // const [toast, setToast] = React.useState("")
 
   //const [data, setData] = useState<VistaDTO[]>([]);
-  const [categorias, setCategorias] = useState<VistaDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  //const [categorias, setCategorias] = useState<VistaDTO[]>([]);
+  // const [loading, setLoading] = useState(true);
+  // const [err, setErr] = useState<string | null>(null);
   
   // Adjuntos persistidos por trámite (simulado)
   // { [key]: FileLike[] }
-  const [attachmentsByKey, setAttachmentsByKey] = React.useState({})
+  // const [attachmentsByKey, setAttachmentsByKey] = React.useState({})
 
-    useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await autorizacionesApi.list();
-        if (alive) setCategorias(res);
-      } catch (e: any) {
-        if (alive) setErr(e?.message ?? 'Error');
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+  //   useEffect(() => {
+  //   let alive = true;
+  //   (async () => {
+  //     try {
+  //       //const res = await autorizacionesApi.list();
+  //       //if (alive) setCategorias(res);
+  //     } catch (e: any) {
+  //       if (alive) setErr(e?.message ?? 'Error');
+  //     } finally {
+  //       if (alive) setLoading(false);
+  //     }
+  //   })();
+  //   return () => { alive = false; };
+  // }, []);
 
-  if (loading) return <div className="p-4">Cargando…</div>;
-  if (err) return <div className="p-4 text-red-600">Error: {err}</div>;
+  // if (loading) return <div className="p-4">Cargando…</div>;
+  // if (err) return <div className="p-4 text-red-600">Error: {err}</div>;
 
-  const categorias2 = [
+  /*const categorias2 = [
     {
       nombre: "Propiedad Privada",
       items: [
@@ -155,16 +154,16 @@ export default function AutorizacionesTemporalesList() {
         }
       ]
     }
-  ]
+  ]*/
 
-  function getKey(item){ return item.key || item.titulo }
-  function bytesToSize(bytes){
-    if (!bytes && bytes !== 0) return "";
-    const sizes = ['B','KB','MB','GB'];
-    if (bytes === 0) return '0 B';
-    const i = Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), sizes.length-1)
-    return `${(bytes/Math.pow(1024,i)).toFixed(1)} ${sizes[i]}`
-  }
+  // function getKey(item){ return item.key || item.titulo }
+  // function bytesToSize(bytes){
+  //   if (!bytes && bytes !== 0) return "";
+  //   const sizes = ['B','KB','MB','GB'];
+  //   if (bytes === 0) return '0 B';
+  //   const i = Math.min(Math.floor(Math.log(bytes)/Math.log(1024)), sizes.length-1)
+  //   return `${(bytes/Math.pow(1024,i)).toFixed(1)} ${sizes[i]}`
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50" >
@@ -177,7 +176,7 @@ export default function AutorizacionesTemporalesList() {
 
       {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-10">
-        {categorias.map((cat) => (
+        {/* {categorias.map((cat) => (
           <section key={cat.nombre}>
             <h2 className="text-lg font-semibold mb-4">{cat.nombre}</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -223,40 +222,40 @@ export default function AutorizacionesTemporalesList() {
               ))}
             </div>
           </section>
-        ))}
+        ))} */}
       </main>
 
       {/* Modal de requisitos */}
-      {selected && (
+      {/*selected &&*/ (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-xl rounded-2xl shadow-xl overflow-hidden">
             <div className="px-5 py-4 border-b flex items-center justify-between">
-              <h3 className="font-semibold">Requisitos – {selected.titulo}</h3>
-              <button className="text-gray-500 hover:text-gray-800" onClick={() => setSelected(null)}>✕</button>
+              <h3 className="font-semibold">Requisitos – {/*selected.titulo*/}</h3>
+              {/* <button className="text-gray-500 hover:text-gray-800" onClick={() => setSelected(null)}>✕</button> */}
             </div>
 
             <div className="px-5 py-4 space-y-3">
-              {selected.vigencia && (
+              {/* {selected.vigencia && (
                 <div className="text-xs text-gray-600">⏳ Vigencia máxima: {selected.vigencia}</div>
-              )}
+              )} */}
 
               <ul className="list-disc pl-5 space-y-1 text-sm">
-                {selected.requisitos?.map((r, i) => (
+                {/* {selected.requisitos?.map((r, i) => (
                   <li key={i}>{r}</li>
-                ))}
+                ))} */}
               </ul>
             </div>
 
             <div className="px-5 py-4 border-t flex justify-end gap-2 bg-gray-50">
-              <button className="px-3 py-1.5 rounded-md border" onClick={() => setSelected(null)}>Cerrar</button>
-              <button className="px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700" onClick={() => { setSelected(null); setStartItem(selected); }}>Iniciar trámite</button>
+              {/* <button className="px-3 py-1.5 rounded-md border" onClick={() => setSelected(null)}>Cerrar</button> */}
+              {/* <button className="px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700" onClick={() => { setSelected(null); setStartItem(selected); }}>Iniciar trámite</button> */}
             </div>
           </div>
         </div>
       )}
 
       {/* Modal Iniciar trámite */}
-      {startItem && (
+      {/* {startItem && (
         <StartModal
           item={startItem}
           initialFiles={attachmentsByKey[getKey(startItem)] || []}
@@ -270,100 +269,100 @@ export default function AutorizacionesTemporalesList() {
           }}
           bytesToSize={bytesToSize}
         />
-      )}
+      )} */}
 
       {/* Toast superior */}
-      {toast && (
+      {/* {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-4 py-2 rounded-full shadow z-50 text-sm">{toast}</div>
-      )}
+      )} */}
     </div>
   )
 }
 
 // ================== Componente del modal de inicio de trámite ==================
-function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillExpediente }){
-  const [files, setFiles] = React.useState(initialFiles) // global (se conserva para compatibilidad)
-  const inputRef = React.useRef(null)
-  const [dragActive, setDragActive] = React.useState(false)
-  const [form, setForm] = React.useState({
-    nrolicencia: '',
-    nrocertificadoseguridad: '',
-    nroexpediente: '',
-    fecha: '',
-    hora: '',
-    actividad: '',
-    solicitante: 'JURIDICA',
-    ruc: '',
-    rep_doc_tipo: 'DNI',
-    rep_doc_num: '',
-    nat_ruc: '',
-    nat_dni: '',
-    nat_carnet: '',
-    ubicacion: '',
-    rep_carnet: ''
-  })
+function StartModal(/*{ item, initialFiles, onClose, onSave, bytesToSize, prefillExpediente }*/){
+  //const [files, setFiles] = React.useState(initialFiles) // global (se conserva para compatibilidad)
+  // const inputRef = React.useRef(null)
+  // const [dragActive, setDragActive] = React.useState(false)
+  // const [form, setForm] = React.useState({
+  //   nrolicencia: '',
+  //   nrocertificadoseguridad: '',
+  //   nroexpediente: '',
+  //   fecha: '',
+  //   hora: '',
+  //   actividad: '',
+  //   solicitante: 'JURIDICA',
+  //   ruc: '',
+  //   rep_doc_tipo: 'DNI',
+  //   rep_doc_num: '',
+  //   nat_ruc: '',
+  //   nat_dni: '',
+  //   nat_carnet: '',
+  //   ubicacion: '',
+  //   rep_carnet: ''
+  // })
 
-  React.useEffect(()=>{ if(prefillExpediente){ setForm(f=>({...f, nroexpediente: prefillExpediente})) } }, [prefillExpediente])
+  // React.useEffect(()=>{ if(prefillExpediente){ setForm(f=>({...f, nroexpediente: prefillExpediente})) } }, [prefillExpediente])
 
   // ===== Buscador de expedientes =====
-  const [showExpModal, setShowExpModal] = React.useState(false)
-  const [expQuery, setExpQuery] = React.useState({ nro:'', tipo:'', estado:'', desde:'', hasta:'' })
-  const sampleExpedientes = [
-    { numero:'EXP-2025-0001', tipo:'EPND', estado:'EN_TRAMITE', fecha:'2025-09-01', solicitante:'JURIDICA' },
-    { numero:'EXP-2025-0002', tipo:'EPND', estado:'APROBADO', fecha:'2025-08-25', solicitante:'NATURAL' },
-    { numero:'EXP-2025-0010', tipo:'EXPO_PP', estado:'EN_TRAMITE', fecha:'2025-09-10', solicitante:'JURIDICA' },
-    { numero:'EXP-2025-0020', tipo:'CAMP_PROMO', estado:'DENEGADO', fecha:'2025-07-14', solicitante:'NATURAL' },
-    { numero:'EXP-2025-0100', tipo:'EPND', estado:'APROBADO', fecha:'2025-06-02', solicitante:'JURIDICA' },
-  ]
-  const [expRows, setExpRows] = React.useState(sampleExpedientes)
-  function buscarExp(){
-    const {nro,tipo,estado,desde,hasta} = expQuery
-    const rows = sampleExpedientes.filter(r =>
-      (nro? r.numero.toLowerCase().includes(nro.toLowerCase()):true) &&
-      (tipo? r.tipo===tipo : true) &&
-      (estado? r.estado===estado : true) &&
-      (desde? r.fecha >= desde : true) &&
-      (hasta? r.fecha <= hasta : true)
-    )
-    setExpRows(rows)
-  }
-  function seleccionarExp(row){
+  // const [showExpModal, setShowExpModal] = React.useState(false)
+  // const [expQuery, setExpQuery] = React.useState({ nro:'', tipo:'', estado:'', desde:'', hasta:'' })
+  // const sampleExpedientes = [
+  //   { numero:'EXP-2025-0001', tipo:'EPND', estado:'EN_TRAMITE', fecha:'2025-09-01', solicitante:'JURIDICA' },
+  //   { numero:'EXP-2025-0002', tipo:'EPND', estado:'APROBADO', fecha:'2025-08-25', solicitante:'NATURAL' },
+  //   { numero:'EXP-2025-0010', tipo:'EXPO_PP', estado:'EN_TRAMITE', fecha:'2025-09-10', solicitante:'JURIDICA' },
+  //   { numero:'EXP-2025-0020', tipo:'CAMP_PROMO', estado:'DENEGADO', fecha:'2025-07-14', solicitante:'NATURAL' },
+  //   { numero:'EXP-2025-0100', tipo:'EPND', estado:'APROBADO', fecha:'2025-06-02', solicitante:'JURIDICA' },
+  // ]
+  // const [expRows, setExpRows] = React.useState(sampleExpedientes)
+  // function buscarExp(){
+  //   const {nro,tipo,estado,desde,hasta} = expQuery
+  //   const rows = sampleExpedientes.filter(r =>
+  //     (nro? r.numero.toLowerCase().includes(nro.toLowerCase()):true) &&
+  //     (tipo? r.tipo===tipo : true) &&
+  //     (estado? r.estado===estado : true) &&
+  //     (desde? r.fecha >= desde : true) &&
+  //     (hasta? r.fecha <= hasta : true)
+  //   )
+  //   setExpRows(rows)
+  // }
+  /*function seleccionarExp(row){
     setForm(prev=>({...prev, nroexpediente: row.numero}))
     setShowExpModal(false)
-  }
+  }*/
 
   // Adjuntos por requisito (EPND)
-  const [filesByReq, setFilesByReq] = React.useState({})
-  const [errorsByReq, setErrorsByReq] = React.useState({})
+  // const [filesByReq, setFilesByReq] = React.useState({})
+  // const [errorsByReq, setErrorsByReq] = React.useState({})
 
-  // ===== Validación de inputs =====
-  const [inputErrors, setInputErrors] = React.useState({})
-  const [inputsValid, setInputsValid] = React.useState(false)
+  // // ===== Validación de inputs =====
+  // const [inputErrors, setInputErrors] = React.useState({})
+  // const [inputsValid, setInputsValid] = React.useState(false)
 
-  function validateInputs(f = form) {
-    const errs = {}
-    if (!f.nroexpediente?.trim()) errs.nroexpediente = 'Requerido'
-    if (!f.fecha) errs.fecha = 'Requerido'
-    if (!f.hora) errs.hora = 'Requerido'
-    if (!f.actividad?.trim()) errs.actividad = 'Requerido'
-    if (f.solicitante === 'JURIDICA') {
-      if (!/^\d{11}$/.test(f.ruc ?? '')) errs.ruc = 'RUC inválido (11 dígitos)'
-      if (!f.rep_carnet?.trim()) errs.rep_carnet = 'Razón social requerida'
-    } else {
-      if (!f.rep_carnet?.trim()) errs.rep_carnet = 'Nombres y apellidos requeridos'
-    }
-    if (f.rep_doc_tipo === 'DNI') {
-      if (!/^\d{8}$/.test(f.rep_doc_num ?? '')) errs.rep_doc_num = 'DNI inválido (8 dígitos)'
-    } else {
-      if (!(f.rep_doc_num ?? '').trim()) errs.rep_doc_num = 'N° de C.E. requerido'
-    }
-    setInputErrors(errs)
-    setInputsValid(Object.keys(errs).length === 0)
-  }
-  React.useEffect(()=>{ validateInputs(form) }, [form])
+  // function validateInputs(f = form) {
+  //   const errs = {}
+  //   if (!f.nroexpediente?.trim()) errs.nroexpediente = 'Requerido'
+  //   if (!f.fecha) errs.fecha = 'Requerido'
+  //   if (!f.hora) errs.hora = 'Requerido'
+  //   if (!f.actividad?.trim()) errs.actividad = 'Requerido'
+  //   if (f.solicitante === 'JURIDICA') {
+  //     if (!/^\d{11}$/.test(f.ruc ?? '')) errs.ruc = 'RUC inválido (11 dígitos)'
+  //     if (!f.rep_carnet?.trim()) errs.rep_carnet = 'Razón social requerida'
+  //   } else {
+  //     if (!f.rep_carnet?.trim()) errs.rep_carnet = 'Nombres y apellidos requeridos'
+  //   }
+  //   if (f.rep_doc_tipo === 'DNI') {
+  //     if (!/^\d{8}$/.test(f.rep_doc_num ?? '')) errs.rep_doc_num = 'DNI inválido (8 dígitos)'
+  //   } else {
+  //     if (!(f.rep_doc_num ?? '').trim()) errs.rep_doc_num = 'N° de C.E. requerido'
+  //   }
+  //   setInputErrors(errs)
+  //   setInputsValid(Object.keys(errs).length === 0)
+  // }
+  // React.useEffect(()=>{ validateInputs(form) }, [form])
 
   // ====== (Compat) Drag & Drop global - no visible ======
-  function onFilesSelected(list){
+  /*function onFilesSelected(list){
     const arr = Array.from(list || [])
     const merged = [...files]
     for (const f of arr){
@@ -371,12 +370,12 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
       if(!exists) merged.push({ name: f.name, size: f.size, type: f.type })
     }
     setFiles(merged)
-  }
-  function onDrop(e){ e.preventDefault(); e.stopPropagation(); setDragActive(false); onFilesSelected(e.dataTransfer.files) }
+  }*/
+  /*function onDrop(e){ e.preventDefault(); e.stopPropagation(); setDragActive(false); onFilesSelected(e.dataTransfer.files) }
   function onDragOver(e){ e.preventDefault(); e.stopPropagation(); setDragActive(true) }
   function onDragLeave(e){ e.preventDefault(); e.stopPropagation(); setDragActive(false) }
   function removeAt(idx){ setFiles(prev => prev.filter((_,i)=>i!==idx)) }
-
+  */
   // ====== Validaciones de archivo por requisito (sin DnD) ======
   const ACCEPT_EXT = ".pdf,.jpg,.jpeg,.png,.doc,.docx"
   const MAX_SIZE_BYTES = 10 * 1024 * 1024
@@ -388,7 +387,7 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ])
 
-  function onPickReqFiles(idx, list){
+  /*function onPickReqFiles(idx, list){
     const arr = Array.from(list || [])
     const accepted = []
     const errs = []
@@ -409,39 +408,39 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
         return { ...prev, [idx]: existing }
       })
     }
-  }
+  }*/
 
-  function removeReqFile(idx, fIndex){
+  /*function removeReqFile(idx, fIndex){
     setFilesByReq(prev => {
       const arr = (prev[idx]||[]).slice()
       arr.splice(fIndex,1)
       return { ...prev, [idx]: arr }
     })
-  }
+  }*/
 
   // === Progreso de requisitos ===
-  const requisitosList = Array.isArray(item.requisitos) ? item.requisitos : []
+  /*const requisitosList = Array.isArray(item.requisitos) ? item.requisitos : []
   const totalRequired = requisitosList.filter(r=>!(/si aplica/i.test(r))).length
   const completedRequired = requisitosList.reduce((acc, r, i) => {
     if (/si aplica/i.test(r)) return acc; // opcional no suma
     return acc + ((filesByReq[i]?.length > 0) ? 1 : 0);
   }, 0)
   const anyErrors = Object.values(errorsByReq).some(arr => Array.isArray(arr) && arr.length>0)
-
+  */
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center p-4 z-40"
-      onDrop={(e)=>{ e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
+      // onDrop={(e)=>{ e.preventDefault(); e.stopPropagation(); setDragActive(false); }}
       onDragOver={(e)=>{ e.preventDefault(); e.stopPropagation(); }}
     >
       <div className="bg-white w-full max-w-6xl rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="px-5 py-3 border-b flex items-center justify-between">
-          <h3 className="font-semibold">Iniciar trámite – {item.titulo}</h3>
-          <button className="text-gray-500 hover:text-gray-800" onClick={onClose}>✕</button>
+          {/* <h3 className="font-semibold">Iniciar trámite – {item.titulo}</h3> */}
+          {/* <button className="text-gray-500 hover:text-gray-800" onClick={onClose}>✕</button> */}
         </div>
 
         <div className="px-5 py-4 space-y-4 overflow-y-auto">
-          {item.key === 'EPND' && (
+          {/*item.key === 'EPND' &&*/ (
             <div className="grid md:grid-cols-3 gap-4">
               {/* Columna izquierda: Datos del evento */}
               <div className="bg-white border rounded-xl p-4 col-span-1">
@@ -452,16 +451,16 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.nrolicencia ? 'border-red-500' : ''}`}
-                        value={form.nrolicencia}
-                        onChange={e=>setForm({...form, nrolicencia:e.target.value})}
+                        // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.nrolicencia ? 'border-red-500' : ''}`}
+                        // value={form.nrolicencia}
+                        // onChange={e=>setForm({...form, nrolicencia:e.target.value})}
                       />
-                      {inputErrors.nrolicencia && (<div className="text-[11px] text-red-600">{inputErrors.nrolicencia}</div>)}
+                      {/* {inputErrors.nrolicencia && (<div className="text-[11px] text-red-600">{inputErrors.nrolicencia}</div>)} */}
 
                       <button
                         type="button"
                         className="px-2 py-1 text-xs border rounded-md bg-white hover:bg-gray-50"
-                        onClick={() => setShowExpModal(true)}
+                        // onClick={() => setShowExpModal(true)}
                       >
                         Buscar
                       </button>
@@ -472,16 +471,16 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.nrocertificadoseguridad ? 'border-red-500' : ''}`}
-                        value={form.nrocertificadoseguridad}
-                        onChange={e=>setForm({...form, nrocertificadoseguridad:e.target.value})}
+                        // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.nrocertificadoseguridad ? 'border-red-500' : ''}`}
+                        // value={form.nrocertificadoseguridad}
+                        // onChange={e=>setForm({...form, nrocertificadoseguridad:e.target.value})}
                       />
-                      {inputErrors.nrocertificadoseguridad && (<div className="text-[11px] text-red-600">{inputErrors.nrocertificadoseguridad}</div>)}
+                      {/* {inputErrors.nrocertificadoseguridad && (<div className="text-[11px] text-red-600">{inputErrors.nrocertificadoseguridad}</div>)} */}
 
                       <button
                         type="button"
                         className="px-2 py-1 text-xs border rounded-md bg-white hover:bg-gray-50"
-                        onClick={() => setShowExpModal(true)}
+                        // onClick={() => setShowExpModal(true)}
                       >
                         Buscar
                       </button>
@@ -495,16 +494,16 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.nroexpediente ? 'border-red-500' : ''}`}
-                        value={form.nroexpediente}
-                        onChange={e=>setForm({...form, nroexpediente:e.target.value})}
+                        // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.nroexpediente ? 'border-red-500' : ''}`}
+                        // value={form.nroexpediente}
+                        // onChange={e=>setForm({...form, nroexpediente:e.target.value})}
                       />
-                      {inputErrors.nroexpediente && (<div className="text-[11px] text-red-600">{inputErrors.nroexpediente}</div>)}
+                      {/* {inputErrors.nroexpediente && (<div className="text-[11px] text-red-600">{inputErrors.nroexpediente}</div>)} */}
 
                       <button
                         type="button"
                         className="px-2 py-1 text-xs border rounded-md bg-white hover:bg-gray-50"
-                        onClick={() => setShowExpModal(true)}
+                        // onClick={() => setShowExpModal(true)}
                       >
                         Buscar
                       </button>
@@ -516,75 +515,77 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                     <span className="block text-xs text-gray-600 mb-1">Fecha *</span>
                     <input 
                       type="date" 
-                      className={`w-full border rounded px-2 py-1 ${inputErrors.fecha ? 'border-red-500' : ''}`}
-                      value={form.fecha} 
-                      onChange={e=>setForm({...form, fecha:e.target.value})} 
+                      // className={`w-full border rounded px-2 py-1 ${inputErrors.fecha ? 'border-red-500' : ''}`}
+                      // value={form.fecha} 
+                      // onChange={e=>setForm({...form, fecha:e.target.value})} 
                     />
-                    {inputErrors.fecha && (<div className="text-[11px] text-red-600">{inputErrors.fecha}</div>)}
+                    {/* {inputErrors.fecha && (<div className="text-[11px] text-red-600">{inputErrors.fecha}</div>)} */}
 
                   </label>
                   <label className="text-sm">
                     <span className="block text-xs text-gray-600 mb-1">Hora *</span>
                     <input 
                       type="time" 
-                      className={`w-full border rounded px-2 py-1 ${inputErrors.hora ? 'border-red-500' : ''}`}
-                      value={form.hora} 
-                      onChange={e=>setForm({...form, hora:e.target.value})} 
+                      // className={`w-full border rounded px-2 py-1 ${inputErrors.hora ? 'border-red-500' : ''}`}
+                      // value={form.hora} 
+                      // onChange={e=>setForm({...form, hora:e.target.value})} 
                     />
-                    {inputErrors.hora && (<div className="text-[11px] text-red-600">{inputErrors.hora}</div>)}
+                    {/* {inputErrors.hora && (<div className="text-[11px] text-red-600">{inputErrors.hora}</div>)} */}
 
                   </label>
                   <label className="text-sm sm:col-span-2">
                     <span className="block text-xs text-gray-600 mb-1">Actividad a realizar *</span>
                     <textarea 
-                      className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.actividad ? 'border-red-500' : ''}`}
+                      // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.actividad ? 'border-red-500' : ''}`}
                       rows={2} placeholder="Concierto, teatro, evento social, etc." 
-                      value={form.actividad} 
-                      onChange={e=>setForm({...form, actividad:e.target.value})} 
+                      // value={form.actividad} 
+                      // onChange={e=>setForm({...form, actividad:e.target.value})} 
                     />
-                    {inputErrors.actividad && (<div className="text-[11px] text-red-600">{inputErrors.actividad}</div>)}
+                    {/* {inputErrors.actividad && (<div className="text-[11px] text-red-600">{inputErrors.actividad}</div>)} */}
                   </label>
                   <label className="text-sm sm:col-span-2">
                     <span className="block text-xs text-gray-600 mb-1">Ubicación</span>
-                    <input className="w-full border rounded px-2 py-1" value={form.ubicacion} onChange={e=>setForm({...form, ubicacion:e.target.value})}/>
+                    {/* <input className="w-full border rounded px-2 py-1" value={form.ubicacion} onChange={e=>setForm({...form, ubicacion:e.target.value})}/> */}
                   </label>
                 </div>
                 <div className="mt-4 grid sm:grid-cols-2 gap-3">
                   <label className="text-sm">
                     <span className="block text-xs text-gray-600 mb-1">Tipo de solicitante</span>
-                    <select className="w-full border rounded px-2 py-1" value={form.solicitante} onChange={e=>setForm({...form, solicitante:e.target.value})}>
+                    <select className="w-full border rounded px-2 py-1" /*value={form.solicitante} onChange={/*e=>setForm({...form, solicitante:e.target.value})}*/ >
                       <option value="JURIDICA">Persona Jurídica</option>
                       <option value="NATURAL">Persona Natural</option>
                     </select>
                   </label>
-                  {form.solicitante === 'JURIDICA' ? (
+                  {/* form.solicitante === 'JURIDICA' ?*/ (
                     <label className="text-sm">
                       <span className="block text-xs text-gray-600 mb-1">RUC (empresa) *</span>
                       <input 
-                      className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.ruc ? 'border-red-500' : ''}`}
+                        // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.ruc ? 'border-red-500' : ''}`}
                         placeholder="11 dígitos" 
-                        value={form.ruc} 
-                        onChange={e=>setForm({...form, ruc:e.target.value})}
+                        // value={form.ruc} 
+                        // onChange={e=>setForm({...form, ruc:e.target.value})}
                       />
-                      {inputErrors.ruc && (<div className="text-[11px] text-red-600">{inputErrors.ruc}</div>)}
+                      {/* {inputErrors.ruc && (<div className="text-[11px] text-red-600">{inputErrors.ruc}</div>)} */}
                     </label>
-                  ) : (
-                    <label className="text-sm">
-                      <span className="block text-xs text-gray-600 mb-1">RUC (opcional)</span>
-                      <input className="w-full border rounded px-2 py-1" placeholder="11 dígitos" value={form.nat_ruc} onChange={e=>setForm({...form, nat_ruc:e.target.value})}/>
-                    </label>
-                  )}
+                  ) 
+                  //: (
+                  //   <label className="text-sm">
+                  //     <span className="block text-xs text-gray-600 mb-1">RUC (opcional)</span>
+                  //     <input className="w-full border rounded px-2 py-1" placeholder="11 dígitos" value={/*form.nat_ruc*/} onChange={/*e=>setForm({...form, nat_ruc:e.target.value})*/}/>
+                  //   </label>
+                  // )
+                  }
                 </div>
 
                 <div className="mt-3">
                   <label className="text-sm block">
-                    <span className="block text-xs text-gray-600 mb-1">{form.solicitante === "JURIDICA" ? "Razón Social *" : "Nombres y Apellidos *"}</span>
+                    <span className="block text-xs text-gray-600 mb-1">{/*form.solicitante === "JURIDICA" ? "Razón Social *" : "Nombres y Apellidos *"*/}</span>
                     <input 
-                      className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.rep_carnet ? 'border-red-500' : ''}`}
-                      value={form.rep_carnet} 
-                      onChange={e=>setForm({...form, rep_carnet:e.target.value})}
+                      // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.rep_carnet ? 'border-red-500' : ''}`}
+                      // value={form.rep_carnet} 
+                      // onChange={e=>setForm({...form, rep_carnet:e.target.value})}
                     />
-                    {inputErrors.rep_carnet && (<div className="text-[11px] text-red-600">{inputErrors.rep_carnet}</div>)}
+                    {/* {inputErrors.rep_carnet && (<div className="text-[11px] text-red-600">{inputErrors.rep_carnet}</div>)} */}
 
                   </label>
                 </div>
@@ -592,7 +593,7 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                 <div className="mt-3 grid sm:grid-cols-3 gap-3">
                   <label className="text-sm">
                     <span className="block text-xs text-gray-600 mb-1">Doc.</span>
-                    <select className="w-full border rounded px-2 py-1" value={form.rep_doc_tipo} onChange={e=>setForm({...form, rep_doc_tipo:e.target.value})}>
+                    <select className="w-full border rounded px-2 py-1" /*value={form.rep_doc_tipo}*/ /*onChange={e=>setForm({...form, rep_doc_tipo:e.target.value})}*/>
                       <option value="DNI">DNI</option>
                       <option value="CEX">C.E.</option>
                     </select>
@@ -600,11 +601,11 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                   <label className="text-sm sm:col-span-2">
                     <span className="block text-xs text-gray-600 mb-1">N° documento *</span>
                     <input 
-                      className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.rep_doc_num ? 'border-red-500' : ''}`}
-                      value={form.rep_doc_num} 
-                      onChange={e=>setForm({...form, rep_doc_num:e.target.value})}
+                      // className={`flex-1 border rounded px-2 py-1 w-full ${inputErrors.rep_doc_num ? 'border-red-500' : ''}`}
+                      // value={form.rep_doc_num} 
+                      // onChange={e=>setForm({...form, rep_doc_num:e.target.value})}
                     />
-                    {inputErrors.rep_doc_num && (<div className="text-[11px] text-red-600">{inputErrors.rep_doc_num}</div>)}
+                    {/* {inputErrors.rep_doc_num && (<div className="text-[11px] text-red-600">{inputErrors.rep_doc_num}</div>)} */}
                   </label>
                 </div>
               </div>
@@ -612,7 +613,7 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
               {/* Columna derecha: Requisitos listados con validación y sin drag & drop */}
               <div className="bg-white border rounded-xl p-4 max-h-[48vh] overflow-auto col-span-2">
                 <div className="text-sm font-medium mb-1">Requisitos</div>
-                <div className="text-xs text-gray-600 mb-3">Obligatorios cumplidos: <span className="font-semibold">{completedRequired}</span> / {totalRequired}</div>
+                {/* <div className="text-xs text-gray-600 mb-3">Obligatorios cumplidos: <span className="font-semibold">{completedRequired}</span> / {totalRequired}</div> */}
                 <div className="overflow-auto">
                   <table className="w-full text-xs sm:text-sm">
                     <thead>
@@ -625,7 +626,7 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                       </tr>
                     </thead>
                     <tbody>
-                      {requisitosList.map((r, i) => {
+                      {/* {requisitosList.map((r, i) => {
                         const optional = /si aplica/i.test(r)
                         return (
                           <tr key={i} className="border-t align-top">
@@ -675,7 +676,7 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                             </td>
                           </tr>
                         )
-                      })}
+                      })} */}
                     </tbody>
                   </table>
                 </div>
@@ -684,37 +685,37 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
           )}
 
           {/* ===== Modal Buscar Expedientes ===== */}
-          {showExpModal && (
+          {/*showExpModal && */(
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div className="absolute inset-0 bg-black/20" onClick={()=>setShowExpModal(false)}></div>
+              <div className="absolute inset-0 bg-black/20" /*onClick={()=>setShowExpModal(false)}*/></div>
               <div className="relative bg-white w-full max-w-3xl rounded-xl shadow-xl overflow-hidden">
                 <div className="px-5 py-3 border-b flex items-center justify-between">
                   <h4 className="font-semibold text-sm">Buscar expedientes</h4>
-                  <button className="text-gray-500 hover:text-gray-800" onClick={()=>setShowExpModal(false)}>✕</button>
+                  <button className="text-gray-500 hover:text-gray-800" /*onClick={()=>setShowExpModal(false)}*/>✕</button>
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="grid sm:grid-cols-5 gap-2">
-                    <input className="border rounded px-2 py-1 text-sm sm:col-span-2" placeholder="N° expediente" value={expQuery.nro} onChange={e=>setExpQuery({...expQuery, nro:e.target.value})} />
-                    <select className="border rounded px-2 py-1 text-sm" value={expQuery.tipo} onChange={e=>setExpQuery({...expQuery, tipo:e.target.value})}>
+                    <input className="border rounded px-2 py-1 text-sm sm:col-span-2" placeholder="N° expediente" /*value={expQuery.nro} onChange={e=>setExpQuery({...expQuery, nro:e.target.value})}*/ />
+                    <select className="border rounded px-2 py-1 text-sm" /*value={expQuery.tipo} onChange={e=>setExpQuery({...expQuery, tipo:e.target.value})}*/>
                       <option value="">Tipo</option>
                       <option value="EPND">EPND</option>
                       <option value="EXPO_PP">EXPO_PP</option>
                       <option value="CAMP_PROMO">CAMP_PROMO</option>
                     </select>
-                    <select className="border rounded px-2 py-1 text-sm" value={expQuery.estado} onChange={e=>setExpQuery({...expQuery, estado:e.target.value})}>
+                    <select className="border rounded px-2 py-1 text-sm" /*value={expQuery.estado} onChange={e=>setExpQuery({...expQuery, estado:e.target.value})}*/>
                       <option value="">Estado</option>
                       <option value="EN_TRAMITE">EN_TRAMITE</option>
                       <option value="APROBADO">APROBADO</option>
                       <option value="DENEGADO">DENEGADO</option>
                     </select>
-                    <button className="px-3 py-1 text-xs rounded-md bg-gray-900 text-white hover:bg-black" onClick={buscarExp}>Buscar</button>
+                    {/* <button className="px-3 py-1 text-xs rounded-md bg-gray-900 text-white hover:bg-black" onClick={buscarExp}>Buscar</button> */}
                   </div>
                   <div className="grid sm:grid-cols-2 gap-2">
                     <label className="text-xs text-gray-600 flex items-center gap-1">Desde
-                      <input type="date" className="border rounded px-2 py-1 text-sm w-full" value={expQuery.desde} onChange={e=>setExpQuery({...expQuery, desde:e.target.value})} />
+                      {/* <input type="date" className="border rounded px-2 py-1 text-sm w-full" value={expQuery.desde} onChange={e=>setExpQuery({...expQuery, desde:e.target.value})} /> */}
                     </label>
                     <label className="text-xs text-gray-600 flex items-center gap-1">Hasta
-                      <input type="date" className="border rounded px-2 py-1 text-sm w-full" value={expQuery.hasta} onChange={e=>setExpQuery({...expQuery, hasta:e.target.value})} />
+                      {/* <input type="date" className="border rounded px-2 py-1 text-sm w-full" value={expQuery.hasta} onChange={e=>setExpQuery({...expQuery, hasta:e.target.value})} /> */}
                     </label>
                   </div>
                   <div className="overflow-auto max-h-64 border rounded">
@@ -728,26 +729,11 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
                           <th className="px-3 py-2">Acción</th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {expRows.length===0 ? (
-                          <tr><td className="px-3 py-3 text-sm text-gray-500" colSpan={5}>Sin resultados</td></tr>
-                        ) : expRows.map((r,idx)=>(
-                          <tr key={idx} className="border-t">
-                            <td className="px-3 py-2">{r.numero}</td>
-                            <td className="px-3 py-2">{r.tipo}</td>
-                            <td className="px-3 py-2">{r.estado}</td>
-                            <td className="px-3 py-2">{r.fecha}</td>
-                            <td className="px-3 py-2">
-                              <button className="px-2 py-1 text-xs border rounded-md bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>seleccionarExp(r)}>Seleccionar</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
                     </table>
                   </div>
                 </div>
                 <div className="px-5 py-3 border-t bg-gray-50 flex justify-end">
-                  <button className="px-3 py-1.5 rounded border" onClick={()=>setShowExpModal(false)}>Cerrar</button>
+                  {/* <button className="px-3 py-1.5 rounded border" onClick={()=>setShowExpModal(false)}>Cerrar</button> */}
                 </div>
               </div>
             </div>
@@ -756,11 +742,11 @@ function StartModal({ item, initialFiles, onClose, onSave, bytesToSize, prefillE
         </div>
 
         <div className="px-5 py-3 border-t bg-gray-50 flex justify-end gap-2">
-          <button className="px-3 py-1.5 rounded border" onClick={onClose}>Cancelar</button>
+          {/* <button className="px-3 py-1.5 rounded border" onClick={onClose}>Cancelar</button> */}
           <button
             className="px-3 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-            disabled={completedRequired < totalRequired || anyErrors || !inputsValid}
-            onClick={()=> { const merged = [...files]; Object.keys(filesByReq||{}).forEach(k=>{ const arr = filesByReq[k]||[]; for(const f of arr) merged.push(f) }); onSave(merged) }}
+            // disabled={completedRequired < totalRequired || anyErrors || !inputsValid}
+            // onClick={()=> { const merged = [...files]; Object.keys(filesByReq||{}).forEach(k=>{ const arr = filesByReq[k]||[]; for(const f of arr) merged.push(f) }); onSave(merged) }}
           >
             Guardar
           </button>

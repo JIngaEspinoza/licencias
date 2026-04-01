@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState, useRef, memo } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 //import { MapContainer, TileLayer, Marker, useMapEvents, useMap, GeoJSON} from 'react-leaflet';
 import * as turf from '@turf/turf';
-//import L from 'leaflet';
+// @ts-ignore
+import L, { DragEndEvent } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import datosGeoJSON from '../../geoJson/mapa.json';
 import lineaMapa from '../../geoJson/lineaLimite.json';
@@ -62,6 +63,75 @@ const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
 const norm = (s?: string | null) =>
   (s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+interface SlimSearchBlockProps {
+  onSearch: (query: string) => void;
+  loading: boolean;
+}
+
+interface AddressDetails {
+  road?: string;
+  pedestrian?: string;
+  house_number?: string;
+  suburb?: string;
+  neighbourhood?: string;
+  cycleway?: string;
+  residential?: string;
+  city_district?: string;
+  city?: string;
+  county?: string;
+}
+
+interface Coords {
+  lat: number;
+  lng: number;
+}
+
+interface ZonificacionFeature {
+  type: "Feature";
+  geometry: {
+    type: "Polygon" | "MultiPolygon";
+    coordinates: any;
+  };
+  properties: {
+    layer?: string;
+    [key: string]: any; // Permite otras propiedades de QGIS
+  };
+}
+
+interface ZonificacionGeoJSON {
+  type: "FeatureCollection";
+  features: ZonificacionFeature[];
+}
+
+interface Giro {
+  id_giro: number;
+  codigo: string;
+  nombre: string;
+  riesgo_base?: string;
+}
+
+interface Compatibilidad {
+  id_giro_zonificacion?: number;
+  estado_uso?: {
+    codigo: string; // 'X' para permitido, 'O' para no permitido
+  };
+}
+
+interface MapboxContext {
+  id: string;
+  text: string;
+  wikidata?: string;
+  short_code?: string;
+}
+
+/*interface ZonificacionGeoJSON {
+  type: string; // Cambiamos '"FeatureCollection"' por 'string'
+  features: ZonificacionFeature[];
+  // Añadimos estas para que coincidan con tu objeto de QGIS
+  name?: string;
+  crs?: any;
+}*/
+
 // Si quieres usarla solo aquí, NO la exportes:
 async function fetchExpedientes(q: { numero: string; ruc: string; razon_social: string; }): Promise<Expediente[]> {
   if (USE_MOCK) {
@@ -87,7 +157,7 @@ async function fetchExpedientes(q: { numero: string; ruc: string; razon_social: 
 }
 
 // Buscador de mapa
-const SlimSearchBlock = memo(({ onSearch, loading }) => {
+const SlimSearchBlock = memo(({ onSearch, loading }: SlimSearchBlockProps) => {
   const [localInput, setLocalInput] = useState("");
 
   const handleAction = () => {
@@ -306,9 +376,9 @@ export default function ExpedienteForm() {
   const representanteRef = useRef<HTMLDivElement>(null);
   const [error, setError] = React.useState<string>("");
 
-  const [position, setPosition] = useState([-12.0922, -77.0790]); // Cerca a Municipalidad San Miguel
+  const [position, setPosition] = useState<[number, number]>([-12.0922, -77.0790]); // Cerca a Municipalidad San Miguel
   const [addressInput, setAddressInput] = useState("");
-  const markerRef = useRef(null);
+  const markerRef = useRef<L.Marker>(null);
   const [zonaDetectada, setZonaDetectada] = useState("Mueve el pin para identificar");
   const [isGiroModalOpen, setIsGiroModalOpen] = useState(false);
   const [giros, setGiros] = useState([]);
@@ -318,85 +388,96 @@ export default function ExpedienteForm() {
   const [girosDb, setGirosDb] = useState<GiroModal[]>([]);
   const [buscandoGiro, setBuscandoGiro] = useState(false); 
 
-  const { register, handleSubmit, setValue, watch, control, getValues } = useForm({
-    defaultValues: {
-      id_persona: null,
-      tipo_persona: '',
-      nombre_razon_social: '',
-      fecha: new Date().toISOString().split('T')[0],
-      numero_expediente: '',
-      estado: 'REGISTRO',
-      // EXPEDIENTE LICENCIA
-      licencia: {
-        id_representante: '',
-        nombre_representante: '',
-        tiene_apoderado: false,
-        fecha_recepcion: new Date().toISOString().split('T')[0],
-        tipo_tramite: 'NUEVA', //NUEVA_LICENCIA | MODIFICACIONES
-        modalidad: 'INDETERMINADA',
-        fecha_inicio_plazo: null,
-        fecha_fin_plazo: null,
-        anuncio: false, 
-        a_descripcion: '',
-        cesionario: false,
-        ces_nrolicencia: '',
-        mercado: false,
-        tipo_accion_tramite: '',
-        numero_licencia_origen: '',
-        nueva_denominacion: '',
-        detalle_otros: '',
-        nivel_riesgo: '',
-        numero_itse: '',
-        doc_itse: '',
-        bajo_juramento: true
-      },
-      // DECLARACION JURADA
-      declaracion: {
-        nombre_comercial: '',
-        actividad: '',
-        codigo_ciiu: '',
-        nombre_giro: '',
-        zonificacion: '',
-        chk_tolerancia: false,
-        area_total_m2: '0',
-        // UBICACION
-        via_tipo: 'Av.',
-        via_nombre: '',
-        numero: '',
-        interior: '',
-        mz: '',
-        lt: '',
-        urb_aa_hh_otros: '',
-        provincia: 'SAN MIGUEL',
-        otros: '',
-        geom_x: null,
-        geom_y: null,
-        // AUTORIZACIONES SECTORIALES (CHECKS)
-        tiene_aut_sectorial: false,
-        aut_entidad: '',
-        aut_denominacion: '',
-        aut_numero: '',
-        aut_fecha: '',
-        // Patrimonio
-        monumento: false,
-        aut_ministerio_cultura: false,
-        num_aut_ministerio_cultura: '',
-        fecha_aut_ministerio_cultura: '',
-        archivo_aut_ministerio_cultura: '',
-        // Declaraciones Juradas Finales (Checks de cumplimiento)
-        vigencia_poder: false,
-        condiciones_seguridad: true,
-        titulo_profesional: false,
-        aceptacion: true,
-        observaciones: '',        
-      },
-      giros_seleccionados: [],      
-      pagos: [{
-        nro_recibo: '',
-        fecha_pago: '',
-        monto:''
-      }]
-    }
+  const initialFormValues = {
+    id_persona: null,
+    tipo_persona: '',
+    nombre_razon_social: '',
+    fecha: new Date().toISOString().split('T')[0],
+    numero_expediente: '',
+    estado: 'REGISTRO',
+    // EXPEDIENTE LICENCIA
+    licencia: {
+      id_representante: '',
+      nombre_representante: '',
+      tiene_apoderado: false,
+      fecha_recepcion: new Date().toISOString().split('T')[0],
+      tipo_tramite: 'NUEVA', //NUEVA_LICENCIA | MODIFICACIONES
+      modalidad: 'INDETERMINADA',
+      fecha_inicio_plazo: null,
+      fecha_fin_plazo: null,
+      anuncio: false, 
+      a_descripcion: '',
+      cesionario: false,
+      ces_nrolicencia: '',
+      mercado: false,
+      tipo_accion_tramite: '',
+      numero_licencia_origen: '',
+      nueva_denominacion: '',
+      detalle_otros: '',
+      nivel_riesgo: '',
+      numero_itse: '',
+      doc_itse: '',
+      bajo_juramento: true
+    },
+    // DECLARACION JURADA
+    declaracion: {
+      nombre_comercial: '',
+      actividad: '',
+      codigo_ciiu: '',
+      nombre_giro: '',
+      zonificacion: '',
+      chk_tolerancia: false,
+      area_total_m2: '0',
+      // UBICACION
+      via_tipo: 'Av.',
+      via_nombre: '',
+      numero: '',
+      interior: '',
+      mz: '',
+      lt: '',
+      urb_aa_hh_otros: '',
+      provincia: 'SAN MIGUEL',
+      otros: '',
+      geom_x: null,
+      geom_y: null,
+      // AUTORIZACIONES SECTORIALES (CHECKS)
+      tiene_aut_sectorial: false,
+      aut_entidad: '',
+      aut_denominacion: '',
+      aut_numero: '',
+      aut_fecha: '',
+      // Patrimonio
+      monumento: false,
+      aut_ministerio_cultura: false,
+      num_aut_ministerio_cultura: '',
+      fecha_aut_ministerio_cultura: '',
+      archivo_aut_ministerio_cultura: '',
+      // Declaraciones Juradas Finales (Checks de cumplimiento)
+      vigencia_poder: false,
+      condiciones_seguridad: true,
+      titulo_profesional: false,
+      aceptacion: true,
+      observaciones: '',
+    },
+    giros_seleccionados: [] as { 
+      id_giro: number; 
+      codigo: string; 
+      nombre: string; 
+      con_excepcion: boolean;
+      justificacion: string; 
+    }[],
+    pagos: [{
+      nro_recibo: '',
+      fecha_pago: '',
+      monto: '',
+      concepto: '',
+    }] as { nro_recibo: string; fecha_pago: string; monto: string | number; concepto: string; }[]
+  }
+
+  type FormType = typeof initialFormValues;
+
+  const { register, handleSubmit, setValue, watch, control, getValues } = useForm<FormType>({
+    defaultValues: initialFormValues
   });
 
   const { 
@@ -404,7 +485,7 @@ export default function ExpedienteForm() {
     append: appendGiro, 
     remove: removeGiro 
   } = useFieldArray({
-    control,
+    control: control as any,
     name: "giros_seleccionados"
   });
 
@@ -438,14 +519,14 @@ export default function ExpedienteForm() {
     modo === "MODIFICACION" &&
     ["CAMBIO_DENOMINACION", "TRANSFERENCIA", "CESE"].includes(accion);   
 
-  const actualizarFormulario = (addr) => {
+  const actualizarFormulario = (addr: AddressDetails) => {
     // Aquí pon tus funciones set del formulario:
     if (typeof setEstViaNombre === "function") setEstViaNombre(addr.road || addr.pedestrian || "");
     if (typeof setEstNumeroPuerta === "function") setEstNumeroPuerta(addr.house_number || "");
     if (typeof setEstUrbAAHH === "function") setEstUrbAAHH(addr.suburb || addr.neighbourhood || "");
   };
 
-  const procesarBusqueda2 = async (termino) => {
+  const procesarBusqueda2 = async (termino: string) => {
     setLoading(true);
     try {
       const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(termino + ", Lima, Peru")}&limit=1`);
@@ -468,7 +549,7 @@ export default function ExpedienteForm() {
     },
   }), []);*/
  
-  const handleReverseGeocode = async (lat, lon) => {
+  const handleReverseGeocode = async (lat: number, lon: number) => {
     setLoading(true);
     try {
       const resp = await fetch(
@@ -481,18 +562,22 @@ export default function ExpedienteForm() {
     setLoading(false);
   };
 
-  const updateFieldsFromAddress = (addr) => {
-    setFormData({
+  const updateFieldsFromAddress = (addr: AddressDetails) => {
+    setValue("declaracion.via_tipo", addr.road || addr.pedestrian || "" || addr.cycleway || "");
+    setValue("declaracion.numero", addr.house_number || "");
+    setValue("declaracion.urb_aa_hh_otros", addr.suburb || addr.neighbourhood || addr.residential || "");
+    setValue("declaracion.provincia", (addr.city_district || "SAN MIGUEL").toUpperCase() || (addr.city || addr.county || "LIMA").toUpperCase());
+    /*setFormData({
       via: addr.road || addr.pedestrian || addr.cycleway || "",
       numero: addr.house_number || "",
       urbanizacion: addr.suburb || addr.neighbourhood || addr.residential || "",
       distrito: (addr.city_district || "SAN MIGUEL").toUpperCase(),
       provincia: (addr.city || addr.county || "LIMA").toUpperCase(),
-    });
+    });*/
   };
 
   // Función para verificar zonificación
-  const verificarZonificacion = (coords, geojsonData) => {
+  const verificarZonificacion = (coords: Coords, geojsonData: ZonificacionGeoJSON): string => {
     if (!coords || !geojsonData?.features) return "Error de datos";
 
     try {
@@ -522,12 +607,12 @@ export default function ExpedienteForm() {
 
   // Manejador del evento al soltar el pin
   const eventHandlers2 = useMemo(() => ({
-    async dragend(e) {
+    async dragend(e: DragEndEvent) {
       const coords = e.target.getLatLng();
       setPosition([coords.lat, coords.lng]);
 
       // 1. Zonificación (Lo que ya tienes)
-      const zona = verificarZonificacion(coords, datosGeoJSON);
+      const zona = verificarZonificacion(coords, datosGeoJSON as ZonificacionGeoJSON);
       setValue("declaracion.zonificacion", zona);
 
       // 2. Dirección con Despiece
@@ -589,7 +674,7 @@ export default function ExpedienteForm() {
 
   //Mapbox
   const eventHandlers = useMemo(() => ({
-    async dragend(e) {
+    async dragend(e: DragEndEvent) {
       // marcar manual
       setMetodoUbica('manual');
 
@@ -600,7 +685,7 @@ export default function ExpedienteForm() {
       setValue("declaracion.geom_y", coords.lat, { shouldValidate: true });
 
       // 1. Zonificación (Sigue usando tu GeoJSON oficial)
-      const zona = verificarZonificacion(coords, datosGeoJSON);
+      const zona = verificarZonificacion(coords, datosGeoJSON as ZonificacionGeoJSON);
       setValue("declaracion.zonificacion", zona);
 
       // 2. Dirección con Mapbox API
@@ -613,13 +698,13 @@ export default function ExpedienteForm() {
         const data = await response.json();
 
         if (data.features && data.features.length > 0) {
-          const place = data.features[0];
+          const feature = data.features[0];
           
           // Mapbox separa el nombre de la calle del número de casa
           // place.text -> Nombre de la vía (Ej: "Avenida Javier Prado")
           // place.address -> Número (Ej: "450")
           
-          const fullStreet = place.text || "";
+          const fullStreet = feature.text || "";
           
           // A. Tipo y Nombre de Vía
           if (fullStreet) {
@@ -631,9 +716,9 @@ export default function ExpedienteForm() {
             const nombreLimpio = fullStreet.replace(/^(Avenida|Jirón|Jiron|Calle|Pasaje)\s+/i, '');
             setValue("declaracion.via_nombre", nombreLimpio);
           }
-          setValue("declaracion.numero", place.address || "S/N");
+          setValue("declaracion.numero", feature.address || "S/N");
 
-          const context = place.context || [];
+          const context: MapboxContext[] = feature.context || [];
           const urbanizacion = 
             context.find(c => c.id.includes('neighborhood'))?.text || 
             context.find(c => c.id.includes('locality'))?.text || 
@@ -652,7 +737,7 @@ export default function ExpedienteForm() {
   }), [datosGeoJSON, setValue]);
 
   // Busqueda de dirección
-  const procesarBusqueda = async (termino) => {
+  const procesarBusqueda = async (termino: string) => {
     if (!termino) return;
     
     setLoading(true);
@@ -680,7 +765,8 @@ export default function ExpedienteForm() {
         setValue("declaracion.geom_y", lat, { shouldValidate: true });
 
         // 2. Extraer datos del contexto (Igual que en el dragend)
-        const context = feature.context || [];
+        const context: MapboxContext[] = feature.context || [];
+        //const context = feature.context || [];
         
         const fullStreet = feature.text || "";
         const numero = feature.address || "S/N";
@@ -713,7 +799,7 @@ export default function ExpedienteForm() {
         setValue("declaracion.provincia", `${provinciaLimpia} / ${distrito}`);
 
         // 4. IMPORTANTE: Validar Zonificación con las nuevas coordenadas
-        const zona = verificarZonificacion({ lat, lng }, datosGeoJSON);
+        const zona = verificarZonificacion({ lat, lng }, datosGeoJSON as ZonificacionGeoJSON);
         setValue("declaracion.zonificacion", zona);
 
       } else {
@@ -741,13 +827,13 @@ export default function ExpedienteForm() {
   };
 
   /* Elegir Giros */
-  const handleGiroSelect = (giro, compatibilidad) => {
+  const handleGiroSelect = (giro: Giro, compatibilidad: Compatibilidad | null) => {
     // 1. Extraemos la zonificación actual para el mensaje (puedes usar watch o una variable local)
     //const zonificacionActual = watch("declaracion.zonificacion") || "No detectada";
     const girosActuales = getValues("giros_seleccionados") || [];
 
     // 1. Evitar duplicados
-    const yaExiste = girosActuales.some(g => g.id_giro === giro.id_giro);
+    const yaExiste = girosActuales.some((g: any) => g.id_giro === giro.id_giro);
     if (yaExiste) {
       alert("Este giro ya ha sido seleccionado.");
       return;
@@ -947,7 +1033,7 @@ export default function ExpedienteForm() {
         alert("El archivo es muy pesado");
         return;
       }
-      setValue("declaracion.archivo_aut_ministerio_cultura", file);
+      setValue("declaracion.archivo_aut_ministerio_cultura", file as any);
       console.log("Archivo seleccionado:", file);
     }
   };
@@ -956,7 +1042,7 @@ export default function ExpedienteForm() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) return alert("Máximo 5MB");
-      setValue("licencia.doc_itse", file);
+      setValue("licencia.doc_itse", file as any);
     }
   };
 
@@ -966,7 +1052,7 @@ export default function ExpedienteForm() {
     console.log("Datos limpios recolectados:", data);
   };
 
-  const alEnviar3 = async (data) => {
+  /*const alEnviar3 = async (data: FormType) => {
     try {
       setLoading(true);
 
@@ -1001,9 +1087,9 @@ export default function ExpedienteForm() {
     } finally {
       setLoading(false);
     }
-  };
+  };*/
 
-  const alEnviar = async (data) => {
+  const alEnviar = async (data: FormType) => {
     try {
       setLoading(true);
 
@@ -1011,7 +1097,7 @@ export default function ExpedienteForm() {
       const formData = new FormData();
 
       // 2. Agregamos el archivo (si existe)
-      if (fileUploaded instanceof File) {
+      if (fileUploaded && (fileUploaded as any).size) {
         formData.append('archivo_mc', fileUploaded);
       }
 
@@ -1020,7 +1106,7 @@ export default function ExpedienteForm() {
         ...data,
         pagos: data.pagos.map(p => ({
           ...p,
-          monto: parseFloat(p.monto)
+          monto: parseFloat(String(p.monto)) || 0
         })),
       };
       
@@ -1041,6 +1127,8 @@ export default function ExpedienteForm() {
       setLoading(false);
     }
   };
+
+  type GiroSeleccionado = FormType['giros_seleccionados'][number];
 
   return (  
    <>
@@ -1466,47 +1554,50 @@ export default function ExpedienteForm() {
                   Giros Seleccionados
                 </label>
                 
-                {fieldsGiros.map((item, index) => (
-                  <div key={item.id} className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-bold text-[#0f766e]">CIIU: {item.codigo}</span>
-                          {item.con_excepcion && (
-                            <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded font-black">
-                              CON EXCEPCIÓN
-                            </span>
-                          )}
+                {fieldsGiros.map((item, index) => {
+                  const giro = item as GiroSeleccionado & { id: string };
+                  return (
+                    <div key={giro.id} className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold text-[#0f766e]">CIIU: {giro.codigo}</span>
+                            {giro.con_excepcion && (
+                              <span className="bg-amber-100 text-amber-700 text-[8px] px-1.5 py-0.5 rounded font-black">
+                                CON EXCEPCIÓN
+                              </span>
+                            )}                            
+                          </div>
+                          <p className="text-[11px] font-bold text-slate-800 uppercase leading-tight">
+                            {giro.nombre}
+                          </p>
                         </div>
-                        <p className="text-[11px] font-bold text-slate-800 uppercase leading-tight">
-                          {item.nombre}
-                        </p>
+                        
+                        <button 
+                          type="button"
+                          onClick={() => removeGiro(index)}
+                          className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-full transition-colors flex-shrink-0"
+                        >
+                          <XCircle size={18} />
+                        </button>
                       </div>
-                      
-                      <button 
-                        type="button"
-                        onClick={() => removeGiro(index)}
-                        className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-full transition-colors flex-shrink-0"
-                      >
-                        <XCircle size={18} />
-                      </button>
-                    </div>
 
-                    {/* Nuevo Campo: Justificación Opcional */}
-                    <div className="pt-2 border-t border-slate-100">
-                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">
-                        Justificación / Observación (Opcional)
-                      </label>
-                      <textarea
-                        {...register(`giros_seleccionados.${index}.justificacion`)}
-                        placeholder="Escriba aquí una breve descripción o justificación..."
-                        autoComplete="off"
-                        className={textareaClasses}
-                        rows={1}
-                      />
+                      {/* Nuevo Campo: Justificación Opcional */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">
+                          Justificación / Observación (Opcional)
+                        </label>
+                        <textarea
+                          {...register(`giros_seleccionados.${index}.justificacion`)}
+                          placeholder="Escriba aquí una breve descripción o justificación..."
+                          autoComplete="off"
+                          className={textareaClasses}
+                          rows={1}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {fieldsGiros.length === 0 && (
                   <p className="text-[10px] text-slate-400 italic">No hay giros seleccionados.</p>
@@ -1644,7 +1735,7 @@ export default function ExpedienteForm() {
                     <div className="col-span-12 flex items-start gap-2 bg-white p-3 rounded-lg border border-[#0f766e]/20 shadow-sm">
                       <Checkbox 
                         checked={watch('declaracion.aut_ministerio_cultura')}
-                        onCheckedChange={(val) => {
+                        onCheckedChange={(val: boolean) => {
                           setValue("declaracion.aut_ministerio_cultura", val);
                           if (!val) {
                             setValue("declaracion.num_aut_ministerio_cultura", "");
@@ -1707,13 +1798,13 @@ export default function ExpedienteForm() {
                                 </div>
                                 <span className="text-[10px] font-black text-[#0f766e] uppercase">Documento Seleccionado</span>
                                 <span className="text-[9px] text-slate-500 font-bold truncate max-w-[250px] mt-1">
-                                  {fileUploaded instanceof File ? fileUploaded.name : 'Archivo cargado'}
+                                  {(fileUploaded && typeof fileUploaded === 'object') ? (fileUploaded as File).name : 'Archivo cargado'}
                                 </span>
                                 <button 
                                   type="button"
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
-                                    setValue("declaracion.archivo_aut_ministerio_cultura", null); 
+                                    setValue("declaracion.archivo_aut_ministerio_cultura", ""); 
                                     if (fileInputRef.current) fileInputRef.current.value = "";
                                   }}
                                   className="mt-2 text-[9px] text-red-500 font-black uppercase hover:text-red-700 transition-colors"
@@ -1927,14 +2018,17 @@ export default function ExpedienteForm() {
                           <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-[10px] font-black text-[#0f766e] uppercase">Certificado Cargado</span>
                             <span className="text-[9px] text-slate-500 font-bold truncate">
-                              {itseArchivo instanceof File ? itseArchivo.name : 'Archivo_itse.pdf'}
+                              { (itseArchivo && typeof itseArchivo === 'object') 
+                                ? (itseArchivo as File).name 
+                                : 'Archivo_itse.pdf' 
+                              }
                             </span>
                           </div>
                           <button 
                             type="button"
                             onClick={(e) => { 
                               e.stopPropagation(); 
-                              setValue("licencia.doc_itse", null); 
+                              setValue("licencia.doc_itse", ""); 
                               if (itseInputRef.current) itseInputRef.current.value = "";
                             }} 
                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"

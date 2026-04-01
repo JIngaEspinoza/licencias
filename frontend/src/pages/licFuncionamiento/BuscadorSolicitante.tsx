@@ -10,7 +10,8 @@ export const BuscadorSolicitante = memo(({
   defaultValue = "" 
 }: any) => {
   const [localValue, setLocalValue] = useState(defaultValue);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  //const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sincronización: Si el padre cambia el valor (ej. al seleccionar o limpiar), el hijo actualiza su vista
   useEffect(() => {

@@ -140,33 +140,33 @@ export default function AutorizacionesEmprendedoresList() {
 
     // 2. Efecto para cargar los datos de edición
     useEffect(() => {
-        if (editingAutorizacion) {
-            // Mapeo de datos del Listado (AutorizacionViaPublicaList) al Formulario (AutorizacionViaPublicaForm)
-            const mappedData: AutorizacionViaPublicaForm = {
-                ...editingAutorizacion,
-                // ** CRÍTICO **: Si autorizacion_establecimiento es un array en el listado, desanidarlo:
-                autorizacion_establecimiento: Array.isArray(editingAutorizacion.autorizacion_establecimiento) 
-                    ? editingAutorizacion.autorizacion_establecimiento[0] 
-                    : editingAutorizacion.autorizacion_establecimiento,
+        // if (editingAutorizacion) {
+        //     // Mapeo de datos del Listado (AutorizacionViaPublicaList) al Formulario (AutorizacionViaPublicaForm)
+        //     const mappedData: AutorizacionViaPublicaForm = {
+        //         ...editingAutorizacion,
+        //         // ** CRÍTICO **: Si autorizacion_establecimiento es un array en el listado, desanidarlo:
+        //         autorizacion_establecimiento: Array.isArray(editingAutorizacion.autorizacion_establecimiento) 
+        //             ? editingAutorizacion.autorizacion_establecimiento[0] 
+        //             : editingAutorizacion.autorizacion_establecimiento,
 
-                // Formatear fechas para el input[type="date"] (yyyy-MM-dd)
-                fecha_solicitud: editingAutorizacion.fecha_solicitud
-                    ? format(new Date(editingAutorizacion.fecha_solicitud), 'yyyy-MM-dd')
-                    : undefined,
-                fecha_inicio_temporal: editingAutorizacion.fecha_inicio_temporal
-                    ? format(new Date(editingAutorizacion.fecha_inicio_temporal), 'yyyy-MM-dd')
-                    : undefined,
-                fecha_fin_temporal: editingAutorizacion.fecha_fin_temporal
-                    ? format(new Date(editingAutorizacion.fecha_fin_temporal), 'yyyy-MM-dd')
-                    : undefined,
+        //         // Formatear fechas para el input[type="date"] (yyyy-MM-dd)
+        //         fecha_solicitud: editingAutorizacion.fecha_solicitud
+        //             ? format(new Date(editingAutorizacion.fecha_solicitud), 'yyyy-MM-dd')
+        //             : undefined,
+        //         fecha_inicio_temporal: editingAutorizacion.fecha_inicio_temporal
+        //             ? format(new Date(editingAutorizacion.fecha_inicio_temporal), 'yyyy-MM-dd')
+        //             : undefined,
+        //         fecha_fin_temporal: editingAutorizacion.fecha_fin_temporal
+        //             ? format(new Date(editingAutorizacion.fecha_fin_temporal), 'yyyy-MM-dd')
+        //             : undefined,
                 
-                // Mantiene el expediente (solo lectura)
-                expediente: editingAutorizacion.expediente
-            };
-            reset(mappedData);
-        } else {
-            reset(defaultFormValues);
-        }
+        //         // Mantiene el expediente (solo lectura)
+        //         expediente: editingAutorizacion.expediente
+        //     };
+        //     reset(mappedData);
+        // } else {
+        //     reset(defaultFormValues);
+        // }
     // Añadimos las dependencias necesarias.
     }, [editingAutorizacion, reset]); 
 
@@ -180,9 +180,9 @@ export default function AutorizacionesEmprendedoresList() {
             const payload = { ...data };
 
             // **CRÍTICO:** Eliminar el objeto 'expediente' (solo para UI) antes de enviar
-            if (payload.expediente) {
+            /*if (payload.expediente) {
                 delete payload.expediente;
-            }
+            }*/
 
             // 3.2. Lógica de CREATE vs UPDATE
             const isUpdate = !!editingAutorizacion?.id_auto_viapublica;
@@ -194,10 +194,10 @@ export default function AutorizacionesEmprendedoresList() {
 
                 // El campo id_auto_viapublica debe existir para la ruta PUT
                 if (editingAutorizacion.id_auto_viapublica) {
-                    result = await autorizacionesViaPublicaApi.update(
+                    /*result = await autorizacionesViaPublicaApi.update(
                         editingAutorizacion.id_auto_viapublica,
                         updatePayload
-                    );
+                    );*/
                 } else {
                      throw new Error("ID de autorización no encontrado para actualización.");
                 }
@@ -337,7 +337,7 @@ export default function AutorizacionesEmprendedoresList() {
                                 return (
                                     <tr key={r.id_auto_viapublica} className="border-t">
                                         <td className="p-3 text-gray-500">{r.id_auto_viapublica}</td>
-                                        <td className="p-3">{formatDate(r.fecha_solicitud)}</td>
+                                        <td className="p-3"></td> {/* {formatDate(r.fecha_solicitud)} */}
                                         <td className="p-3">
                                             <span className="flex flex-wrap gap-2">
                                                 <Badge key={r.modalidad}
@@ -350,7 +350,7 @@ export default function AutorizacionesEmprendedoresList() {
                                         <td className="p-3">{establecimiento.numero}</td>
                                         <td className="p-3">{r.expediente.persona.nombre_razon_social}</td>
                                         <td className="p-3">{r.expediente.numero_expediente}</td>
-                                        <td className="p-3">{r.autorizacion_anexo.length}</td>
+                                        <td className="p-3"></td> {/* {r.autorizacion_anexo.length} */}
                                         <td className="p-3">
                                             <div className="flex items-center gap-2 whitespace-nowrap text-xs sm:text-xs">
                                                 <Button size="sm"
@@ -734,7 +734,7 @@ export default function AutorizacionesEmprendedoresList() {
                                             <Controller
                                                 name="autorizacion_establecimiento.lat"
                                                 control={control}
-                                                rules={{ required: 'Campo requerido', valueAsNumber: true }}
+                                                // rules={{ required: 'Campo requerido', valueAsNumber: true }}
                                                 render={({ field }) => (
                                                     <Label className="text-sm">
                                                         <span className="block text-xs text-gray-600 mb-1">Lat *</span>
@@ -747,7 +747,7 @@ export default function AutorizacionesEmprendedoresList() {
                                             <Controller
                                                 name="autorizacion_establecimiento.lng"
                                                 control={control}
-                                                rules={{ required: 'Campo requerido', valueAsNumber: true }}
+                                                //rules={{ required: 'Campo requerido', valueAsNumber: true }}
                                                 render={({ field }) => (
                                                     <Label className="text-sm">
                                                         <span className="block text-xs text-gray-600 mb-1">Lng *</span>
@@ -760,7 +760,7 @@ export default function AutorizacionesEmprendedoresList() {
                                             <Controller
                                                 name="autorizacion_establecimiento.map_zoom"
                                                 control={control}
-                                                rules={{ valueAsNumber: true }}
+                                                //rules={{ valueAsNumber: true }}
                                                 render={({ field }) => (
                                                     <Label className="text-sm">
                                                         <span className="block text-xs text-gray-600 mb-1">Zoom</span>

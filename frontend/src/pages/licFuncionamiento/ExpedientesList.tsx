@@ -37,7 +37,7 @@ import { ModalPagos } from './ModalPagos';
 import { ModalResolucion } from "./FormModalGenerarResolucion";
 import { swalError, swalSuccess, swalConfirm, swalInfo } from "../../utils/swal";
 import { pago_tramiteApi } from "../../services/pago_tramite";
-import { getPdfUrl } from "../../utils/paths.js";
+import { getPdfUrl } from "../../utils/paths";
 import { auth } from "../../auth/auth";
 import {
   Sheet,
@@ -47,7 +47,33 @@ import {
   SheetDescription,
 } from "../../types/components/ui/sheet";
 
-const obtenerPasoPorAcciones = (row) => {
+interface ExpedienteRow {
+  expediente_licencia?: {
+    numero_certificado?: string | null;
+    numero_resolucion?: string | null;
+  }[];
+  pago_tramite?: {
+    id_pago?: number | string | null;
+  }[];
+}
+
+interface FiltrosDJ {
+  numero_expediente?: string | null; // Cambiado para coincidir con el mapeo del hijo
+  numeroExpediente?: string | null;  // Agregado para coincidir con el estado del padre
+  razonSocial?: string | null;
+  ruc?: string | null;
+  modalidadTramite?: string | null;  // Ahora acepta null
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  [key: string]: any;
+}
+
+interface CrearNewDJProps {
+  onSearch: (params: FiltrosDJ) => void;
+  activeFilters: FiltrosDJ;
+}
+
+const obtenerPasoPorAcciones = (row: ExpedienteRow ) => {
   const licencia = row.expediente_licencia?.[0];
   const pago = row.pago_tramite?.[0];
 
@@ -66,7 +92,9 @@ const obtenerPasoPorAcciones = (row) => {
   return 1;
 };
 
-const StatusSteps = ({ row }) => {
+type RowType = Parameters<typeof obtenerPasoPorAcciones>[0];
+
+const StatusSteps = ({ row }: { row: RowType }) => {
   const pasoActual = obtenerPasoPorAcciones(row);
   
   const steps = [
@@ -147,7 +175,7 @@ export default function ExpedientesList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeFilters, setActiveFilters] = useState({
+  const [activeFilters, setActiveFilters] = useState<FiltrosDJ>({
     numeroExpediente: '',
     razonSocial: '',
     fechaInicio: '',
@@ -159,7 +187,7 @@ export default function ExpedientesList() {
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  async function loadData(currentFilters, currentPage, currentLimit){
+  async function loadData(currentFilters: any, currentPage: number, currentLimit: number){
 
     const params = {
       ...currentFilters, // Esto incluye expediente, razonSocial, fechaDesde, etc.
@@ -176,7 +204,9 @@ export default function ExpedientesList() {
 
   }
 
-  const handleSearch = (newFilters) => {
+  //type FilterType = typeof activeFilters;
+
+  const handleSearch = (newFilters: FiltrosDJ) => {
     // 1. Guardar los nuevos filtros.
     setActiveFilters(newFilters);
 
@@ -257,9 +287,14 @@ export default function ExpedientesList() {
   };
 
   const verDocumento = (row: any) => {
-    //setSelectedExpediente(row.id_expediente);
     const nombreArchivo = row.declaracion_jurada?.[0]?.archivo_aut_ministerio_cultura;
-    window.open(getPdfUrl(nombreArchivo), '_blank')
+    const url = getPdfUrl(nombreArchivo);
+
+    if (url) {
+      window.open(url, '_blank');
+    } else {
+      swalError("No se encontró un archivo adjunto para este expediente.");
+    }
   }
 
   const generarResolucion = (row: Expedientes) => {
@@ -280,7 +315,7 @@ export default function ExpedientesList() {
     }
   }
 
-  function CrearNewDJ({ onSearch, activeFilters }) {
+  function CrearNewDJ({ onSearch, activeFilters }: CrearNewDJProps) {
     const initialCriterios = {
       expediente: activeFilters.numero_expediente || "",
       razonSocial: activeFilters.razonSocial || "",
@@ -297,14 +332,14 @@ export default function ExpedientesList() {
       setCriterios(initialCriterios);
     }, [activeFilters]);
 
-    const handleChange = (e) => {
+    const handleChange = (e: any) => {
       const { name, value } = e.target;
       setCriterios((prev) => ({ ...prev, [name]: value }));
     };
 
     const handleBuscar = () => {
-      const cleanParams = {};
-      const mappedCriterios = {
+      const cleanParams: FiltrosDJ = {};
+      const mappedCriterios: FiltrosDJ = {
         numero_expediente: criterios.expediente,
         razonSocial: criterios.razonSocial,
         ruc: criterios.ruc,
@@ -313,12 +348,19 @@ export default function ExpedientesList() {
         fechaFin: criterios.fechaFin,
       };
 
-      Object.keys(mappedCriterios).forEach((key) => {
+      (Object.keys(mappedCriterios) as Array<keyof FiltrosDJ>).forEach((key) => {
+        const value = mappedCriterios[key];
+        if (value) {
+          cleanParams[key as keyof FiltrosDJ] = value;
+        }
+      });
+
+      /*Object.keys(mappedCriterios).forEach((key) => {
         const value = mappedCriterios[key];
         if (value !== "" && value !== null && value !== undefined) {
           cleanParams[key] = value;
         }
-      });
+      });*/
       if (onSearch) onSearch(cleanParams);
     };
 

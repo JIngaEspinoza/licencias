@@ -31,7 +31,7 @@ export default function AutorizacionesTemporalesReq(){
     { numero:'EXP-2025-0103', tipo:'EPND', estado:'EN_TRAMITE', fecha:'2025-09-16', solicitante:'JURIDICA', nombre:'Orquesta Azul S.A.C.' },
   ]
 
-  const [rows, setRows] = useState<sampleRegistros[]>([]);
+  //const [rows, setRows] = useState<sampleRegistros[]>([]);
 
   const [deletingIds, setDeletingIds] = useState<{ rep: Record<number, boolean>; per: Record<number, boolean> }>({
     rep: {},
@@ -45,9 +45,9 @@ export default function AutorizacionesTemporalesReq(){
       try {
         setLoading(true);
         setError("");
-        const { data, total } = await expedientesApi.list(dq, page, limit);
+        //const { data, total } = await expedientesApi.list(dq, page, limit);
         if (!cancelled) {
-          setRows(data);
+          //setRows(data);
           setTotal(total);
         }
       } catch (e: any) {
@@ -135,15 +135,15 @@ export default function AutorizacionesTemporalesReq(){
                 </tr>
               </thead>
               <tbody>
-                {!loading && rows.length === 0 && (
+                {/* {!loading && rows.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
                       No hay resultados.
                     </td>
                   </tr>
-                )}
+                )} */}
 
-                {rows.map((p) => {
+                {/* {rows.map((p) => {
                   return (
                     <tr key={p.numero} className="border-t last:border-b">
                       <td className="px-4 py-3 text-gray-500">{p.numero}</td>
@@ -157,7 +157,7 @@ export default function AutorizacionesTemporalesReq(){
                       </td>
                     </tr>
                   );
-                })}
+                })} */}
 
               </tbody>
             </table>

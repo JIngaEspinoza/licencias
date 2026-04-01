@@ -509,119 +509,6 @@ export class ExpedientesService {
     }
   }
 
-  async generaPdfddjjTemp(id: number, res: Response) {
-    const data = await this.prisma.expediente.findUnique({
-      where: { id_expediente: id },
-    });
-
-    if (!data) throw new Error('Expediente no encontrado');
-    const PDFDocument = require('pdfkit');
-
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: { top: 20, left: 40, right: 40, bottom: 20 },
-      bufferPages: true,
-    });
-
-    res.setHeader('Content-Type', 'application/pdf');
-    doc.pipe(res);
-
-    // --- HOJA 1 ---
-    this.dibujarCabecera(doc, id, '1');
-
-    // SECCIÓN I: MODALIDAD (Cuadros de opción)
-    this.dibujarSeccionTitulo(doc, 'I. MODALIDAD DEL TRÁMITE QUE SOLICITA', doc.y);
-    
-    let yPos = doc.y + 5;
-    doc.fontSize(7);
-    // Dibujamos los checkboxes manuales como el PDF
-    this.drawCheckbox(doc, 50, yPos, 'Licencia de funcionamiento Indeterminada', true);
-    this.drawCheckbox(doc, 50, yPos + 15, 'Licencia de funcionamiento Temporal');
-    this.drawCheckbox(doc, 250, yPos, 'Cese de Actividades');
-    this.drawCheckbox(doc, 250, yPos + 15, 'Transferencia');
-    
-    doc.y = yPos + 35;
-
-    // SECCIÓN II: DATOS SOLICITANTE
-    this.dibujarSeccionTitulo(doc, 'II. DATOS DEL SOLICITANTE', doc.y);
-    yPos = doc.y + 5;
-    doc.fontSize(8);
-    doc.text('Apellidos y Nombres / Razón Social:', 50, yPos);
-    doc.rect(50, yPos + 10, 500, 15).stroke(); // Campo para llenar
-    
-    yPos += 30;
-    doc.text('DNI / RUC:', 50, yPos);
-    doc.rect(50, yPos + 10, 150, 15).stroke();
-    doc.text('Teléfono / Celular:', 220, yPos);
-    doc.rect(220, yPos + 10, 150, 15).stroke();
-    doc.text('Correo Electrónico:', 390, yPos);
-    doc.rect(390, yPos + 10, 160, 15).stroke();
-
-    // SECCIÓN IV: ESTABLECIMIENTO (El cuadro del mapa)
-    doc.y = yPos + 40;
-    this.dibujarSeccionTitulo(doc, 'IV. DATOS DEL ESTABLECIMIENTO', doc.y);
-    yPos = doc.y + 10;
-    doc.text('Dirección del Establecimiento:', 50, yPos);
-    doc.rect(50, yPos + 10, 500, 15).stroke();
-
-    // EL CROQUIS (Importante en San Miguel)
-    yPos += 40;
-    doc.text('CROQUIS DE UBICACIÓN (Indicar calles principales y referencias):', 50, yPos);
-    doc.rect(50, yPos + 15, 500, 180).stroke(); 
-    doc.fontSize(6).text('El pin soltado en el mapa se registra con coordenadas UTM.', 55, yPos + 185);
-
-    // --- HOJA 2 ---
-    doc.addPage();
-    this.dibujarCabecera(doc, id, '2');
-    this.dibujarSeccionTitulo(doc, 'V. DECLARACIÓN JURADA', doc.y);
-    
-    doc.y += 10;
-    doc.fontSize(8).text('El que suscribe, declara bajo juramento que:', { align: 'justify' });
-    doc.moveDown();
-    const condiciones = [
-      'Cuento con facultades suficientes para este trámite.',
-      'El establecimiento cumple con las Condiciones de Seguridad.',
-      'No utilizaré la vía pública para exhibir mercadería.',
-      'Cumplo con el número de estacionamientos exigido por ley.'
-    ];
-
-    condiciones.forEach(c => {
-      this.drawCheckbox(doc, 60, doc.y, c, true);
-      doc.y += 15;
-    });
-
-    // RECUADRO DE FIRMA (Como el PDF original)
-    doc.y += 50;
-    doc.rect(170, doc.y, 250, 80).stroke();
-    doc.text('Huella Digital', 175, doc.y + 65);
-    doc.moveTo(180, doc.y + 60).lineTo(410, doc.y + 60).stroke();
-    doc.text('Firma del Solicitante / Rep. Legal', 170, doc.y + 65, { align: 'center', width: 250 });
-
-    doc.end();
-  }
-
-  private dibujarCabecera(doc: any, id: number, pagina: string) {
-    doc.rect(40, 20, 520, 50).stroke(); // Borde del header
-    doc.fontSize(10).text('MUNICIPALIDAD DE SAN MIGUEL', 50, 30, { bold: true });
-    doc.fontSize(12).text('DECLARACIÓN JURADA - LICENCIA', 180, 40, { align: 'center' });
-    doc.fontSize(8).text(`Exp: ${id}`, 480, 30);
-    doc.text(`Página: ${pagina} de 2`, 480, 45);
-    doc.moveDown(4);
-  }
-
-  private dibujarSeccionTitulo(doc: any, titulo: string, y: number) {
-    doc.rect(40, y, 520, 15).fill('#e0e0e0').stroke('#000');
-    doc.fillColor('black').fontSize(8).text(titulo, 45, y + 4, { bold: true });
-  }
-
-  private drawCheckbox(doc: any, x: number, y: number, label: string, checked = false) {
-    doc.rect(x, y, 10, 10).stroke();
-    if (checked) {
-      doc.text('X', x + 2, y + 1);
-    }
-    doc.text(label, x + 15, y + 1);
-  }
-
   private procesarDatosGiros(girosDJ: any[], tipo: 'nombres' | 'codigos' | 'ambos' = 'nombres') {
     const resultados = girosDJ.map((item) => {
       let giroData: { nombre: string, codigo: string } | null = null;
@@ -936,9 +823,6 @@ export class ExpedientesService {
     return partes.filter(p => p && p.trim() !== '').join(', ').toUpperCase();
   }
 
-  /**
-   * Convierte una fecha a formato: 11 de Febrero de 2026
-   */
   private formatearFechaLarga(fecha: Date | string | null | undefined): string {
     if (!fecha) return "---";
 
@@ -1422,6 +1306,9 @@ export class ExpedientesService {
     const isEdificaciones = user.roles?.includes('EDIFICACIONES');
     if (isEdificaciones) {
       where.estado = 'PAGADO';
+      /*where.estado = {
+        in: ['PAGADO', 'CON_NIVEL_RIESGO']
+      };*/
       where.expediente_licencia = {
         some: {
           OR: [

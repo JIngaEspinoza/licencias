@@ -1,0 +1,15 @@
+# Dependencias local
+node_modules
+npm-debug.log
+
+# Frontend (Muy importante ignorarlo aquí)
+frontend/
+
+# Datos de persistencia y Docker
+infra/postgres-data/
+.git
+.gitignore
+
+# Compilados locales
+dist
+build
