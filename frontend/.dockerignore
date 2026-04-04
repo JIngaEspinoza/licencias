@@ -1,29 +1,20 @@
-# --- Dependencias y Compilados Locales ---
-node_modules/
-dist/
-build/
-coverage/
+# --- Dependencias ---
+node_modules
+dist
+build
 
-# --- Archivos de Entorno (Seguridad) ---
+# --- Logs ---
+*.log
+
+# --- Archivos de Entorno ---
+# Bloqueo general
 .env
 .env.*
-!.env.example
 
-# --- Logs y Reportes ---
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# --- Git e IDEs ---
-.git
-.gitignore
-.dockerignore
-.vscode/
-.idea/
-.DS_Store
+# EXCEPCIÓN CRÍTICA: Permite que Vite lea la IP 172.50.1.68 durante el build
+!.env.production
 
 # --- Otros ---
-.temp
-.tmp
-README.md
+.vscode
+.idea
+.DS_Store

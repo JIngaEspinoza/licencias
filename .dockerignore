@@ -7,17 +7,24 @@ yarn-debug.log*
 yarn-error.log*
 
 # --- Contextos de otros servicios ---
-# Ignoramos el frontend porque tiene su propio Dockerfile y contexto
-frontend/
-# Ignoramos la carpeta infra completa para evitar subir datos de postgres o configs de docker
-infra/
+# ELIMINADO: frontend/ e infra/ 
+# Razón: Si los ignoras aquí, Docker no podrá leer el código ni los .env 
+# cuando ejecutes el comando desde la carpeta infra.
 
 # --- Archivos Sensibles (Seguridad) ---
-**/.env
-**/.env.*
 **/.git
 **/.gitignore
 **/.dockerignore
+
+# --- ARCHIVOS DE ENTORNO (.env) ---
+# Bloqueo general para que no se filtren secretos por error
+**/.env
+**/.env.*
+
+# EXCEPCIONES: Para que Nest y Vite sí los vean en el servidor
+!.env
+!.env.development
+!.env.production
 
 # --- Datos de Persistencia ---
 **/postgres-data/
