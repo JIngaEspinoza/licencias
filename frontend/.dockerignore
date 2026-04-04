@@ -1,5 +1,29 @@
-node_modules
-npm-debug.log
-dist
-.git
+# --- Dependencias y Compilados Locales ---
+node_modules/
+dist/
+build/
+coverage/
+
+# --- Archivos de Entorno (Seguridad) ---
 .env
+.env.*
+!.env.example
+
+# --- Logs y Reportes ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Git e IDEs ---
+.git
+.gitignore
+.dockerignore
+.vscode/
+.idea/
+.DS_Store
+
+# --- Otros ---
+.temp
+.tmp
+README.md

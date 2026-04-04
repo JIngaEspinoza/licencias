@@ -55,7 +55,7 @@ export default function Login() {
                 {/* CAMBIO: Se aumentó de max-w-md a max-w-2xl para permitir que los inputs se alarguen */}
                 <div className="max-w-2xl w-full text-center lg:text-left">
                     <p className="text-lg text-[#001524] mb-1 text-center font-medium">Bienvenido a</p>
-                    <h1 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight text-center">LICENCIA MUNICIPAL</h1>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight text-center">DEV LICENCIA MUNICIPAL</h1>
                     <p className="text-lg text-[#001524] mb-12 text-center">Ingresa a tu cuenta</p>
 
                     <form onSubmit={onSubmit} className="space-y-6 w-full">
