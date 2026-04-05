@@ -730,18 +730,7 @@ export default function ExpedientesList() {
                             </DropdownMenuItem>
                           )}
 
-                          {/* REGLA: Solo personal de EDIFICACIONES */}
-                          {auth.current()?.roles?.includes("EDIFICACIONES") && (
-                            <DropdownMenuItem 
-                              onClick={() => abrirModalRiesgo(row)} 
-                              className="cursor-pointer"
-                              /* Se deshabilita si ya asignó el riesgo (para evitar duplicidad) */
-                              disabled={!!row.nivel_riesgo}
-                            >
-                              <ShieldAlert className={`w-4 h-4 mr-2 ${!!row.nivel_riesgo ? 'text-gray-400' : 'text-amber-500'}`} />
-                              <span>{row.nivel_riesgo ? "Riesgo Asignado" : "Evaluar Nivel de Riesgo"}</span>
-                            </DropdownMenuItem>
-                          )}
+                          
 
                           {!auth.current()?.roles?.includes("EDIFICACIONES") && (
                             <DropdownMenuItem 
