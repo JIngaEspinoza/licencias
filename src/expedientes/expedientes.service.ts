@@ -1192,13 +1192,13 @@ export class ExpedientesService {
           },
           
           // Relación 1:N - Tabla Pagos
-          pago_tramite: {
+          /*pago_tramite: {
             create: data.pagos.map(({ id_expediente, ...pago }) => ({
               ...pago,
               fecha_pago: parseFecha(pago.fecha_pago),
               concepto: pago.concepto || "DERECHO DE TRÁMITE"
             }))
-          },
+          },*/
           
           // Relación 1:N - Tabla Giros Seleccionados (Limpieza estricta de campos UI)
           declaracion_jurada_giro: {
@@ -1305,7 +1305,7 @@ export class ExpedientesService {
 
     const isEdificaciones = user.roles?.includes('EDIFICACIONES');
     if (isEdificaciones) {
-      where.estado = 'PAGADO';
+      where.estado = 'REGISTRO';
       /*where.estado = {
         in: ['PAGADO', 'CON_NIVEL_RIESGO']
       };*/

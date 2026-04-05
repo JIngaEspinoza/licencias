@@ -51,6 +51,7 @@ interface ExpedienteRow {
   expediente_licencia?: {
     numero_certificado?: string | null;
     numero_resolucion?: string | null;
+    nivel_riesgo?: string | null;
   }[];
   pago_tramite?: {
     id_pago?: number | string | null;
@@ -78,14 +79,16 @@ const obtenerPasoPorAcciones = (row: ExpedienteRow ) => {
   const pago = row.pago_tramite?.[0];
 
   // Acción 4: Licencia (Si ya tiene número de certificado)
-  if (licencia?.numero_certificado) return 4;
+  if (licencia?.numero_certificado) return 5;
 
   // Acción 3: Resolución (Si ya se generó la resolución)
-  if (licencia?.numero_resolucion) return 3;
+  if (licencia?.numero_resolucion) return 4;
 
   // Acción 2: Pago (Si existe un registro de pago con ID)
   // Validamos que el array tenga elementos y que el primer elemento tenga un id_pago
-  if (pago && pago.id_pago) return 2;
+  if (pago && pago.id_pago) return 3;
+
+  if (licencia?.nivel_riesgo) return 2;
 
   // Acción 1: Registro / DDJJ (Estado base si no se ha cumplido lo anterior)
   // Si llegó aquí es porque no tiene resolución, ni certificado, ni pago registrado.
@@ -99,9 +102,15 @@ const StatusSteps = ({ row }: { row: RowType }) => {
   
   const steps = [
     { id: 1, label: 'DDJJ' },
+    { id: 2, label: 'Nivel Riesgo' },
+    { id: 3, label: 'Pago' },
+    { id: 4, label: 'Resolución' },
+    { id: 5, label: 'Licencia' },
+
+    /*{ id: 1, label: 'DDJJ' },
     { id: 2, label: 'Pago' },
     { id: 3, label: 'Resolución' },
-    { id: 4, label: 'Licencia' },
+    { id: 4, label: 'Licencia' },*/
   ];
 
   // Cálculo del porcentaje de la barra
@@ -506,6 +515,9 @@ export default function ExpedientesList() {
         
       case 'pagado':
         // Proceso en marcha: Amarillo/Ámbar (Validado pero pendiente de emitir documentos)
+        return 'border-lime-300 bg-lime-100 text-lime-700 hover:bg-lime-50';
+      
+      case 'con_nivel_riesgo':
         return 'border-amber-300 bg-amber-100 text-amber-700 hover:bg-amber-50';
         
       case 'registro':
@@ -718,11 +730,24 @@ export default function ExpedientesList() {
                             </DropdownMenuItem>
                           )}
 
+                          {/* REGLA: Solo personal de EDIFICACIONES */}
+                          {auth.current()?.roles?.includes("EDIFICACIONES") && (
+                            <DropdownMenuItem 
+                              onClick={() => abrirModalRiesgo(row)} 
+                              className="cursor-pointer"
+                              /* Se deshabilita si ya asignó el riesgo (para evitar duplicidad) */
+                              disabled={!!row.nivel_riesgo}
+                            >
+                              <ShieldAlert className={`w-4 h-4 mr-2 ${!!row.nivel_riesgo ? 'text-gray-400' : 'text-amber-500'}`} />
+                              <span>{row.nivel_riesgo ? "Riesgo Asignado" : "Evaluar Nivel de Riesgo"}</span>
+                            </DropdownMenuItem>
+                          )}
+
                           {!auth.current()?.roles?.includes("EDIFICACIONES") && (
                             <DropdownMenuItem 
                               onClick={() => generarPago(row)} 
                               className="cursor-pointer"
-                              disabled={!!row.pago_tramite?.[0]?.id_pago}>
+                              disabled={!!row.pago_tramite?.[0]?.id_pago || !row.expediente_licencia?.[0]?.nivel_riesgo}>
                               <Coins className="w-4 h-4 mr-2 text-gray-600" /> R. Pago
                             </DropdownMenuItem>
                           )}
@@ -737,7 +762,7 @@ export default function ExpedientesList() {
 
                             const obtenerTexto = () => {
                               if (tieneCertificado) return 'Resolución ya registrada';
-                              if (!tienePago && !tieneRiesgo) return 'Falta Pago y Riesgo';
+                              if (!tienePago && !tieneRiesgo) return 'Falta Riesgo y Pago';
                               if (!tienePago) return 'Falta registro de Pago';
                               if (!tieneRiesgo) return 'Falta nivel de Riesgo';
                               return 'R. Resolución';

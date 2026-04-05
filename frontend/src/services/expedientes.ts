@@ -185,7 +185,7 @@ export const expedientesApi = {
       method: "POST",
       body: formData,
       auth: true
-    }),
+    }), 
 
   generaResolucion: (payload: any) =>
     http<any>(`${BASE_PATH}/generar-resolucion`,{

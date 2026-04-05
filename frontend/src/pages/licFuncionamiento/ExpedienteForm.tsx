@@ -466,12 +466,12 @@ export default function ExpedienteForm() {
       con_excepcion: boolean;
       justificacion: string; 
     }[],
-    pagos: [{
-      nro_recibo: '',
-      fecha_pago: '',
-      monto: '',
-      concepto: '',
-    }] as { nro_recibo: string; fecha_pago: string; monto: string | number; concepto: string; }[]
+    pagos: [] as { 
+      nro_recibo: string; 
+      fecha_pago: string; 
+      monto: string | number; 
+      concepto: string; 
+    }[]
   }
 
   type FormType = typeof initialFormValues;
@@ -1398,7 +1398,7 @@ export default function ExpedienteForm() {
           <SeccionCard title="">
             <div className="w-full mb-5 border-b border-slate-300/60">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-[#0f766e] opacity-20">04</span>
+                <span className="text-2xl font-black text-[#0f766e] opacity-20"></span>
                 <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
                   Datos del Establecimiento
                 </h2>
@@ -1905,7 +1905,7 @@ export default function ExpedienteForm() {
               </div>
             </div>
 
-            {/* SUBTÍTULO SECCIONADOR 06 */}
+            {/* 
             <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-black text-[#0f766e] opacity-20"></span>
@@ -1914,12 +1914,12 @@ export default function ExpedienteForm() {
                 </h2>
               </div>
             </div>
+            */}
 
-            {/* SECCIÓN: RIESGO E ITSE */}
             <div className="space-y-6">
+              {/*
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
                 
-                {/* Nivel de Riesgo - Selección Visual */}
                 <div className="md:col-span-7 flex flex-col gap-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1 h-1 bg-[#0f766e] rounded-full"></span>
@@ -1952,7 +1952,6 @@ export default function ExpedienteForm() {
                   </div>
                 </div>
 
-                {/* Indicador de Tipo de Inspección (Informativo) */}
                 <div className="md:col-span-5 flex flex-col gap-3">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Procedimiento ITSE</label>
                   <div className={`flex items-center gap-4 p-3 rounded-xl border-2 h-[58px] transition-all duration-500
@@ -1974,12 +1973,11 @@ export default function ExpedienteForm() {
                   </div>
                 </div>
               </div>
+              */}
 
-              {/* SECCIÓN CONDICIONAL: Datos ITSE Previa */}
-              {itseRequierePrevia && (
+              {/* {itseRequierePrevia && (
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-6 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
-                  
-                  {/* Campo Nro ITSE */}
+
                   <div className="md:col-span-4 flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">N.º ITSE Vigente</label>
                     <input 
@@ -1989,11 +1987,9 @@ export default function ExpedienteForm() {
                     />
                   </div>
 
-                  {/* Dropzone Estilizado para ITSE */}
                   <div className="md:col-span-8 flex flex-col gap-1.5">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-tight ml-1">Certificado ITSE (PDF)</label>
                     
-                    {/* Input Oculto */}
                     <input 
                       type="file" 
                       ref={itseInputRef} 
@@ -2055,7 +2051,7 @@ export default function ExpedienteForm() {
                     </p>
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Checkbox de declaro bajo juramento */}
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 border-dashed">
@@ -2077,7 +2073,7 @@ export default function ExpedienteForm() {
               {/* SUBTÍTULO SECCIONADOR  */}
               <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-[#0f766e] opacity-20">02-03</span>
+                  <span className="text-2xl font-black text-[#0f766e] opacity-20"></span>
                   <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
                     Solicitante, Representante
                   </h2>
@@ -2348,7 +2344,7 @@ export default function ExpedienteForm() {
               
               <div className="w-full mt-4 mb-6 py-2 border-b border-slate-300/60">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-[#0f766e] opacity-20">05</span>
+                  <span className="text-2xl font-black text-[#0f766e] opacity-20"></span>
                   <h2 className="text-lg font-black text-slate-700 tracking-tight uppercase">
                     Declaración jurada
                   </h2>
@@ -2434,6 +2430,7 @@ export default function ExpedienteForm() {
                 />
               </div>
 
+              {/*
               <div className="space-y-4 border p-4 rounded-xl bg-slate-50/50">
                 <div className="flex items-center justify-between border-b pb-2">
                   <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-wider">
@@ -2444,7 +2441,6 @@ export default function ExpedienteForm() {
                 {fieldsPagos.map((field, index) => (
                   <div key={field.id} className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200 shadow-sm relative">
                     
-                    {/* Nro de Recibo */}
                     <div className="col-span-12 md:col-span-4">
                       <Label className={labelClasses}>Nro. Recibo/Año</Label>
                       <input 
@@ -2455,7 +2451,6 @@ export default function ExpedienteForm() {
                       />
                     </div>
 
-                    {/* Fecha de Pago */}
                     <div className="col-span-12 md:col-span-4">
                       <Label className={labelClasses}>Fecha de Pago</Label>
                       <input 
@@ -2465,7 +2460,6 @@ export default function ExpedienteForm() {
                       />
                     </div>
 
-                    {/* Monto e Icono de Quitar */}
                     <div className="col-span-12 md:col-span-4 flex items-center gap-2">
                       <div className="flex-1">
                         <Label className={labelClasses}>Monto (S/.)</Label>
@@ -2478,7 +2472,6 @@ export default function ExpedienteForm() {
                         />
                       </div>
                       
-                      {/* Botón Quitar: Solo si hay más de un elemento o según tu preferencia */}
                       <button
                         type="button"
                         onClick={() => removePago(index)}
@@ -2491,7 +2484,6 @@ export default function ExpedienteForm() {
                   </div>
                 ))}
 
-                {/* Botón Agregar Pago */}
                 <div className="flex justify-start">
                   <button
                     type="button"
@@ -2503,6 +2495,7 @@ export default function ExpedienteForm() {
                   </button>
                 </div>
               </div>
+              */}
 
             </div>
           </SeccionCard>
